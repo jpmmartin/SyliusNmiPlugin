@@ -1,0 +1,5 @@
+jpm_martin_sylius_nmi_admin:
+    resource: "@JpmMartinSyliusNmiPlugin/config/routes/admin.yaml"
+
+jpm_martin_sylius_nmi_shop:
+    resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop.yaml"
