@@ -25,3 +25,25 @@
 # documentation") and leaves the Rule 4 commit footer `Refs: specs/...` pointing at
 # paths no other clone can resolve. The specs exist only in the author's working copy.
 /specs/
+
+# Claude Code working files, kept out of the published package by choice — same reasoning
+# as specs/ above. The skills are authoring tools for this repository, not part of what a
+# consumer installs. settings.local.json is per-developer by convention in any case.
+/.claude/skills/
+/.claude/settings.local.json
+
+###> graphify ###
+# graphify is a local authoring tool, not part of the published package, and nothing
+# it produces or configures belongs in the repository.
+#
+# The generated graph (graph.json, graph.html, GRAPH_REPORT.md) is a build artefact:
+# it is regenerated from the sources on every update, so tracking it would grow the
+# history with hundreds of kilobytes per rebuild while adding nothing a clone cannot
+# recreate. The hooks and merge driver would also force graphify on anyone who clones
+# this repo, and their tooling would fail without it installed.
+/graphify-out/
+/.gitattributes
+/.claude/settings.json
+/.claude/CLAUDE.md
+.claude/settings.json.graphify-bak
+###< graphify ###
