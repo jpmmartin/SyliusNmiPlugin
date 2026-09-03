@@ -1,0 +1,8 @@
+{% set nmi_pay_hook = 'jpm_martin_sylius_nmi.shop.pay' %}
+{% set prefixes = [nmi_pay_hook] %}
+
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block content %}
+    {% hook nmi_pay_hook %}
+{% endblock %}

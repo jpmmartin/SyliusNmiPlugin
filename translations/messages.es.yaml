@@ -15,3 +15,7 @@ jpm_martin_sylius_nmi:
                 sandbox: Sandbox
             use_authorize: Autorizar primero, capturar después
             use_authorize_help: Si se activa, el checkout sólo autoriza la tarjeta. El importe se captura cuando el pedido se envía o a mano desde la página del pedido.
+    shop:
+        pay:
+            heading: Pagar con tarjeta
+            amount: Importe a pagar:

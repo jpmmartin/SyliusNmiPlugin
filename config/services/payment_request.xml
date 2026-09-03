@@ -32,6 +32,26 @@
             <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="refund" />
         </service>
 
+        <!--
+            The pay page's response. One service per gateway factory, and this one decides on the
+            action itself rather than going through a second locator: there is one page.
+        -->
+        <service id="jpm_martin_sylius_nmi.provider.http_response" class="JpmMartin\SyliusNmiPlugin\Provider\NmiHttpResponseProvider">
+            <argument type="service" id="twig" />
+            <tag name="sylius.payment_request.provider.http_response" gateway-factory="nmi" />
+        </service>
+
+        <!--
+            Handlers. The bus carries the doctrine_transaction middleware, so each of these runs
+            inside a transaction that commits on return: persist, never flush.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_handler.prepare_card_payment" class="JpmMartin\SyliusNmiPlugin\CommandHandler\PrepareCardPaymentHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
         <!-- A void: the payment state machine has no void transition, so it travels as a cancel. -->
         <service id="jpm_martin_sylius_nmi.command_provider.cancel" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider">
             <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="cancel" />

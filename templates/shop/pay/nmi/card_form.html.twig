@@ -1,0 +1,26 @@
+{% set nmi = hookable_metadata.context.nmi %}
+{% set payment_request = hookable_metadata.context.payment_request %}
+
+<h1>{{ 'jpm_martin_sylius_nmi.shop.pay.heading'|trans }}</h1>
+
+<p>
+    {{ 'jpm_martin_sylius_nmi.shop.pay.amount'|trans }}
+    <strong {{ sylius_test_html_attribute('nmi-amount') }}>
+        {{ nmi.amount|sylius_format_money(nmi.currency_code, sylius.localeCode) }}
+    </strong>
+</p>
+
+{#
+    Everything the browser component needs, on the element it mounts into. The tokenization key
+    is public by design — it identifies the merchant and cannot charge anything. The amount stays
+    in minor units here because that is what the component is given, not what a shopper reads.
+#}
+<div
+    id="nmi-payment"
+    data-nmi-tokenization-key="{{ nmi.tokenization_key }}"
+    data-nmi-amount="{{ nmi.amount }}"
+    data-nmi-currency="{{ nmi.currency_code }}"
+    data-nmi-action="{{ nmi.action }}"
+    data-nmi-payment-request="{{ payment_request.id }}"
+    {{ sylius_test_html_attribute('nmi-payment') }}
+></div>

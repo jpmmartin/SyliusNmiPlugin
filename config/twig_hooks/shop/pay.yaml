@@ -1,0 +1,8 @@
+sylius_twig_hooks:
+    hooks:
+        # The pay page this plugin renders. A store, or a later change, adds to it rather than
+        # replacing the template — the 3-D Secure mount point arrives here as a second hookable.
+        'jpm_martin_sylius_nmi.shop.pay':
+            card_form:
+                template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/card_form.html.twig'
+                priority: 0

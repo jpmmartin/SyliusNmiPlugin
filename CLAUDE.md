@@ -327,6 +327,14 @@ aggregates. On PostgreSQL that makes any `SUM`/`COUNT` without a matching `GROUP
 "must appear in the GROUP BY clause". The DQL looks innocent; only the SQL shows it. Opt a query
 out with `->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [])`.
 
+**Payment-request commands must be handled synchronously.** The pay page announces the command
+and asks for an HTTP response *in the same request*, so a queued command leaves the page with
+nothing to render. Sylius routes `PaymentRequestHashAwareInterface` to the `payment_request`
+transport, whose own default is `sync://` — but **`sylius/test-application` overrides
+`SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN` to a Doctrine queue**, which silently breaks the
+flow: the command is enqueued, the state never changes, and the page redirects away with no
+error. `tests/TestApplication/.env` puts it back to `sync://`.
+
 **The payment-request command bus flushes for you.** `sylius.payment_request.command_bus` carries
 the `doctrine_transaction` middleware, so a handler runs inside a transaction that commits on
 return. Persist inside a handler; do not flush, and do not open your own transaction.

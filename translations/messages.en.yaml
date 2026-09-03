@@ -15,3 +15,7 @@ jpm_martin_sylius_nmi:
                 sandbox: Sandbox
             use_authorize: Authorize first, capture later
             use_authorize_help: When enabled, checkout only authorizes the card. The amount is captured when the order ships or by hand from the order page.
+    shop:
+        pay:
+            heading: Pay by card
+            amount: Amount to pay:
