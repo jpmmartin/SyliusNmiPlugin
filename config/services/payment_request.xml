@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <defaults public="false" />
+
+        <!--
+            The platform reaches a gateway through one command provider registered under the
+            factory name. That provider is the framework's own, indexed by action over a
+            locator private to this plugin, so nothing here can collide with another gateway's
+            providers even when both handle the same action.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_provider" class="Sylius\Bundle\PaymentBundle\CommandProvider\ActionsCommandProvider">
+            <argument type="tagged_locator" tag="jpm_martin_sylius_nmi.payment_request.command_provider" index-by="action" />
+            <tag name="sylius.payment_request.command_provider" gateway-factory="nmi" />
+        </service>
+
+        <!--
+            Both actions reach the same provider: sale versus authorise is chosen upstream from
+            the payment method's configuration, and by here it is already decided.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_provider.card_payment" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CardPaymentCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="capture" />
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="authorize" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.command_provider.refund" class="JpmMartin\SyliusNmiPlugin\CommandProvider\RefundCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="refund" />
+        </service>
+
+        <!-- A void: the payment state machine has no void transition, so it travels as a cancel. -->
+        <service id="jpm_martin_sylius_nmi.command_provider.cancel" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="cancel" />
+        </service>
+    </services>
+</container>
