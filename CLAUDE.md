@@ -90,57 +90,113 @@ config, this file) does not settle a point, **mark it as unsettled** — do not 
 answer into the gap. "The docs don't specify this; here are the two readings" is a valid, preferred
 answer.
 
-## Rule 3 — Spec-Driven Development (SDD)
+## Rule 3 — Spec-Driven Development, through OpenSpec
 
-The spec is the source of truth. Code serves the spec, not the other way around.
+This project is developed with **OpenSpec** (<https://openspec.dev>). The spec is the source of
+truth; code serves the spec, not the other way around. OpenSpec is not a convention we imitate
+by hand — it is an installed CLI with a schema, and the schema decides the artifact names, their
+order and their shape. Do not invent a parallel structure.
 
-### When SDD applies
-- New features, new endpoints, integrations, schema changes, or any change touching 3+ files.
-- Does NOT apply to: typos, one-line bug fixes, dependency bumps, formatting. Do those directly.
-- When in doubt, ask: "Does this need a spec?"
+### The two directories
 
-### Workflow (strict order, with approval gates)
-1. **Specify** — Create `specs/<NNN>-<slug>/spec.md` covering WHAT and WHY: problem statement,
-   user stories, testable acceptance criteria, out of scope. Zero implementation detail.
-   - STOP. Do not proceed until the spec is explicitly approved.
-2. **Plan** — Create `plan.md` in the same folder covering HOW: architecture, affected
-   files/modules, data model changes, API contracts, edge cases, testing strategy.
-   Open technical decisions are raised as questions, one per message, before writing the plan.
-   - STOP. Wait for approval.
-3. **Tasks** — Create `tasks.md`: a numbered checklist of small, independently verifiable tasks,
-   ordered by dependency.
-4. **Implement** — Execute one task at a time. After each task: run tests, check the box in
-   `tasks.md`, and reference the task number in the commit message (format: Rule 4).
-5. **Verify** — Before declaring anything done, walk through every acceptance criterion in
-   `spec.md` and confirm each one passes.
+```
+openspec/
+├── specs/      source of truth — how the plugin works today
+└── changes/    one folder per proposed change; archived changes merge into specs/
+```
 
-### Rules
-- Never write implementation code during Specify or Plan.
-- If implementation reveals the spec is wrong or incomplete: stop, propose a spec amendment, get
-  approval, then continue. Never diverge silently.
-- If a change is requested mid-implementation: update the spec first, then the code.
-- Ambiguous requirements = ask before speccing. Do not invent.
+A change is proposed, worked, and then **archived**, which is the step that moves it into
+`changes/archive/` under a date-prefixed name and merges its delta specs into `openspec/specs/`.
+Until a change is archived, `openspec/specs/` does not know about it.
 
-### Specs are deliberately not published
+### The four artifacts
 
-> **`specs/` is gitignored.** The SDD artifacts exist only in the author's working copy; they are
-> not part of the distributed package and no clone can see them.
+The active schema is `spec-driven`, declared in `openspec/config.yaml` and again per change in
+`<change>/.openspec.yaml`. It defines four artifacts and the order they depend on:
+
+| Artifact | File | Requires | Content |
+|---|---|---|---|
+| `proposal` | `proposal.md` | — | **Why** (1–2 sentences), **What Changes** (bullets, breaking ones marked `**BREAKING**`), **Capabilities** (which specs are created or modified), **Impact** |
+| `specs` | `specs/**/*.md` | proposal | Delta specs — WHAT the system must do |
+| `design` | `design.md` | proposal | **Context**, **Goals / Non-Goals**, **Decisions**, **Risks / Trade-offs**, **Open Questions** — HOW |
+| `tasks` | `tasks.md` | specs **and** design | The implementation checklist |
+
+`specs` and `design` both depend only on the proposal, so they can be written in either order;
+`tasks` needs both. Implementation requires `tasks`, and progress is tracked by ticking its boxes.
+
+**Delta spec shape**, which the schema enforces and validation checks:
+
+```markdown
+## ADDED Requirements          (also MODIFIED, REMOVED)
+
+### Requirement: <name>
+The system SHALL …             (SHALL/MUST for anything normative)
+
+#### Scenario: <name>
+- **WHEN** …
+- **THEN** …
+```
+
+Every requirement needs at least one scenario. A requirement with no scenario is not a
+requirement, it is a wish.
+
+**Task shape:** `## ` numbered group headings, then `- [ ] X.Y Description; verify <how>`. The
+verification clause is not decoration — a task with no stated way to check it cannot be closed
+honestly.
+
+### Working a change
+
+Drive it through the `opsx` skills rather than editing files blind: `/opsx:propose` to create a
+change and its artifacts, `/opsx:explore` to think without writing, `/opsx:apply` to implement,
+`/opsx:update` to revise artifacts and keep them coherent, `/opsx:archive` when it is finished.
+`openspec status --change <name> --json` reports where a change stands and which files are its
+artifacts — read that rather than assuming paths.
+
+### Gates and obligations
+
+- **Never write implementation code while writing a proposal, spec or design.**
+- Each artifact is approved before the next is built on it.
+- **If implementation shows the spec is wrong or incomplete: stop, propose the amendment, get
+  approval, then continue. Never diverge silently.** A change requested mid-implementation
+  updates the artifacts first and the code second.
+- Only tick a task when the behaviour it names is actually delivered and verified — never
+  because it is nearly done, partly done or deferred. If a task turns out to describe work that
+  cannot be done, rewrite the task and say so in it; do not tick it and do not quietly drop it.
+- Ambiguous requirements are asked about, not invented (Rule 2).
+
+### When it applies
+
+New features, endpoints, integrations, schema changes, or anything touching three or more files.
+Not typos, one-line fixes, dependency bumps or formatting — do those directly. In doubt, ask.
+
+### The planning record is private, and that is deliberate
+
+> **`openspec/` is gitignored and stays that way.** It holds this project's whole planning
+> record: proposals, delta specs, designs, task lists and the evidence behind each decision.
+>
+> The reasons, so no future session reopens them:
+> - This is a **community plugin**. What is published is the plugin. How its author documents
+>   his own development is his, and is not part of what a consumer installs.
+> - There is **one developer**. The artifacts coordinate him with his tools, not a team.
 >
 > Two consequences, stated so nobody is surprised:
-> - The `Refs: specs/…` footer in Rule 4 is a **local navigation aid only**. It resolves on the
->   author's machine and nowhere else.
-> - The specs are not backed up by the repository. Losing the working copy loses them.
+> - A commit footer referencing a change and task number is a **local navigation aid only**. It
+>   resolves in the author's working copy and nowhere else. Reference them anyway — they are
+>   worth more to the author than they cost the reader.
+> - **The repository does not back these artifacts up.** Losing the working copy loses them.
+>   That is understood and accepted, and **keeping a copy is the author's own business, not work
+>   this project tracks.** Do not add it as a task, do not raise it as a risk, do not offer to
+>   sync it anywhere.
 >
-> Do not "fix" this by committing `specs/`. It is a decision, not an oversight.
+> Do not "fix" any of this by committing `openspec/`. It is a decision, not an oversight.
 
-### Spec quality bar
-- Acceptance criteria must be verifiable ("returns 404 when X", not "handles errors properly").
-- One spec = one feature. Split anything bigger.
+### Interaction between Rule 3 and Rule 1
 
-### Interaction between SDD and Rule 1
-Rule 1 fires hardest during **Plan**: every architectural option written into `plan.md` must be
-backed by pinned-version docs or `vendor/` source, and the plan must record what was checked. A
-`plan.md` containing an unverified claim about how Sylius or NMI behaves is a defective plan.
+Rule 1 fires hardest during **design**: every architectural option written into `design.md` must
+be backed by pinned-version docs, `vendor/` source, or an experiment actually run — and the
+design must record what was checked. A `design.md` containing an unverified claim about how
+Sylius or NMI behaves is a defective design. When an experiment contradicts a published
+document, the experiment wins and the design says so.
 
 ## Rule 4 — Conventional Commits
 
@@ -172,6 +228,16 @@ Every commit message follows [Conventional Commits v1.0.0](https://www.conventio
 | `revert` | Reverting a previous commit |
 
 Note `docs`, not `doc`.
+
+### Referencing the change a commit implements
+
+Work driven by an OpenSpec change carries a footer naming the change and the task:
+
+```
+Refs: nmi-payment-gateway 4.3
+```
+
+Rule 3 already states why this resolves only in the author's working copy. Write it anyway.
 
 ### SemVer is binding here
 
@@ -267,10 +333,16 @@ the payment-request contract.
 ## Repository layout
 
 ```
-src/JpmMartinSyliusNmiPlugin.php                     bundle class (SyliusPluginTrait)
-src/DependencyInjection/JpmMartinSyliusNmiExtension.php   service loading, migrations
+src/JpmMartinSyliusNmiPlugin.php                          bundle class (AbstractResourceBundle + SyliusPluginTrait)
+src/DependencyInjection/JpmMartinSyliusNmiExtension.php   service loading, resources, migrations namespace
 src/DependencyInjection/Configuration.php
-config/services.xml, config/routes/, config/twig_hooks/
+src/Gateway/                                              client, configuration, responses, exceptions
+src/Command/  src/CommandProvider/                        payment-request messages and their providers
+src/Entity/  src/Repository/  src/Migrations/             the transaction log
+src/Form/Type/                                            gateway configuration form
+config/services.xml  config/services/**                   services.xml imports services/**
+config/doctrine/model/                                    the entity mapping, next to the rest of the config
+config/routes/  config/twig_hooks/
 templates/{admin,shop}/          assets/{admin,shop}/          translations/
 features/                        Behat feature files
 tests/{Unit,Integration,Functional,Behat,TestApplication}/
@@ -282,24 +354,37 @@ The plugin is exercised through `sylius/test-application`, which supplies the ke
 
 ```bash
 composer install
+composer check                   # ECS, then PHPStan, then PHPUnit, then Behat — the gate
 vendor/bin/console               # test-application's console
-vendor/bin/phpunit               # see the caveat below
-vendor/bin/behat                 # see the caveat below
+vendor/bin/phpunit               # suites: Unit, Integration, Functional
+vendor/bin/behat --no-interaction
 vendor/bin/phpstan analyse src/
-vendor/bin/ecs check src/
+vendor/bin/ecs check src tests
 ```
 
-> **Caveat, verified:** this repository ships **no** `phpunit.xml.dist`, `behat.yml.dist`,
-> `phpstan.neon` or `ecs.php`. The binaries are installed but unconfigured, so the commands above
-> will not do anything useful until those files exist. Creating them is outstanding work, not a
-> documentation gap.
+`sylius/test-application` supplies no runner configuration of its own, so `phpunit.xml.dist`,
+`behat.yml.dist`, `phpstan.neon` and `ecs.php` are this repository's, written from scratch. The
+PHPUnit bootstrap is `tests/bootstrap.php`, which defaults `APP_ENV` to `test` before handing
+over to the test application's own bootstrap.
 
-There is **no Makefile**. Docker is available directly — `compose.yml` defines `php` (8.3-alpine),
-`mysql` 8.4, `nginx` and `mailhog`; copy `compose.override.dist.yml` to `compose.override.yml` first:
+> **Behat prompts for snippet generation** when a step is undefined, which looks exactly like a
+> hang. Always pass `--no-interaction`; the composer scripts already do.
+
+> **Symfony's translator caches the catalogue file list.** After adding a translation file,
+> `rm -rf var/cache/test` before trusting a Behat result. Note the cache lives at the repository
+> root, not under `tests/TestApplication/`.
+
+There is **no Makefile**. Docker is available directly — `compose.yml` defines `php`, `mysql` 8.4,
+`postgres` 16, `nginx` and `mailhog`; copy `compose.override.dist.yml` to `compose.override.yml`
+first:
 
 ```bash
 docker compose up -d
 ```
+
+The `php` service is **built from this repository's `Dockerfile`**, not pulled: the published
+`ghcr.io/sylius/sylius-php` image ships `pdo_mysql` only, and the test suite runs on PostgreSQL.
+The base image is a build argument so an override can still select the xdebug variant.
 
 ### Composer scripts — one of them destroys data
 

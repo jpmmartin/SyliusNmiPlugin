@@ -31,10 +31,9 @@
 # Generated per machine by `vendor/bin/console sylius:payment:generate-key`; never a shared secret.
 /tests/TestApplication/config/encryption/
 
-# Spec-Driven Development artifacts, kept out of the published package by choice.
-# Note this diverges from CLAUDE.md Rule 3 ("specs stay in the repo as living
-# documentation") and leaves the Rule 4 commit footer `Refs: specs/...` pointing at
-# paths no other clone can resolve. The specs exist only in the author's working copy.
+# Left from the hand-rolled spec workflow this project used before adopting OpenSpec.
+# No specs/ directory exists any more — the planning record lives in openspec/, ignored
+# below for the same reason. Kept as a guard so a stray specs/ can never be committed.
 /specs/
 
 # Claude Code working files, kept out of the published package by choice — same reasoning
@@ -63,10 +62,9 @@
 # OpenSpec is a local planning tool, and everything it produces is the same class of
 # material as specs/ above: proposals, delta specs, designs and task lists.
 #
-# CLAUDE.md Rule 3 already decided that this project's planning artifacts live only in
-# the author's working copy and are not part of the published package. Tracking
-# openspec/ would reverse that decision through the back door, publishing the same
-# reasoning specs/ deliberately withholds.
+# CLAUDE.md Rule 3 decides this: the planning record is private. This is a community
+# plugin with a single developer — what ships is the plugin, not the author's record of
+# how he documented building it. Tracking openspec/ would reverse that decision.
 #
 # .claude/commands/opsx/* are the CLI's slash commands — authoring tools for whoever
 # writes the specs, never something a consumer of this plugin installs. Same reasoning
