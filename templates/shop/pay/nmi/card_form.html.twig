@@ -22,5 +22,8 @@
     data-nmi-currency="{{ nmi.currency_code }}"
     data-nmi-action="{{ nmi.action }}"
     data-nmi-payment-request="{{ payment_request.id }}"
+    {# Where the token goes once the browser has it, and the token that proves the shopper asked. #}
+    data-nmi-action-url="{{ path('jpm_martin_sylius_nmi_shop_complete_card_payment', { hash: payment_request.id }) }}"
+    data-nmi-csrf-token="{{ csrf_token('jpm_martin_sylius_nmi_pay_' ~ payment_request.id) }}"
     {{ sylius_test_html_attribute('nmi-payment') }}
 ></div>

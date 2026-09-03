@@ -5,15 +5,6 @@ declare(strict_types=1);
 namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Pay;
 
 use Doctrine\ORM\EntityManagerInterface;
-use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
-use Sylius\Component\Core\Model\Channel;
-use Sylius\Component\Core\Model\Order;
-use Sylius\Component\Core\Model\Payment;
-use Sylius\Component\Core\Model\PaymentMethod;
-use Sylius\Component\Currency\Model\Currency;
-use Sylius\Component\Locale\Model\Locale;
-use Sylius\Component\Payment\Model\GatewayConfigInterface;
-use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -27,7 +18,13 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class NmiPayPageTest extends WebTestCase
 {
+    use BuildsAnNmiPaymentRequest;
+
     private const TOKENIZATION_KEY = 'tok-public-0123';
+
+    private const SECURITY_KEY = 'sec-private-4567';
+
+    private const AMOUNT = 1299;
 
     private KernelBrowser $client;
 
@@ -81,7 +78,7 @@ final class NmiPayPageTest extends WebTestCase
         self::assertSame('USD', $mount->attr('data-nmi-currency'));
 
         // The private key must never reach the browser.
-        self::assertStringNotContainsString('sec-private-4567', (string) $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString(self::SECURITY_KEY, (string) $this->client->getResponse()->getContent());
     }
 
     /** A finished request has nothing left to collect, so the platform sends the shopper onward. */
@@ -94,72 +91,8 @@ final class NmiPayPageTest extends WebTestCase
         self::assertResponseRedirects();
     }
 
-    private function newPaymentRequest(string $state = PaymentRequestInterface::STATE_NEW): PaymentRequest
+    protected function paymentRequestManager(): EntityManagerInterface
     {
-        $currency = $this->manager->getRepository(Currency::class)->findOneBy(['code' => 'USD']) ?? new Currency();
-        $currency->setCode('USD');
-        $this->manager->persist($currency);
-
-        $locale = $this->manager->getRepository(Locale::class)->findOneBy(['code' => 'en_US']) ?? new Locale();
-        $locale->setCode('en_US');
-        $this->manager->persist($locale);
-
-        $channel = new Channel();
-        $channel->setCode('nmi_test_' . bin2hex(random_bytes(4)));
-        $channel->setName('NMI test channel');
-        $channel->setHostname('localhost');
-        $channel->setBaseCurrency($currency);
-        $channel->setDefaultLocale($locale);
-        $channel->addLocale($locale);
-        $channel->addCurrency($currency);
-        $channel->setEnabled(true);
-        $channel->setTaxCalculationStrategy('order_items_based');
-        $this->manager->persist($channel);
-
-        // Never `new GatewayConfig()`: registering SyliusPayumBundle swaps the concrete class,
-        // so the resource factory is the only thing that knows which one this store uses.
-        /** @var GatewayConfigInterface $gatewayConfig */
-        $gatewayConfig = self::getContainer()->get('sylius.factory.gateway_config')->createNew();
-        $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
-        $gatewayConfig->setFactoryName(NmiGatewayFactory::NAME);
-        $gatewayConfig->setConfig([
-            NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => self::TOKENIZATION_KEY,
-            NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-private-4567',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
-            NmiGatewayFactory::CONFIG_USE_AUTHORIZE => false,
-        ]);
-
-        $paymentMethod = new PaymentMethod();
-        $paymentMethod->setCode('nmi_card_' . bin2hex(random_bytes(4)));
-        $paymentMethod->setCurrentLocale('en_US');
-        $paymentMethod->setFallbackLocale('en_US');
-        $paymentMethod->setName('Card');
-        $paymentMethod->setGatewayConfig($gatewayConfig);
-        $paymentMethod->setEnabled(true);
-        $paymentMethod->addChannel($channel);
-        $this->manager->persist($gatewayConfig);
-        $this->manager->persist($paymentMethod);
-
-        $order = new Order();
-        $order->setChannel($channel);
-        $order->setCurrencyCode('USD');
-        $order->setLocaleCode('en_US');
-        $this->manager->persist($order);
-
-        $payment = new Payment();
-        $payment->setOrder($order);
-        $payment->setCurrencyCode('USD');
-        $payment->setAmount(1299);
-        $payment->setMethod($paymentMethod);
-        $this->manager->persist($payment);
-
-        $paymentRequest = new PaymentRequest($payment, $paymentMethod);
-        $paymentRequest->setAction(PaymentRequestInterface::ACTION_CAPTURE);
-        $paymentRequest->setState($state);
-        $this->manager->persist($paymentRequest);
-
-        $this->manager->flush();
-
-        return $paymentRequest;
+        return $this->manager;
     }
 }

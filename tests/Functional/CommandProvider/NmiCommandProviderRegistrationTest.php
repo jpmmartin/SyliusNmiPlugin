@@ -9,6 +9,7 @@ use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\CardPaymentCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\RefundCommandProvider;
+use JpmMartin\SyliusNmiPlugin\CommandProvider\StatusCommandProvider;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
 use Sylius\Bundle\PaymentBundle\CommandProvider\ServiceProviderAwareCommandProviderInterface;
 use Sylius\Bundle\PaymentBundle\Exception\PaymentRequestNotSupportedException;
@@ -46,6 +47,9 @@ final class NmiCommandProviderRegistrationTest extends KernelTestCase
                 PaymentRequestInterface::ACTION_AUTHORIZE,
                 PaymentRequestInterface::ACTION_REFUND,
                 PaymentRequestInterface::ACTION_CANCEL,
+                // Not optional: the pay flow ends by minting a status request, and a gateway
+                // that does not answer it turns every successful payment into an error page.
+                PaymentRequestInterface::ACTION_STATUS,
             ],
             $this->nmiProvider()->getCommandProviderIndexes(),
         );
@@ -65,6 +69,7 @@ final class NmiCommandProviderRegistrationTest extends KernelTestCase
         yield 'authorising first' => [PaymentRequestInterface::ACTION_AUTHORIZE, CardPaymentCommandProvider::class];
         yield 'refunding' => [PaymentRequestInterface::ACTION_REFUND, RefundCommandProvider::class];
         yield 'voiding' => [PaymentRequestInterface::ACTION_CANCEL, CancelCommandProvider::class];
+        yield 'reporting status' => [PaymentRequestInterface::ACTION_STATUS, StatusCommandProvider::class];
     }
 
     /**

@@ -11,6 +11,13 @@
 
     <services>
         <service id="JpmMartin\SyliusNmiPlugin\Controller\GreetingController" autowire="true" autoconfigure="true" public="true" />
-        <!-- Put your services here -->
+
+        <service id="JpmMartin\SyliusNmiPlugin\Controller\CompleteCardPaymentAction" public="true">
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="security.csrf.token_manager" />
+            <argument type="service" id="sylius_shop.provider.order_pay.after_pay_url" />
+            <argument type="service" id="translator" />
+        </service>
     </services>
 </container>

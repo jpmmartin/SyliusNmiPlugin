@@ -52,6 +52,29 @@
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 
+        <service id="jpm_martin_sylius_nmi.command_handler.complete_card_payment" class="JpmMartin\SyliusNmiPlugin\CommandHandler\CompleteCardPaymentHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.command_handler.report_payment_status" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ReportPaymentStatusHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!--
+            The pay flow ends by minting a status request. Every gateway has to answer it: without
+            this the shopper's last redirect fails with an unsupported-action error.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_provider.status" class="JpmMartin\SyliusNmiPlugin\CommandProvider\StatusCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="status" />
+        </service>
+
         <!-- A void: the payment state machine has no void transition, so it travels as a cancel. -->
         <service id="jpm_martin_sylius_nmi.command_provider.cancel" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider">
             <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="cancel" />

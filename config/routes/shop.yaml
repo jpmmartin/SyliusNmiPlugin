@@ -11,3 +11,11 @@ jpm_martin_sylius_nmi_dynamic_welcome:
     defaults:
         _controller: JpmMartin\SyliusNmiPlugin\Controller\GreetingController::dynamicallyGreetAction
         name: ~
+
+# Where the card form posts the token it obtained in the browser. There is no platform route
+# that accepts a payload for an existing payment request, so this one carries it.
+jpm_martin_sylius_nmi_shop_complete_card_payment:
+    path: /nmi/pay/{hash}
+    methods: [POST]
+    defaults:
+        _controller: JpmMartin\SyliusNmiPlugin\Controller\CompleteCardPaymentAction
