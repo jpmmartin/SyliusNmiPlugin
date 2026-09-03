@@ -320,6 +320,17 @@ assuming `void` exists yields an `UndefinedTransitionException` at runtime. **Vo
 API — all read-only for payment requests. After an `authorize`, nothing in Sylius will ever capture.
 The plugin must supply the trigger.
 
+**Every DQL query is silently ordered by id.** `SyliusCoreBundle::boot()` installs
+`OrderByIdentifierSqlWalker` as a *default query hint* whenever `sylius_core.order_by_identifier`
+is on, and it appends `ORDER BY <identifier> ASC` to the generated SQL without exempting
+aggregates. On PostgreSQL that makes any `SUM`/`COUNT` without a matching `GROUP BY` fail with
+"must appear in the GROUP BY clause". The DQL looks innocent; only the SQL shows it. Opt a query
+out with `->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [])`.
+
+**The payment-request command bus flushes for you.** `sylius.payment_request.command_bus` carries
+the `doctrine_transaction` middleware, so a handler runs inside a transaction that commits on
+return. Persist inside a handler; do not flush, and do not open your own transaction.
+
 **Free from core, do not reimplement:** gateway-config and PaymentRequest encryption; the two webhook
 routes `/payment-requests/{hash}` and `/payment-methods/{code}`; duplicate suppression via
 `PaymentRequestDuplicationChecker`, which prevents a second capture for the same action, payment and

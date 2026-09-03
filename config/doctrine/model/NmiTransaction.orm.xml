@@ -13,6 +13,7 @@
     <mapped-superclass name="JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction" table="jpm_martin_sylius_nmi_transaction">
         <indexes>
             <index name="idx_jpm_martin_sylius_nmi_transaction_transaction_id" columns="transaction_id" />
+            <index name="idx_jpm_martin_sylius_nmi_transaction_parent" columns="parent_transaction_id" />
         </indexes>
 
         <unique-constraints>
@@ -26,6 +27,8 @@
 
         <field name="transactionId" column="transaction_id" type="string" length="64" />
         <field name="type" column="type" type="string" length="16" />
+        <!-- Only a refund sets this: it is the transaction being refunded, which has its own row. -->
+        <field name="parentTransactionId" column="parent_transaction_id" type="string" length="64" nullable="true" />
         <field name="amount" column="amount" type="integer" />
         <field name="currencyCode" column="currency_code" type="string" length="3" />
         <field name="authCode" column="auth_code" type="string" length="32" nullable="true" />

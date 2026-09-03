@@ -16,6 +16,8 @@ class NmiTransaction implements NmiTransactionInterface
 
     protected ?string $type = null;
 
+    protected ?string $parentTransactionId = null;
+
     protected ?int $amount = null;
 
     protected ?string $currencyCode = null;
@@ -54,6 +56,16 @@ class NmiTransaction implements NmiTransactionInterface
     public function setTransactionId(?string $transactionId): void
     {
         $this->transactionId = $transactionId;
+    }
+
+    public function getParentTransactionId(): ?string
+    {
+        return $this->parentTransactionId;
+    }
+
+    public function setParentTransactionId(?string $parentTransactionId): void
+    {
+        $this->parentTransactionId = $parentTransactionId;
     }
 
     public function getType(): ?string

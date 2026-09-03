@@ -20,4 +20,18 @@ interface NmiTransactionRepositoryInterface extends RepositoryInterface
      * @return list<NmiTransactionInterface>
      */
     public function findByTransactionId(string $transactionId): array;
+
+    /**
+     * The one row for an operation on a transaction, or null. The pair is unique in the
+     * schema, so this is what makes recording the same gateway answer twice a no-op instead
+     * of a constraint violation.
+     */
+    public function findOneByTransactionIdAndType(string $transactionId, string $type): ?NmiTransactionInterface;
+
+    /**
+     * What has been refunded against one transaction, in minor units, as a negative number
+     * or zero. The gateway keeps this balance and refuses a refund beyond it, but will not
+     * report it, so the store has to keep its own count.
+     */
+    public function sumRefundedAgainst(string $transactionId): int;
 }

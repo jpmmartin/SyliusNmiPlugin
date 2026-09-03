@@ -56,7 +56,7 @@ final class NmiTransactionResourceTest extends KernelTestCase
 
         self::assertFalse($metadata->isMappedSuperclass);
         self::assertSame('jpm_martin_sylius_nmi_transaction', $metadata->getTableName());
-        self::assertEqualsCanonicalizing(['id', 'transactionId', 'type', 'amount', 'currencyCode', 'authCode', 'createdAt', 'settledAt'], $metadata->getFieldNames());
+        self::assertEqualsCanonicalizing(['id', 'transactionId', 'type', 'parentTransactionId', 'amount', 'currencyCode', 'authCode', 'createdAt', 'settledAt'], $metadata->getFieldNames());
         self::assertSame('payment_id', $metadata->getSingleAssociationJoinColumnName('payment'));
     }
 }

@@ -38,6 +38,18 @@ interface NmiTransactionInterface extends ResourceInterface
 
     public function setType(?string $type): void;
 
+    /**
+     * The transaction this one acts on, set only for a refund. The gateway issues a refund as a
+     * transaction of its own with a fresh identifier, and never records it against the one it
+     * reverses — a capture or a void reuse their authorisation's identifier and leave this null.
+     *
+     * It matters because the gateway tracks the refundable balance per *transaction*: it refuses
+     * a refund beyond that balance, and will not report what the balance is.
+     */
+    public function getParentTransactionId(): ?string;
+
+    public function setParentTransactionId(?string $parentTransactionId): void;
+
     /** In the currency's minor unit, as Sylius stores every amount. */
     public function getAmount(): ?int;
 
