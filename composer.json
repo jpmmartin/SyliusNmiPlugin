@@ -78,6 +78,17 @@
         }
     },
     "scripts": {
+        "check": [
+            "@ecs",
+            "@phpstan",
+            "@phpunit",
+            "@behat"
+        ],
+        "ecs": "vendor/bin/ecs check",
+        "phpstan": "vendor/bin/phpstan analyse",
+        "phpunit": "vendor/bin/phpunit",
+        "behat": "vendor/bin/behat --strict --no-interaction --tags \"~@javascript\"",
+        "behat-js": "vendor/bin/behat --strict --no-interaction --tags \"@javascript\"",
         "database-reset": [
             "vendor/bin/console doctrine:database:drop --force --if-exists",
             "vendor/bin/console doctrine:database:create",
@@ -92,5 +103,13 @@
             "@database-reset",
             "@frontend-clear"
         ]
+    },
+    "scripts-descriptions": {
+        "check": "ECS, PHPStan, PHPUnit and Behat (non-JavaScript), stopping at the first failure",
+        "ecs": "Coding standard (sylius-labs/coding-standard), check only",
+        "phpstan": "Static analysis of src/ at the level set in phpstan.neon",
+        "phpunit": "PHPUnit suites (Unit, Integration, Functional)",
+        "behat": "Behat scenarios that need no browser; needs the test database migrated",
+        "behat-js": "Behat @javascript scenarios; needs a web server on BEHAT_BASE_URL and Chrome on 127.0.0.1:9222"
     }
 }

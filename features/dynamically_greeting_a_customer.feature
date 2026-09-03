@@ -4,6 +4,9 @@ Feature: Dynamically greeting a customer
     As a Store Owner
     I want to welcome new customers dynamically
 
+    Background:
+        Given the store operates on a single channel
+
     Scenario: Dynamically greeting a customer with an unknown name
         When a customer with an unknown name visits dynamic welcome page
         Then they should be dynamically greeted with "Hello!"

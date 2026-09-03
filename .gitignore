@@ -17,6 +17,14 @@
 /.php-version
 /php.ini
 
+# Per-developer IDE settings. They belong to a machine, not to a published package.
+/.idea/
+/.vscode/
+/*.iml
+
+# PHPUnit 10 result cache (cacheDirectory in phpunit.xml.dist).
+/.phpunit.cache/
+
 /tests/TestApplication/.env.local
 /tests/TestApplication/.env.*.local
 

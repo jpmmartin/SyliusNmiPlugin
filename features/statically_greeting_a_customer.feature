@@ -4,6 +4,9 @@ Feature: Statically greeting a customer
     As a Store Owner
     I want to welcome new customers
 
+    Background:
+        Given the store operates on a single channel
+
     Scenario: Statically greeting a customer with an unknown name
         When a customer with an unknown name visits static welcome page
         Then they should be statically greeted with "Hello!"

@@ -1,0 +1,11 @@
+# phpstan/extension-installer is not a dependency, so the extensions are included by hand.
+includes:
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+    - vendor/phpstan/phpstan-webmozart-assert/extension.neon
+
+parameters:
+    # Level 8 to start; the installed PHPStan is 1.12.x, whose ceiling is 9.
+    level: 8
+
+    paths:
+        - src
