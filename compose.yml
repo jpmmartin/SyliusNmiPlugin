@@ -1,6 +1,10 @@
 services:
     php:
-        image: ghcr.io/sylius/sylius-php:8.3-alpine
+        # Built from the Dockerfile in this directory: Sylius's PHP image plus pdo_pgsql.
+        build:
+            context: .
+            args:
+                PHP_IMAGE: ghcr.io/sylius/sylius-php:8.3-alpine
     mysql:
         image: mysql:8.4
         platform: linux/amd64
@@ -13,6 +17,17 @@ services:
             MYSQL_ALLOW_EMPTY_PASSWORD: 1
         cap_add:
             - SYS_NICE # prevent "mbind: Operation not permitted" errors
+    postgres:
+        # The engine the test suite runs on. MySQL stays alongside it because the plugin's
+        # migrations are verified on both.
+        image: postgres:16-alpine
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U postgres']
+            timeout: 3s
+            interval: 1s
+            retries: 10
+        environment:
+            POSTGRES_PASSWORD: postgres
     nginx:
         image: ghcr.io/sylius/sylius-nginx:latest
         depends_on:

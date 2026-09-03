@@ -1,15 +1,19 @@
 services:
     php:
-        image: ghcr.io/sylius/sylius-php:8.3-fixuid-xdebug-alpine
+        build:
+            args:
+                PHP_IMAGE: ghcr.io/sylius/sylius-php:8.3-fixuid-xdebug-alpine
         user: ${DOCKER_USER:-1000:1000}
         depends_on:
+            postgres:
+                condition: service_healthy
             mysql:
                 condition: service_healthy
         environment:
             # You can move these environment variables to your .env.local file
             APP_ENV: ${ENV:-prod}
             APP_SECRET: EDITME
-            DATABASE_URL: "mysql://root@mysql/sylius_%kernel.environment%"
+            DATABASE_URL: "postgresql://postgres:postgres@postgres/sylius_%kernel.environment%?serverVersion=16&charset=utf8"
             MAILER_DSN: smtp://mailhog:1025
             MESSENGER_TRANSPORT_DSN: doctrine://default
             SYLIUS_MESSENGER_TRANSPORT_MAIN_DSN: doctrine://default
@@ -41,6 +45,11 @@ services:
             - mysql-data:/var/lib/mysql:rw
         ports:
             - "3306:3306"
+    postgres:
+        volumes:
+            - postgres-data:/var/lib/postgresql/data:rw
+        ports:
+            - "5432:5432"
     nginx:
         environment:
             WORKING_DIR: /srv/sylius/vendor/sylius/test-application
@@ -69,4 +78,5 @@ services:
 
 volumes:
     mysql-data:
+    postgres-data:
     public-media:
