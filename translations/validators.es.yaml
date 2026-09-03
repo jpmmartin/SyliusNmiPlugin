@@ -1,0 +1,9 @@
+jpm_martin_sylius_nmi:
+    gateway_config:
+        tokenization_key:
+            not_blank: Introduce la clave de tokenización.
+        security_key:
+            not_blank: Introduce la clave de seguridad.
+        environment:
+            not_blank: Elige un entorno.
+            invalid: El entorno elegido no es válido.

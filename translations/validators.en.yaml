@@ -1,0 +1,9 @@
+jpm_martin_sylius_nmi:
+    gateway_config:
+        tokenization_key:
+            not_blank: Please enter the tokenization key.
+        security_key:
+            not_blank: Please enter the security key.
+        environment:
+            not_blank: Please choose an environment.
+            invalid: The chosen environment is not valid.

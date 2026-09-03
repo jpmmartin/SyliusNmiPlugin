@@ -1,0 +1,13 @@
+# Sylius renders the gateway-specific part of the payment method form through the hooks
+# `...sections.gateway_configuration.<factory name>` on both the create and the update page.
+sylius_twig_hooks:
+    hooks:
+        'sylius_admin.payment_method.create.content.form.sections.gateway_configuration.nmi':
+            fields:
+                template: '@JpmMartinSyliusNmiPlugin/admin/payment_method/form/gateway_configuration/nmi.html.twig'
+                priority: 0
+
+        'sylius_admin.payment_method.update.content.form.sections.gateway_configuration.nmi':
+            fields:
+                template: '@JpmMartinSyliusNmiPlugin/admin/payment_method/form/gateway_configuration/nmi.html.twig'
+                priority: 0

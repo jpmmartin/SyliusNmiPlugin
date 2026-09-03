@@ -1,10 +1,43 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
 <container xmlns="http://symfony.com/schema/dic/services" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+    <parameters>
+        <!--
+            Sylius's payment method pages, subclassed so they know this plugin's gateway fields.
+            Overriding the class parameters keeps every Sylius context that uses these pages working.
+        -->
+        <parameter key="sylius.behat.page.admin.payment_method.create.class">Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Admin\PaymentMethod\CreatePage</parameter>
+        <parameter key="sylius.behat.page.admin.payment_method.update.class">Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Admin\PaymentMethod\UpdatePage</parameter>
+        <parameter key="sylius.behat.page.admin.payment_method.index.class">Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Admin\PaymentMethod\IndexPage</parameter>
+    </parameters>
+
     <services>
         <defaults public="true" />
-        <!-- Put your Behat services here -->
 
+        <!--
+            Sylius's context maps a gateway factory's label to its name through a hard-coded list
+            that only knows "Offline". Redefined here with NMI added, so
+            "I want to create a new payment method with "NMI" gateway factory" resolves.
+        -->
+        <service id="sylius.behat.context.ui.admin.managing_payment_methods" class="Sylius\Behat\Context\Ui\Admin\ManagingPaymentMethodsContext">
+            <argument type="service" id="sylius.behat.page.admin.payment_method.create" />
+            <argument type="service" id="sylius.behat.page.admin.payment_method.index" />
+            <argument type="service" id="sylius.behat.page.admin.payment_method.update" />
+            <argument type="service" id="sylius.behat.current_page_resolver" />
+            <argument type="collection">
+                <argument key="offline">Offline</argument>
+                <argument key="nmi">NMI</argument>
+            </argument>
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.context.ui.admin.managing_nmi_payment_methods" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Admin\ManagingNmiPaymentMethodsContext">
+            <argument type="service" id="sylius.behat.page.admin.payment_method.create" />
+            <argument type="service" id="sylius.behat.page.admin.payment_method.update" />
+            <argument type="service" id="sylius.behat.page.admin.payment_method.index" />
+            <argument type="service" id="doctrine.dbal.default_connection" />
+        </service>
+
+        <!-- Skeleton demo, retained until the plugin's own wiring replaces it as the reference. -->
         <service id="jpm_martin_sylius_nmi.context.ui.shop.welcome" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Shop\WelcomeContext">
             <argument type="service" id="jpm_martin_sylius_nmi.page.shop.static_welcome" />
             <argument type="service" id="jpm_martin_sylius_nmi.page.shop.dynamic_welcome" />

@@ -1,0 +1,17 @@
+jpm_martin_sylius_nmi:
+    gateway_factory:
+        nmi: NMI
+    form:
+        gateway_config:
+            tokenization_key: Tokenization key
+            tokenization_key_help: The public key with the Tokenization permission. The browser uses it to tokenize card details, so it is visible to shoppers.
+            security_key: Security key
+            security_key_help: The private API key. The store uses it to charge, capture, void and refund; it is stored encrypted and never sent to the browser.
+            environment: Environment
+            environment_help: Sandbox sends transactions to NMI's sandbox gateway; Production sends them to the live gateway.
+            environments:
+                placeholder: Choose an environment
+                production: Production
+                sandbox: Sandbox
+            use_authorize: Authorize first, capture later
+            use_authorize_help: When enabled, checkout only authorizes the card. The amount is captured when the order ships or by hand from the order page.

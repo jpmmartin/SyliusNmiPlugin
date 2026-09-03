@@ -28,6 +28,9 @@
 /tests/TestApplication/.env.local
 /tests/TestApplication/.env.*.local
 
+# Generated per machine by `vendor/bin/console sylius:payment:generate-key`; never a shared secret.
+/tests/TestApplication/config/encryption/
+
 # Spec-Driven Development artifacts, kept out of the published package by choice.
 # Note this diverges from CLAUDE.md Rule 3 ("specs stay in the repo as living
 # documentation") and leaves the Rule 4 commit footer `Refs: specs/...` pointing at

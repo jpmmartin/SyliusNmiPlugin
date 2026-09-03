@@ -1,0 +1,14 @@
+{% set config = hookable_metadata.context.form.gatewayConfig.config %}
+
+<div class="col-12 col-md-6">
+    {{ form_row(config.tokenization_key, sylius_test_form_attribute('nmi-tokenization-key')) }}
+</div>
+<div class="col-12 col-md-6">
+    {{ form_row(config.security_key, sylius_test_form_attribute('nmi-security-key')) }}
+</div>
+<div class="col-12 col-md-6">
+    {{ form_row(config.environment, sylius_test_form_attribute('nmi-environment')) }}
+</div>
+<div class="col-12 col-md-6 mt-5">
+    {{ form_row(config.use_authorize, sylius_test_form_attribute('nmi-use-authorize')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
+</div>
