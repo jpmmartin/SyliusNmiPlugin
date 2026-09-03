@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
@@ -75,6 +76,10 @@ final class CompleteCardPaymentAction
         // a resubmitted form, and charging it a second time is the thing this must never do.
         if (PaymentRequestInterface::STATE_PROCESSING !== $paymentRequest->getState()) {
             throw new NotFoundHttpException('That payment request is not waiting for a card.');
+        }
+
+        if ('' === trim((string) $request->request->get('payment_token'))) {
+            throw new BadRequestHttpException('A payment token is required.');
         }
 
         if (!$this->csrfTokenManager->isTokenValid(new CsrfToken(self::CSRF_TOKEN_ID_PREFIX . $hash, (string) $request->request->get('_csrf_token')))) {

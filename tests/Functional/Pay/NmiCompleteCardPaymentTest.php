@@ -16,6 +16,7 @@ use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
 /**
@@ -198,15 +199,37 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
         self::assertSame(PaymentInterface::STATE_NEW, $paymentRequest->getPayment()->getState());
     }
 
-    public function testAPostWithNoTokenChargesNothing(): void
+    public function testAPostWithNoTokenIsRefused(): void
     {
         $paymentRequest = $this->processingRequest();
 
+        $this->expectException(BadRequestHttpException::class);
+
         $this->post($paymentRequest, []);
+    }
+
+    /**
+     * The pay page announces the charging command on every view once the request is in progress,
+     * so a shopper who simply reloads arrives at the handler with nothing to charge. That has to
+     * leave the request alone and show the form again — failing it would destroy a payment
+     * because someone pressed refresh. Found in a browser, not in a test.
+     */
+    public function testReloadingThePayPageDoesNotDestroyThePayment(): void
+    {
+        $paymentRequest = $this->processingRequest();
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('#nmi-payment'), 'The card form must still be there.');
+        self::assertNull($this->gateway->lastOperation, 'The gateway must not be called without a token.');
 
         $paymentRequest = $this->reload($paymentRequest);
-        self::assertSame(PaymentRequestInterface::STATE_FAILED, $paymentRequest->getState());
-        self::assertNull($this->gateway->lastOperation, 'The gateway must not be called without a token.');
+        self::assertSame(PaymentRequestInterface::STATE_PROCESSING, $paymentRequest->getState());
+        self::assertSame(PaymentInterface::STATE_NEW, $paymentRequest->getPayment()->getState());
     }
 
     /**

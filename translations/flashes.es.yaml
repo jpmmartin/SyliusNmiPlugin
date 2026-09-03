@@ -3,4 +3,3 @@ jpm_martin_sylius_nmi:
         declined: Tu tarjeta ha sido rechazada.
         failed: No se ha podido completar el pago. Inténtalo de nuevo o usa otra tarjeta.
         unreachable: No se ha podido contactar con la pasarela de pago. No se ha cobrado nada; inténtalo de nuevo.
-        no_token: No se han enviado los datos de la tarjeta. Inténtalo de nuevo.

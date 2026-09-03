@@ -3,4 +3,3 @@ jpm_martin_sylius_nmi:
         declined: Your card was declined.
         failed: The payment could not be completed. Please try again or use another card.
         unreachable: The payment gateway could not be reached. Nothing has been charged; please try again.
-        no_token: No card details were submitted. Please try again.

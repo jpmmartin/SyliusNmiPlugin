@@ -64,8 +64,10 @@ final class CompleteCardPaymentHandler
 
         $token = $payload['payment_token'] ?? null;
         if (!is_string($token) || '' === $token) {
-            $this->fail($paymentRequest, 'jpm_martin_sylius_nmi.payment.no_token', 'No payment token was submitted.');
-
+            // Not a submission: the pay page announces this command on *every* view once the
+            // request is in progress, so a shopper who simply reloads arrives here with nothing.
+            // Leaving the request untouched lets the page render the form again. Failing it would
+            // destroy a payment because someone pressed refresh.
             return;
         }
 
