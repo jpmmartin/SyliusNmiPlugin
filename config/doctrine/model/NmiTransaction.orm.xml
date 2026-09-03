@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      http://doctrine-project.org/schemas/orm/doctrine-mapping.xsd"
+>
+    <!--
+        A mapped superclass, as every Sylius model is: registering it as a resource turns it into a
+        concrete entity, and a store may replace the class through the resource configuration.
+        Columns are named explicitly because the ORM's default naming strategy would not snake_case.
+    -->
+    <mapped-superclass name="JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction" table="jpm_martin_sylius_nmi_transaction">
+        <indexes>
+            <index name="idx_jpm_martin_sylius_nmi_transaction_transaction_id" columns="transaction_id" />
+        </indexes>
+
+        <unique-constraints>
+            <!-- A capture or a void reuses the authorisation's id, so the id is unique per operation. -->
+            <unique-constraint name="uniq_jpm_martin_sylius_nmi_transaction_id_type" columns="transaction_id,type" />
+        </unique-constraints>
+
+        <id name="id" column="id" type="integer">
+            <generator strategy="AUTO" />
+        </id>
+
+        <field name="transactionId" column="transaction_id" type="string" length="64" />
+        <field name="type" column="type" type="string" length="16" />
+        <field name="amount" column="amount" type="integer" />
+        <field name="currencyCode" column="currency_code" type="string" length="3" />
+        <field name="authCode" column="auth_code" type="string" length="32" nullable="true" />
+        <field name="createdAt" column="created_at" type="datetime_immutable" />
+        <field name="settledAt" column="settled_at" type="datetime_immutable" nullable="true" />
+
+        <many-to-one field="payment" target-entity="Sylius\Component\Core\Model\PaymentInterface">
+            <join-column name="payment_id" referenced-column-name="id" nullable="false" on-delete="CASCADE" />
+        </many-to-one>
+    </mapped-superclass>
+</doctrine-mapping>

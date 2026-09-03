@@ -15,9 +15,12 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
 {
     use PrependDoctrineMigrationsTrait;
 
-    /** @psalm-suppress UnusedVariable */
     public function load(array $configs, ContainerBuilder $container): void
     {
+        $config = $this->processConfiguration(new Configuration(), $configs);
+
+        $this->registerResources('jpm_martin_sylius_nmi', $config['driver'], $config['resources'], $container);
+
         $loader = new XmlFileLoader($container, new FileLocator(__DIR__ . '/../../config'));
 
         $loader->load('services.xml');
@@ -30,7 +33,10 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
 
     protected function getMigrationsNamespace(): string
     {
-        return 'DoctrineMigrations';
+        // Owned by this plugin, never the skeleton's generic "DoctrineMigrations": that namespace is
+        // the one a consuming application uses for its own migrations, and the migrations table
+        // records the fully qualified class name, so the namespace is frozen once a migration ships.
+        return 'JpmMartin\\SyliusNmiPlugin\\Migrations';
     }
 
     protected function getMigrationsDirectory(): string
@@ -38,6 +44,7 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
         return '@JpmMartinSyliusNmiPlugin/src/Migrations';
     }
 
+    /** @return array<string> */
     protected function getNamespacesOfMigrationsExecutedBefore(): array
     {
         return [
