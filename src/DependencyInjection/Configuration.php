@@ -24,6 +24,10 @@ final class Configuration implements ConfigurationInterface
             ->addDefaultsIfNotSet()
             ->children()
                 ->scalarNode('driver')->defaultValue(SyliusResourceBundle::DRIVER_DOCTRINE_ORM)->end()
+                ->scalarNode('api_base_url')
+                    ->defaultNull()
+                    ->info('Gateway host used for every NMI payment method, e.g. a reseller (white-label) host such as "https://example.transactiongateway.com". Leave unset to derive it from each payment method\'s environment.')
+                ->end()
             ->end()
         ;
 

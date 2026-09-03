@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <defaults public="false" />
+
+        <service id="jpm_martin_sylius_nmi.gateway.configuration_provider" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProvider">
+            <argument>%jpm_martin_sylius_nmi.api_base_url%</argument>
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface" alias="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+
+        <service id="jpm_martin_sylius_nmi.gateway.amount_formatter" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiAmountFormatter" />
+
+        <!--
+            PSR-18 client and PSR-17 factories come from the application: Symfony's FrameworkBundle
+            aliases these interfaces to whatever implementation the store has installed.
+        -->
+        <service id="jpm_martin_sylius_nmi.gateway.client" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiClient">
+            <argument type="service" id="Psr\Http\Client\ClientInterface" />
+            <argument type="service" id="Psr\Http\Message\RequestFactoryInterface" />
+            <argument type="service" id="Psr\Http\Message\StreamFactoryInterface" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface" alias="jpm_martin_sylius_nmi.gateway.client" />
+    </services>
+</container>
