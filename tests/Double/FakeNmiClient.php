@@ -31,6 +31,9 @@ final class FakeNmiClient implements NmiClientInterface
     /** @var list<string> every operation asked for, in order */
     public array $operations = [];
 
+    /** @var list<NmiGatewayConfiguration> the credentials each operation was asked with, in order */
+    public array $configurations = [];
+
     private ?NmiResponse $response = null;
 
     public function willApprove(string $transactionId = '12513506464', string $amount = '12.99'): void
@@ -67,39 +70,45 @@ final class FakeNmiClient implements NmiClientInterface
 
     public function sale(NmiGatewayConfiguration $configuration, Charge $charge): NmiResponse
     {
-        return $this->answer('sale', $charge);
+        return $this->answer('sale', $charge, $configuration);
     }
 
     public function authorize(NmiGatewayConfiguration $configuration, Charge $charge): NmiResponse
     {
-        return $this->answer('authorize', $charge);
+        return $this->answer('authorize', $charge, $configuration);
     }
 
     public function capture(NmiGatewayConfiguration $configuration, string $transactionId, int $amount, string $currencyCode): NmiResponse
     {
-        return $this->answer('capture', null);
+        return $this->answer('capture', null, $configuration);
     }
 
     public function void(NmiGatewayConfiguration $configuration, string $transactionId): NmiResponse
     {
-        return $this->answer('void', null);
+        return $this->answer('void', null, $configuration);
     }
 
     public function refund(NmiGatewayConfiguration $configuration, string $transactionId, ?int $amount, string $currencyCode): NmiResponse
     {
-        return $this->answer('refund', null);
+        return $this->answer('refund', null, $configuration);
     }
 
     public function retrieve(NmiGatewayConfiguration $configuration, string $transactionId): NmiResponse
     {
-        return $this->answer('retrieve', null);
+        return $this->answer('retrieve', null, $configuration);
     }
 
-    private function answer(string $operation, ?Charge $charge): NmiResponse
+    private function answer(string $operation, ?Charge $charge, ?NmiGatewayConfiguration $configuration = null): NmiResponse
     {
         $this->lastOperation = $operation;
         $this->lastCharge = $charge;
         $this->operations[] = $operation;
+
+        // Which credentials the operation was asked with. Two payment methods on two channels must
+        // reach two different NMI accounts, and nothing else in the store would show it.
+        if (null !== $configuration) {
+            $this->configurations[] = $configuration;
+        }
 
         if (isset($this->failuresByOperation[$operation])) {
             throw $this->failuresByOperation[$operation];

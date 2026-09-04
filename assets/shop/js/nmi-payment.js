@@ -84,6 +84,9 @@ const mount = (container) => {
 
     const tokenizationKey = container.dataset.nmiTokenizationKey;
     const target = document.querySelector(THREE_D_SECURE_SELECTOR);
+    // The template renders both of these translated, so the literals are only reached by a
+    // store that overrode the template and dropped the attribute. Saying nothing at all
+    // would be worse than saying it in one language.
     const notAuthenticated = () => container.dataset.nmiAuthFailedMessage || 'The card could not be authenticated.';
 
     let settle = null;

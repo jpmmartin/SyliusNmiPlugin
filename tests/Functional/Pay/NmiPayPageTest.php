@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Pay;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\Component\Core\Model\OrderInterface;
+use Sylius\Component\Locale\Model\Locale;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -82,6 +84,32 @@ final class NmiPayPageTest extends WebTestCase
     }
 
     /**
+     * The page must still be a shop page.
+     *
+     * Everything else here asserts markup this plugin renders, which would all keep passing on a
+     * page whose card fields never mount: the mount point is ours, the JavaScript that fills it is
+     * the store's. This is the one assertion that fails if the pay page stops inheriting the
+     * store's own scripts.
+     */
+    public function testThePayPageStillGetsTheStoresOwnScripts(): void
+    {
+        $paymentRequest = $this->newPaymentRequest();
+
+        $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        $html = (string) $this->client->getResponse()->getContent();
+
+        self::assertMatchesRegularExpression(
+            '#<script[^>]+src="[^"]*plugin-shop-entry\.js#',
+            $html,
+            'Without the build that mounts the card fields, the page renders and does nothing.',
+        );
+    }
+
+    /**
      * Authentication happens in the browser, and the issuer decides whether to challenge from what
      * it is told about the shopper. The page therefore has to carry the decimal amount and the
      * cardholder, neither of which the charge itself needs.
@@ -105,6 +133,31 @@ final class NmiPayPageTest extends WebTestCase
         self::assertSame('GB', $mount->attr('data-nmi-country'));
     }
 
+    /**
+     * The page in the shopper's own language.
+     *
+     * The plugin ships two catalogues, and a catalogue nothing renders is a claim rather than a
+     * feature: it can drift from the templates for a whole release without anything noticing.
+     * This asks the store for the same page in the other locale and reads the words back.
+     */
+    public function testThePayPageRendersInTheShoppersLanguage(): void
+    {
+        $paymentRequest = $this->newPaymentRequest();
+        $this->alsoSpeaks($paymentRequest, 'es_ES');
+        $hash = (string) $paymentRequest->getId();
+
+        $spanish = $this->client->request('GET', sprintf('/es_ES/payment-request/pay/%s', $hash));
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Pagar con tarjeta', $spanish->filter('h1')->text());
+
+        // The message the component shows in place when it cannot read the card is rendered by
+        // the template, not by the JavaScript, which is the only reason it can be translated.
+        self::assertSame(
+            'No se han podido leer los datos de la tarjeta. Revísalos e inténtalo de nuevo.',
+            $spanish->filter('#nmi-payment')->attr('data-nmi-error-message'),
+        );
+    }
+
     /** A finished request has nothing left to collect, so the platform sends the shopper onward. */
     public function testAFinishedRequestIsNotGivenACardForm(): void
     {
@@ -118,5 +171,19 @@ final class NmiPayPageTest extends WebTestCase
     protected function paymentRequestManager(): EntityManagerInterface
     {
         return $this->manager;
+    }
+
+    /** Enables one more locale on the channel this request's order belongs to. */
+    private function alsoSpeaks(PaymentRequestInterface $paymentRequest, string $code): void
+    {
+        $locale = $this->manager->getRepository(Locale::class)->findOneBy(['code' => $code]) ?? new Locale();
+        $locale->setCode($code);
+        $this->manager->persist($locale);
+
+        /** @var OrderInterface $order */
+        $order = $paymentRequest->getPayment()->getOrder();
+        $order->getChannel()?->addLocale($locale);
+
+        $this->manager->flush();
     }
 }
