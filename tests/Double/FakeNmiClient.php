@@ -25,6 +25,12 @@ final class FakeNmiClient implements NmiClientInterface
 
     private ?\Throwable $failure = null;
 
+    /** @var array<string, \Throwable> keyed by operation, for the void-or-refund resolution */
+    private array $failuresByOperation = [];
+
+    /** @var list<string> every operation asked for, in order */
+    public array $operations = [];
+
     private ?NmiResponse $response = null;
 
     public function willApprove(string $transactionId = '12513506464', string $amount = '12.99'): void
@@ -48,6 +54,15 @@ final class FakeNmiClient implements NmiClientInterface
     {
         $this->failure = $failure;
         $this->response = null;
+    }
+
+    /**
+     * Fails one operation and leaves the rest working, which is what a settled transaction looks
+     * like from the outside: the void is refused and the refund is not.
+     */
+    public function willFailOn(string $operation, \Throwable $failure): void
+    {
+        $this->failuresByOperation[$operation] = $failure;
     }
 
     public function sale(NmiGatewayConfiguration $configuration, Charge $charge): NmiResponse
@@ -84,6 +99,11 @@ final class FakeNmiClient implements NmiClientInterface
     {
         $this->lastOperation = $operation;
         $this->lastCharge = $charge;
+        $this->operations[] = $operation;
+
+        if (isset($this->failuresByOperation[$operation])) {
+            throw $this->failuresByOperation[$operation];
+        }
 
         if (null !== $this->failure) {
             throw $this->failure;

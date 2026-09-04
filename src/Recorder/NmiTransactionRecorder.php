@@ -17,6 +17,9 @@ final class NmiTransactionRecorder implements NmiTransactionRecorderInterface
     /** The key this plugin owns inside the payment's details; nothing else is touched. */
     public const DETAILS_KEY = 'nmi';
 
+    /** Where the last refusal is kept, beside the last transaction rather than replacing it. */
+    public const REFUSAL_DETAILS_KEY = 'nmi_refusal';
+
     /** @param FactoryInterface<NmiTransactionInterface> $transactionFactory */
     public function __construct(
         private readonly FactoryInterface $transactionFactory,
@@ -71,6 +74,19 @@ final class NmiTransactionRecorder implements NmiTransactionRecorderInterface
         }
 
         return $transaction;
+    }
+
+    public function recordRefusal(PaymentInterface $payment, string $messageKey, string $detail): void
+    {
+        $details = $payment->getDetails();
+
+        $details[self::REFUSAL_DETAILS_KEY] = [
+            'message_key' => $messageKey,
+            'detail' => $detail,
+            'recorded_at' => (new \DateTimeImmutable())->format(\DATE_ATOM),
+        ];
+
+        $payment->setDetails($details);
     }
 
     private function denormaliseOntoPayment(

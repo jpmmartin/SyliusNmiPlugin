@@ -1,0 +1,20 @@
+{% set order = hookable_metadata.context.resource %}
+{% set payment = hookable_metadata.context.payment %}
+
+{#
+    Only for this gateway's payments, and only while the state machine would accept the
+    transition. Voiding is expressed as a cancel because the payment workflow has no void.
+#}
+{% if payment.method.gatewayConfig is not null
+    and payment.method.gatewayConfig.factoryName == 'nmi'
+    and sylius_sm_can(payment, constant('Sylius\\Component\\Payment\\PaymentTransitions::GRAPH'), constant('Sylius\\Component\\Payment\\PaymentTransitions::TRANSITION_CANCEL')) %}
+    <form action="{{ path('jpm_martin_sylius_nmi_admin_order_payment_void', {'orderId': order.id, 'id': payment.id}) }}" method="POST" novalidate>
+        <input type="hidden" name="_method" value="PUT">
+        {% if sylius_csrf_protection_enabled() %}
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token(payment.id) }}" />
+        {% endif %}
+        <button type="submit" class="btn" {{ sylius_test_html_attribute('void-payment', payment.id) }}>
+            {{ ux_icon('tabler:ban') }} {{ 'jpm_martin_sylius_nmi.admin.void'|trans }}
+        </button>
+    </form>
+{% endif %}

@@ -39,4 +39,11 @@ interface NmiTransactionRecorderInterface
         string $type,
         ?string $parentTransactionId = null,
     ): NmiTransactionInterface;
+
+    /**
+     * Writes down a refusal, so the operator can read it on the order rather than in a flash
+     * message that is gone on the next click. There is no row for this: nothing happened at the
+     * gateway, so there is no transaction to record — only a reason worth keeping.
+     */
+    public function recordRefusal(PaymentInterface $payment, string $messageKey, string $detail): void;
 }

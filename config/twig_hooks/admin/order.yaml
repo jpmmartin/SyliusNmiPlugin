@@ -1,0 +1,8 @@
+# The platform's payment row offers completing and refunding but no way to void an authorisation
+# before it settles, so this adds one beside them rather than overriding the row.
+sylius_twig_hooks:
+    hooks:
+        'sylius_admin.order.show.content.sections.payments.item.actions':
+            nmi_void:
+                template: '@JpmMartinSyliusNmiPlugin/admin/order/void_payment.html.twig'
+                priority: -10

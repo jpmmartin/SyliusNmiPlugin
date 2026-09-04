@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
-use JpmMartin\SyliusNmiPlugin\Command\CapturePayment;
+use JpmMartin\SyliusNmiPlugin\Command\CancelPayment;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiExceptionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
@@ -19,15 +19,21 @@ use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Sylius\Component\Payment\PaymentRequestTransitions;
 
 /**
- * Claims money the gateway is already holding.
+ * Cancels a transaction the gateway has not settled yet.
  *
- * The payment's own state machine is left alone here. Whoever asked for the capture is in the
- * middle of moving the payment to completed, and this only decides whether they may: the request
- * finishes completed when the gateway took it and failed when it refused, and the caller reads
- * that.
+ * This is the plugin's void. The payment state machine has no such transition — four definitions
+ * ship and the two that load omit it — so a void travels as a cancel, and the gateway is asked
+ * before the cancel is allowed to happen.
  */
-final class CapturePaymentHandler
+final class CancelPaymentHandler
 {
+    /** The transaction a void acts on, newest kind first: a capture supersedes its authorisation. */
+    private const VOIDABLE_TYPES = [
+        NmiTransactionInterface::TYPE_CAPTURE,
+        NmiTransactionInterface::TYPE_SALE,
+        NmiTransactionInterface::TYPE_AUTH,
+    ];
+
     public function __construct(
         private readonly PaymentRequestProviderInterface $paymentRequestProvider,
         private readonly NmiGatewayConfigurationProviderInterface $configurationProvider,
@@ -38,7 +44,7 @@ final class CapturePaymentHandler
     ) {
     }
 
-    public function __invoke(CapturePayment $command): void
+    public function __invoke(CancelPayment $command): void
     {
         $paymentRequest = $this->paymentRequestProvider->provide($command);
 
@@ -47,32 +53,29 @@ final class CapturePaymentHandler
             throw new \LogicException(sprintf('Expected a core payment, got "%s".', $payment::class));
         }
 
-        $authorisation = $this->transactionRepository->findLatestForPayment($payment, NmiTransactionInterface::TYPE_AUTH);
-        if (null === $authorisation || null === $authorisation->getTransactionId()) {
-            // Nothing was ever authorised for this payment, so there is nothing to claim. This is
-            // the store's own record being wrong rather than the gateway refusing anything.
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.no_authorisation', 'This payment has no recorded authorisation to capture.');
+        $transaction = $this->voidable($payment);
+        if (null === $transaction || null === $transaction->getTransactionId()) {
+            // Nothing reached the gateway for this payment, so there is nothing to take back and
+            // the cancel is the store's own business. Letting it through is right.
+            $this->stateMachine->apply($paymentRequest, PaymentRequestTransitions::GRAPH, PaymentRequestTransitions::TRANSITION_COMPLETE);
 
             return;
         }
 
         try {
-            $response = $this->client->capture(
+            $response = $this->client->void(
                 $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod()),
-                $authorisation->getTransactionId(),
-                (int) $payment->getAmount(),
-                (string) $payment->getCurrencyCode(),
+                $transaction->getTransactionId(),
             );
         } catch (NmiExceptionInterface $exception) {
-            // Every refusal reads the same way to an operator, and the gateway's own wording is
-            // the only description some of them have — an authorisation it will no longer settle
-            // has no code of its own.
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.capture_refused', $this->reasonFrom($exception));
+            // A transaction the gateway has already settled cannot be voided, and it says so in
+            // words rather than a code. That refusal is the operator's answer.
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.void_refused', $this->reasonFrom($exception));
 
             return;
         }
 
-        $this->recorder->record($payment, $response, NmiTransactionInterface::TYPE_CAPTURE);
+        $this->recorder->record($payment, $response, NmiTransactionInterface::TYPE_VOID);
 
         $paymentRequest->setResponseData([
             'transaction_id' => $response->transactionId,
@@ -81,18 +84,21 @@ final class CapturePaymentHandler
             'response_text' => $response->responseText,
         ]);
 
-        $this->stateMachine->apply(
-            $paymentRequest,
-            PaymentRequestTransitions::GRAPH,
-            PaymentRequestTransitions::TRANSITION_COMPLETE,
-        );
+        $this->stateMachine->apply($paymentRequest, PaymentRequestTransitions::GRAPH, PaymentRequestTransitions::TRANSITION_COMPLETE);
     }
 
-    /**
-     * The gateway's own sentence when it gave one, because that is what an operator can act on.
-     * An authorisation the gateway will no longer settle has no code of its own — established
-     * against the sandbox — so its wording is the only description of it that exists.
-     */
+    private function voidable(PaymentInterface $payment): ?NmiTransactionInterface
+    {
+        foreach (self::VOIDABLE_TYPES as $type) {
+            $transaction = $this->transactionRepository->findLatestForPayment($payment, $type);
+            if (null !== $transaction) {
+                return $transaction;
+            }
+        }
+
+        return null;
+    }
+
     private function reasonFrom(NmiExceptionInterface $exception): string
     {
         $message = $exception instanceof NmiGatewayException ? $exception->getGatewayMessage() : null;
@@ -102,19 +108,10 @@ final class CapturePaymentHandler
 
     private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, string $detail): void
     {
-        // On the payment as well as on the request: a flash is gone on the next click, and the
-        // operator needs to be able to read afterwards why the money was never claimed.
         $this->recorder->recordRefusal($payment, $messageKey, $detail);
 
-        $paymentRequest->setResponseData([
-            'message_key' => $messageKey,
-            'detail' => $detail,
-        ]);
+        $paymentRequest->setResponseData(['message_key' => $messageKey, 'detail' => $detail]);
 
-        $this->stateMachine->apply(
-            $paymentRequest,
-            PaymentRequestTransitions::GRAPH,
-            PaymentRequestTransitions::TRANSITION_FAIL,
-        );
+        $this->stateMachine->apply($paymentRequest, PaymentRequestTransitions::GRAPH, PaymentRequestTransitions::TRANSITION_FAIL);
     }
 }

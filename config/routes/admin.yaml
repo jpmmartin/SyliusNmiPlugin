@@ -1,1 +1,23 @@
-# Define your own admin routes here
+# The platform's payment row ships complete and refund but no way to void, so this adds the
+# route it is missing. It is the platform's own controller: only the transition differs, which
+# is what makes `sylius.payment.pre_cancel` fire and lets the gateway be asked first.
+jpm_martin_sylius_nmi_admin_order_payment_void:
+    path: /orders/{orderId}/payments/{id}/void
+    methods: [PUT]
+    defaults:
+        _controller: sylius.controller.payment::applyStateMachineTransitionAction
+        _sylius:
+            event: cancel
+            permission: true
+            repository:
+                method: findOneByOrderId
+                arguments:
+                    id: $id
+                    orderId: $orderId
+            state_machine:
+                graph: sylius_payment
+                transition: cancel
+            redirect:
+                route: sylius_admin_order_show
+                parameters:
+                    id: $orderId

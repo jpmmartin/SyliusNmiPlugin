@@ -7,6 +7,8 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Lifecycle;
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiErrorResponse;
+use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorder;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
@@ -104,6 +106,38 @@ final class NmiCaptureTest extends KernelTestCase
         );
         self::assertTrue($event->isStopped(), 'The operator has to be told the capture was refused.');
         self::assertNotSame('', $event->getMessage());
+    }
+
+    /**
+     * The gateway has no code for an authorisation it will no longer settle — that was established
+     * against the sandbox and is why nothing here recognises one. What the operator gets is the
+     * gateway's own sentence, and it has to survive the redirect: a flash is gone on the next
+     * click, so the reason is written onto the payment, which the order screen shows.
+     */
+    public function testAnExpiredAuthorisationLeavesItsReasonOnTheOrder(): void
+    {
+        $payment = $this->authorisedPayment('12513542107');
+        $this->gateway->willFail(NmiGatewayException::fromError(
+            NmiErrorResponse::fromBody(400, json_encode([
+                'type' => 'inputError',
+                'error_code' => 'E_INVALID_TRANS_SPECIFIED',
+                'message' => 'A capture requires that the existing transaction be an AUTH',
+                'ref_id' => '186208784',
+            ], \JSON_THROW_ON_ERROR)),
+        ));
+
+        $event = $this->completeFromTheOrderScreen($payment);
+
+        self::assertSame(PaymentInterface::STATE_AUTHORIZED, $payment->getState());
+        self::assertTrue($event->isStopped());
+
+        $refusal = $payment->getDetails()[NmiTransactionRecorder::REFUSAL_DETAILS_KEY] ?? null;
+        self::assertIsArray($refusal, 'The reason has to outlive the flash message.');
+        self::assertSame(
+            'A capture requires that the existing transaction be an AUTH',
+            $refusal['detail'],
+            "The operator gets the gateway's own sentence, not this plugin's paraphrase of it.",
+        );
     }
 
     /** A payment with no authorisation on record has nothing to claim, and says so. */

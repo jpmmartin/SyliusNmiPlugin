@@ -1,6 +1,8 @@
 jpm_martin_sylius_nmi:
     gateway_factory:
         nmi: NMI
+    admin:
+        void: Anular
     form:
         gateway_config:
             tokenization_key: Clave de tokenización

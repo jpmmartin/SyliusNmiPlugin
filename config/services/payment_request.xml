@@ -96,6 +96,42 @@
             <tag name="kernel.event_listener" event="workflow.sylius_shipment.completed.ship" />
         </service>
 
+        <service id="jpm_martin_sylius_nmi.command_handler.cancel_payment" class="JpmMartin\SyliusNmiPlugin\CommandHandler\CancelPaymentHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!-- Before the cancel, for the same reason the capture runs before the complete. -->
+        <service id="jpm_martin_sylius_nmi.listener.void_payment" class="JpmMartin\SyliusNmiPlugin\EventListener\VoidPaymentListener">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <tag name="kernel.event_listener" event="sylius.payment.pre_cancel" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.command_handler.refund_payment" class="JpmMartin\SyliusNmiPlugin\CommandHandler\RefundPaymentHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!-- Before the refund, for the same reason as the other two: nothing leaves refunded. -->
+        <service id="jpm_martin_sylius_nmi.listener.refund_payment" class="JpmMartin\SyliusNmiPlugin\EventListener\RefundPaymentListener">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <tag name="kernel.event_listener" event="sylius.payment.pre_refund" />
+        </service>
+
         <service id="jpm_martin_sylius_nmi.command_handler.report_payment_status" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ReportPaymentStatusHandler">
             <argument type="service" id="sylius.provider.payment_request" />
             <argument type="service" id="sylius_abstraction.state_machine" />
