@@ -49,6 +49,7 @@
             <argument type="service" id="sylius.provider.payment_request" />
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
             <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

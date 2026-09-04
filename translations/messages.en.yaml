@@ -19,3 +19,5 @@ jpm_martin_sylius_nmi:
         pay:
             heading: Pay by card
             amount: Amount to pay:
+            card_unreadable: The card details could not be read. Please check them and try again.
+            not_authenticated: The card could not be authenticated, so it has not been charged. Try again or use another card.

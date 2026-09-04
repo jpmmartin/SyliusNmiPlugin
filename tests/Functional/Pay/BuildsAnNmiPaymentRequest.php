@@ -6,6 +6,7 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Pay;
 
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
+use Sylius\Component\Core\Model\Address;
 use Sylius\Component\Core\Model\Channel;
 use Sylius\Component\Core\Model\Order;
 use Sylius\Component\Core\Model\Payment;
@@ -75,7 +76,18 @@ trait BuildsAnNmiPaymentRequest
         $manager->persist($gatewayConfig);
         $manager->persist($paymentMethod);
 
+        // A checked-out order has a billing address, and 3-D Secure needs the name on it.
+        $billingAddress = new Address();
+        $billingAddress->setFirstName('Ada');
+        $billingAddress->setLastName('Lovelace');
+        $billingAddress->setStreet('12 Marylebone Rd');
+        $billingAddress->setCity('London');
+        $billingAddress->setPostcode('NW1 5JR');
+        $billingAddress->setCountryCode('GB');
+        $manager->persist($billingAddress);
+
         $order = new Order();
+        $order->setBillingAddress($billingAddress);
         $order->setChannel($channel);
         $order->setCurrencyCode('USD');
         $order->setLocaleCode('en_US');

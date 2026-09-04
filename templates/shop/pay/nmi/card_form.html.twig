@@ -25,5 +25,18 @@
     {# Where the token goes once the browser has it, and the token that proves the shopper asked. #}
     data-nmi-action-url="{{ path('jpm_martin_sylius_nmi_shop_complete_card_payment', { hash: payment_request.id }) }}"
     data-nmi-csrf-token="{{ csrf_token('jpm_martin_sylius_nmi_pay_' ~ payment_request.id) }}"
+    {#
+        What the issuer is told about the shopper when the card is authenticated. The name and the
+        decimal amount are required by the authentication call; the rest is optional and sent
+        because the gateway states plainly that the more it receives, the less likely the shopper
+        is to be challenged.
+    #}
+    data-nmi-amount-major="{{ nmi.amount_major }}"
+    {% for field in ['first_name', 'last_name', 'email', 'address1', 'city', 'postal_code', 'state', 'country', 'phone'] %}
+        {% if nmi[field] is defined %}data-nmi-{{ field|replace({'_': '-'}) }}="{{ nmi[field] }}"{% endif %}
+    {% endfor %}
+    {# Shown by the component itself, in place, so they are translated here rather than in JavaScript. #}
+    data-nmi-error-message="{{ 'jpm_martin_sylius_nmi.shop.pay.card_unreadable'|trans }}"
+    data-nmi-auth-failed-message="{{ 'jpm_martin_sylius_nmi.shop.pay.not_authenticated'|trans }}"
     {{ sylius_test_html_attribute('nmi-payment') }}
 ></div>

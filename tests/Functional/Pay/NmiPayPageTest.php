@@ -81,6 +81,30 @@ final class NmiPayPageTest extends WebTestCase
         self::assertStringNotContainsString(self::SECURITY_KEY, (string) $this->client->getResponse()->getContent());
     }
 
+    /**
+     * Authentication happens in the browser, and the issuer decides whether to challenge from what
+     * it is told about the shopper. The page therefore has to carry the decimal amount and the
+     * cardholder, neither of which the charge itself needs.
+     */
+    public function testThePageCarriesWhatAuthenticationNeeds(): void
+    {
+        $paymentRequest = $this->newPaymentRequest();
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        self::assertCount(1, $crawler->filter('#nmi-three-d-secure'), 'The challenge needs somewhere to render.');
+
+        $mount = $crawler->filter('#nmi-payment');
+        self::assertSame('12.99', $mount->attr('data-nmi-amount-major'));
+        self::assertSame('Ada', $mount->attr('data-nmi-first-name'));
+        self::assertSame('Lovelace', $mount->attr('data-nmi-last-name'));
+        self::assertSame('London', $mount->attr('data-nmi-city'));
+        self::assertSame('GB', $mount->attr('data-nmi-country'));
+    }
+
     /** A finished request has nothing left to collect, so the platform sends the shopper onward. */
     public function testAFinishedRequestIsNotGivenACardForm(): void
     {

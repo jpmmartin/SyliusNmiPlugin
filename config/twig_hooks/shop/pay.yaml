@@ -6,3 +6,6 @@ sylius_twig_hooks:
             card_form:
                 template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/card_form.html.twig'
                 priority: 0
+            three_d_secure:
+                template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/three_d_secure.html.twig'
+                priority: -10
