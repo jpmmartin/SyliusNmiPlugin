@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\CapturePayment;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiExceptionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
+use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
@@ -51,7 +52,7 @@ final class CapturePaymentHandler
         if (null === $authorisation || null === $authorisation->getTransactionId()) {
             // Nothing was ever authorised for this payment, so there is nothing to claim. This is
             // the store's own record being wrong rather than the gateway refusing anything.
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.no_authorisation', 'This payment has no recorded authorisation to capture.');
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.no_authorisation');
 
             return;
         }
@@ -63,6 +64,12 @@ final class CapturePaymentHandler
                 (int) $payment->getAmount(),
                 (string) $payment->getCurrencyCode(),
             );
+        } catch (NmiTransportException) {
+            // Nobody refused anything: the gateway never answered, so whether it took the
+            // capture is unknown. Saying "refused" here would be a claim nothing supports.
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.unreachable');
+
+            return;
         } catch (NmiExceptionInterface $exception) {
             // Every refusal reads the same way to an operator, and the gateway's own wording is
             // the only description some of them have — an authorisation it will no longer settle
@@ -92,15 +99,19 @@ final class CapturePaymentHandler
      * The gateway's own sentence when it gave one, because that is what an operator can act on.
      * An authorisation the gateway will no longer settle has no code of its own — established
      * against the sandbox — so its wording is the only description of it that exists.
+     *
+     * Null when the gateway said nothing of its own. This plugin's internal wording is not a
+     * substitute: it is written in one language, and the message key beside it is written in
+     * every language the store has.
      */
-    private function reasonFrom(NmiExceptionInterface $exception): string
+    private function reasonFrom(NmiExceptionInterface $exception): ?string
     {
         $message = $exception instanceof NmiGatewayException ? $exception->getGatewayMessage() : null;
 
-        return null !== $message && '' !== $message ? $message : $exception->getMessage();
+        return null !== $message && '' !== $message ? $message : null;
     }
 
-    private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, string $detail): void
+    private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, ?string $detail = null): void
     {
         // On the payment as well as on the request: a flash is gone on the next click, and the
         // operator needs to be able to read afterwards why the money was never claimed.

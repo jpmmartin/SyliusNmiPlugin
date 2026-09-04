@@ -64,14 +64,14 @@ final class RefundPaymentHandler
         // Money already given back is not given back twice, and the gateway is not asked in order
         // to find that out — the store's own record answers it.
         if (null !== $this->transactionRepository->findLatestForPayment($payment, NmiTransactionInterface::TYPE_REFUND)) {
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.already_refunded', 'This payment has already been refunded.');
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.already_refunded');
 
             return;
         }
 
         $transaction = $this->reversible($payment);
         if (null === $transaction || null === $transaction->getTransactionId()) {
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.nothing_to_refund', 'This payment has no recorded transaction to give back.');
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.nothing_to_refund');
 
             return;
         }
@@ -81,6 +81,12 @@ final class RefundPaymentHandler
         try {
             $configuration = $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod());
             [$response, $type, $parent] = $this->giveBack($configuration, $payment, $transactionId);
+        } catch (NmiTransportException) {
+            // The void that went unanswered lands here. Whether the money moved is unknown, and
+            // the operator is told that rather than told it was refused.
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.unreachable');
+
+            return;
         } catch (NmiExceptionInterface $exception) {
             $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.refund_refused', $this->reasonFrom($exception));
 
@@ -140,14 +146,14 @@ final class RefundPaymentHandler
         return null;
     }
 
-    private function reasonFrom(NmiExceptionInterface $exception): string
+    private function reasonFrom(NmiExceptionInterface $exception): ?string
     {
         $message = $exception instanceof NmiGatewayException ? $exception->getGatewayMessage() : null;
 
-        return null !== $message && '' !== $message ? $message : $exception->getMessage();
+        return null !== $message && '' !== $message ? $message : null;
     }
 
-    private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, string $detail): void
+    private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, ?string $detail = null): void
     {
         $this->recorder->recordRefusal($payment, $messageKey, $detail);
 

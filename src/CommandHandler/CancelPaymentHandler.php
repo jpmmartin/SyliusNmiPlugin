@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\CancelPayment;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiExceptionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
+use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
@@ -67,6 +68,12 @@ final class CancelPaymentHandler
                 $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod()),
                 $transaction->getTransactionId(),
             );
+        } catch (NmiTransportException) {
+            // The gateway never answered, so the void may or may not have been taken. That is
+            // not a refusal and is not told as one.
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.unreachable');
+
+            return;
         } catch (NmiExceptionInterface $exception) {
             // A transaction the gateway has already settled cannot be voided, and it says so in
             // words rather than a code. That refusal is the operator's answer.
@@ -99,14 +106,14 @@ final class CancelPaymentHandler
         return null;
     }
 
-    private function reasonFrom(NmiExceptionInterface $exception): string
+    private function reasonFrom(NmiExceptionInterface $exception): ?string
     {
         $message = $exception instanceof NmiGatewayException ? $exception->getGatewayMessage() : null;
 
-        return null !== $message && '' !== $message ? $message : $exception->getMessage();
+        return null !== $message && '' !== $message ? $message : null;
     }
 
-    private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, string $detail): void
+    private function fail(PaymentRequestInterface $paymentRequest, PaymentInterface $payment, string $messageKey, ?string $detail = null): void
     {
         $this->recorder->recordRefusal($payment, $messageKey, $detail);
 

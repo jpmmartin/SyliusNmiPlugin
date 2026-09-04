@@ -76,7 +76,7 @@ final class NmiTransactionRecorder implements NmiTransactionRecorderInterface
         return $transaction;
     }
 
-    public function recordRefusal(PaymentInterface $payment, string $messageKey, string $detail): void
+    public function recordRefusal(PaymentInterface $payment, string $messageKey, ?string $detail = null): void
     {
         $details = $payment->getDetails();
 

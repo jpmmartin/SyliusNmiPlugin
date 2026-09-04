@@ -45,5 +45,5 @@ interface NmiTransactionRecorderInterface
      * message that is gone on the next click. There is no row for this: nothing happened at the
      * gateway, so there is no transaction to record — only a reason worth keeping.
      */
-    public function recordRefusal(PaymentInterface $payment, string $messageKey, string $detail): void;
+    public function recordRefusal(PaymentInterface $payment, string $messageKey, ?string $detail = null): void;
 }

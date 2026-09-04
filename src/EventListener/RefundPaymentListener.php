@@ -53,9 +53,20 @@ final class RefundPaymentListener
             return;
         }
 
+        // The handler decided both what went wrong and how to say it. The gateway's own sentence
+        // wins when there is one — it is the only description some refusals have, and it arrives
+        // in English whatever the locale. Otherwise the key goes to the flash, which translates
+        // it through the `flashes` domain into the operator's own language.
         $responseData = $paymentRequest->getResponseData();
         $detail = $responseData['detail'] ?? null;
+        if (is_string($detail) && '' !== $detail) {
+            $event->stop($detail);
 
-        $event->stop(is_string($detail) && '' !== $detail ? $detail : 'jpm_martin_sylius_nmi.payment.refund_refused');
+            return;
+        }
+
+        $messageKey = $responseData['message_key'] ?? null;
+
+        $event->stop(is_string($messageKey) && '' !== $messageKey ? $messageKey : 'jpm_martin_sylius_nmi.payment.refund_refused');
     }
 }
