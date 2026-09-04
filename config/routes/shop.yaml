@@ -1,17 +1,3 @@
-# Delete these routes and define your own shop routes here
-
-jpm_martin_sylius_nmi_static_welcome:
-    path: /static-welcome/{name}
-    defaults:
-        _controller: JpmMartin\SyliusNmiPlugin\Controller\GreetingController::staticallyGreetAction
-        name: ~
-
-jpm_martin_sylius_nmi_dynamic_welcome:
-    path: /dynamic-welcome/{name}
-    defaults:
-        _controller: JpmMartin\SyliusNmiPlugin\Controller\GreetingController::dynamicallyGreetAction
-        name: ~
-
 # Where the card form posts the token it obtained in the browser. There is no platform route
 # that accepts a payload for an existing payment request, so this one carries it.
 jpm_martin_sylius_nmi_shop_complete_card_payment:

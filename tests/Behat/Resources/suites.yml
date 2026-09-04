@@ -6,19 +6,6 @@
 
 default:
     suites:
-        # Skeleton demo, retained until the plugin's own wiring replaces it as the reference.
-        greeting_customer:
-            contexts:
-                # The shop layout cannot render without a channel, and Sylius's own suites
-                # purge the database before every scenario, so this suite creates its own.
-                - sylius.behat.context.hook.doctrine_orm
-                - sylius.behat.context.setup.channel
-
-                - jpm_martin_sylius_nmi.context.ui.shop.welcome
-
-            filters:
-                tags: "@greeting_customer"
-
         # Admin UI: configuring an NMI payment method.
         ui_managing_nmi_payment_methods:
             contexts:

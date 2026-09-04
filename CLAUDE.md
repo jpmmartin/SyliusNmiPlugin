@@ -422,12 +422,12 @@ Database credentials for the test application live in `tests/TestApplication/.en
 
 ## Skeleton leftovers
 
-Scaffolded from `sylius/plugin-skeleton` v2.2.0. Still present and removable once no longer needed:
+Scaffolded from `sylius/plugin-skeleton` v2.2.0. The greeting demo, the three skeleton guides and
+the two one-shot `bin/` scripts are gone; what remains of the scaffold is the directory layout,
+which is the part worth keeping.
 
-- `bin/show-success.php` and `bin/validate-directory.php` — one-shot scaffolding scripts.
-- The greeting/welcome demo — `src/Controller/GreetingController.php`, its templates, routes, Twig
-  hooks, Behat pages and the `*greeting*` feature files. **Deliberately retained for now** as the
-  only working example of how this skeleton wires Twig hooks, Behat suites and service definitions.
-  Remove before the first release; `CLEANUP_GUIDE.md` describes how.
-- `CLEANUP_GUIDE.md`, `RENAME_GUIDE.md`, `COMPATIBILITY_GUIDE.md` — skeleton guides, not this
-  plugin's documentation. Delete them with the demo.
+One piece is still there and is **not** this plugin's own:
+`features/running_a_sylius_feature.feature` is a copy of Sylius's channel-management feature,
+shipped by the skeleton to show that a plugin can run the framework's scenarios. It exercises
+Sylius rather than this plugin, so every one of its steps is a way for this suite to break for
+reasons that have nothing to do with the gateway. Removing it is a decision nobody has taken yet.

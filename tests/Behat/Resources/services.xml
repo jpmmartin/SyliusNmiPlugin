@@ -37,13 +37,5 @@
             <argument type="service" id="doctrine.dbal.default_connection" />
         </service>
 
-        <!-- Skeleton demo, retained until the plugin's own wiring replaces it as the reference. -->
-        <service id="jpm_martin_sylius_nmi.context.ui.shop.welcome" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Shop\WelcomeContext">
-            <argument type="service" id="jpm_martin_sylius_nmi.page.shop.static_welcome" />
-            <argument type="service" id="jpm_martin_sylius_nmi.page.shop.dynamic_welcome" />
-        </service>
-
-        <service id="jpm_martin_sylius_nmi.page.shop.static_welcome" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Shop\StaticWelcomePage" parent="sylius.behat.symfony_page" public="false" />
-        <service id="jpm_martin_sylius_nmi.page.shop.dynamic_welcome" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Shop\DynamicWelcomePage" parent="sylius.behat.symfony_page" public="false" />
     </services>
 </container>
