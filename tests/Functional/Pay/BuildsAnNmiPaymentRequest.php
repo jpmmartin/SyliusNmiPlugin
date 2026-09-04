@@ -65,6 +65,12 @@ trait BuildsAnNmiPaymentRequest
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => $useAuthorize,
         ]);
 
+        // What the admin form sets for any factory Payum does not know, and this one it does
+        // not. Left at its default of true, Sylius classes the method as a Payum gateway and
+        // stores its credentials unencrypted — so a fixture that omits this is not testing
+        // the configuration a store actually has.
+        $gatewayConfig->setUsePayum(false);
+
         $paymentMethod = new PaymentMethod();
         $paymentMethod->setCode('nmi_card_' . bin2hex(random_bytes(4)));
         $paymentMethod->setCurrentLocale('en_US');

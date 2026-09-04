@@ -358,10 +358,19 @@ are. If you would rather send less, override
 `@JpmMartinSyliusNmiPlugin/shop/pay/nmi/card_form.html.twig` and drop the fields you do not want;
 expect more challenges.
 
-**Credentials are encrypted by Sylius, not by this plugin.** Creating the payment method through
-the admin is the path this plugin tests, and there the security key is unreadable in the database.
-If you create payment methods by fixture, migration or API instead, read the row back and confirm
-it is encrypted before trusting it.
+**Credentials are encrypted by Sylius, not by this plugin — and only when the gateway config says
+it is not a Payum one.** A fresh `GatewayConfig` has `usePayum = true`, and Sylius encrypts only
+when that is false. The admin form turns it off for any factory Payum does not know, which is why
+credentials entered there are unreadable in the database.
+
+Create payment methods **by fixture, migration or API** and the flag is yours to set:
+
+```php
+$gatewayConfig->setUsePayum(false);
+```
+
+Leave it out and the security key is stored in plain text, with no error and nothing in the admin
+to show it — and the method is also classed as a Payum gateway, which is not what it is.
 
 ## Versioning and changes
 
