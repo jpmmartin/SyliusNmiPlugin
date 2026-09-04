@@ -1,6 +1,7 @@
 imports:
     - { resource: "@JpmMartinSyliusNmiPlugin/config/config.yaml" }
     - { resource: "services_test.php" }
+    - { resource: "refund_plugin.php" }
 
 jpm_martin_sylius_nmi:
     # Empty in the committed .env; a reseller host goes in the gitignored .env.local / .env.test.local.

@@ -7,3 +7,7 @@ jpm_martin_sylius_nmi_admin:
 
 jpm_martin_sylius_nmi_shop:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop.yaml"
+
+jpm_martin_sylius_nmi_refund_plugin:
+    resource: refund_plugin_routes.php
+    type: php

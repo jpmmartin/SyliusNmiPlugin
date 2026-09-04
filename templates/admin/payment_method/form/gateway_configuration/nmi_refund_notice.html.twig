@@ -1,0 +1,15 @@
+{#
+    Only when there is something to do. A store that already listed this gateway needs no notice,
+    and a notice that appears whatever the state teaches an operator to ignore it.
+#}
+{% if not jpm_martin_sylius_nmi_refunds_offered() %}
+    <div class="col-12">
+        <div class="alert alert-warning" {{ sylius_test_html_attribute('nmi-refund-plugin-notice') }}>
+            {{ 'jpm_martin_sylius_nmi.admin.refund_plugin_notice'|trans }}
+            <pre class="mb-0 mt-2"><code>parameters:
+    sylius_refund.supported_gateways:
+        - offline
+        - nmi</code></pre>
+        </div>
+    </div>
+{% endif %}

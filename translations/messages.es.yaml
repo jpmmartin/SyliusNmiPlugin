@@ -3,6 +3,10 @@ jpm_martin_sylius_nmi:
         nmi: NMI
     admin:
         void: Anular
+        refund_plugin_notice: >-
+            El plugin de reembolsos está instalado pero no ofrecerá esta pasarela, porque su lista
+            de pasarelas admitidas no la nombra. Reembolsar desde la pantalla del pedido funciona
+            igualmente; solo las pantallas del plugin de reembolsos necesitan esta entrada.
     form:
         gateway_config:
             tokenization_key: Clave de tokenización

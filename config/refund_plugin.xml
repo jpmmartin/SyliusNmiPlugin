@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!--
+    Loaded only when `sylius/refund-plugin` is registered. It lives outside `services/` on
+    purpose: `services.xml` imports that directory wholesale, and this file must not be picked
+    up by a store that does not have the refund plugin, because the parameter below would not
+    exist there.
+-->
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <service id="jpm_martin_sylius_nmi.twig.refund_support" class="JpmMartin\SyliusNmiPlugin\Twig\NmiRefundSupportExtension">
+            <argument>%sylius_refund.supported_gateways%</argument>
+            <tag name="twig.extension" />
+        </service>
+    </services>
+</container>

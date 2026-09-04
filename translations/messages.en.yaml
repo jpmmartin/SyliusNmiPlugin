@@ -3,6 +3,10 @@ jpm_martin_sylius_nmi:
         nmi: NMI
     admin:
         void: Void
+        refund_plugin_notice: >-
+            The refund plugin is installed but will not offer this gateway, because its list of
+            supported gateways does not name it. Refunding from the order screen works either
+            way; only the refund plugin's own screens need this entry.
     form:
         gateway_config:
             tokenization_key: Tokenization key
