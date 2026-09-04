@@ -1,0 +1,9 @@
+{
+    "name": "@jpmmartin/sylius-nmi-plugin",
+    "description": "Front-end dependencies of the Sylius NMI plugin. Not published to npm: it exists so the gateway's browser component is declared by the package that imports it.",
+    "license": "MIT",
+    "private": true,
+    "dependencies": {
+        "@nmipayments/nmi-pay": "^1.0.2"
+    }
+}

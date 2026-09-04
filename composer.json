@@ -38,6 +38,7 @@
         "phpunit/phpunit": "^10.5",
         "sylius-labs/coding-standard": "^4.4",
         "sylius-labs/suite-tags-extension": "~0.2",
+        "sylius/refund-plugin": "^2.1",
         "sylius/sylius-rector": "^2.0",
         "sylius/test-application": "^2.0.0@alpha",
         "symfony/browser-kit": "^6.4 || ^7.4",
@@ -48,24 +49,8 @@
         "symfony/web-profiler-bundle": "^6.4 || ^7.4",
         "symfony/webpack-encore-bundle": "^2.2"
     },
-    "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": false,
-            "php-http/discovery": false,
-            "phpstan/extension-installer": true,
-            "symfony/flex": true,
-            "symfony/runtime": true
-        }
-    },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "2.0-dev"
-        },
-        "symfony": {
-            "require": "^7.4"
-        },
-        "public-dir": "vendor/sylius/test-application/public"
+    "suggest": {
+        "sylius/refund-plugin": "^2.1 — to refund from the refund plugin’s own screens as well as from the order screen. It must be told to offer this gateway: add \"nmi\" to the sylius_refund.supported_gateways parameter."
     },
     "autoload": {
         "psr-4": {
@@ -79,6 +64,25 @@
                 "tests/TestApplication/src/"
             ]
         }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": false,
+            "php-http/discovery": false,
+            "phpstan/extension-installer": true,
+            "symfony/flex": true,
+            "symfony/runtime": true
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.0-dev"
+        },
+        "symfony": {
+            "require": "^7.4"
+        },
+        "public-dir": "vendor/sylius/test-application/public"
     },
     "scripts": {
         "check": [
@@ -99,6 +103,7 @@
             "vendor/bin/console sylius:fixtures:load -n"
         ],
         "frontend-clear": [
+            "yarn install",
             "cd vendor/sylius/test-application && yarn install && yarn build",
             "vendor/bin/console assets:install"
         ],
