@@ -1,5 +1,9 @@
+# The admin routes go under the admin path, which is what puts them behind the admin firewall —
+# its pattern is that path. Importing them without the prefix leaves the void action reachable by
+# anyone. The README tells a consuming store the same thing.
 jpm_martin_sylius_nmi_admin:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/admin.yaml"
+    prefix: /%sylius_admin.path_name%
 
 jpm_martin_sylius_nmi_shop:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop.yaml"
