@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\Repository;
 
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
+use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
 
 /**
@@ -34,4 +35,10 @@ interface NmiTransactionRepositoryInterface extends RepositoryInterface
      * report it, so the store has to keep its own count.
      */
     public function sumRefundedAgainst(string $transactionId): int;
+
+    /**
+     * The most recent transaction of a kind recorded against a payment — the authorisation a
+     * capture has to claim, or the charge a refund has to reverse.
+     */
+    public function findLatestForPayment(PaymentInterface $payment, string $type): ?NmiTransactionInterface;
 }

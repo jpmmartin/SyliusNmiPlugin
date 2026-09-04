@@ -7,6 +7,7 @@ namespace JpmMartin\SyliusNmiPlugin\Repository;
 use Doctrine\ORM\Query;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use Sylius\Bundle\ResourceBundle\Doctrine\ORM\EntityRepository;
+use Sylius\Component\Core\Model\PaymentInterface;
 
 class NmiTransactionRepository extends EntityRepository implements NmiTransactionRepositoryInterface
 {
@@ -48,5 +49,13 @@ class NmiTransactionRepository extends EntityRepository implements NmiTransactio
         ;
 
         return (int) $sum;
+    }
+
+    public function findLatestForPayment(PaymentInterface $payment, string $type): ?NmiTransactionInterface
+    {
+        /** @var NmiTransactionInterface|null $transaction */
+        $transaction = $this->findOneBy(['payment' => $payment, 'type' => $type], ['id' => 'DESC']);
+
+        return $transaction;
     }
 }

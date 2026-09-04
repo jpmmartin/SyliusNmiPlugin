@@ -62,6 +62,40 @@
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 
+        <service id="jpm_martin_sylius_nmi.command_handler.capture_payment" class="JpmMartin\SyliusNmiPlugin\CommandHandler\CapturePaymentHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!--
+            Runs before the operator's click completes the payment, because a payment marked
+            completed cannot be moved back if the gateway then refuses.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.capture_payment" class="JpmMartin\SyliusNmiPlugin\EventListener\CapturePaymentListener">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <tag name="kernel.event_listener" event="sylius.payment.pre_complete" />
+        </service>
+
+        <!--
+            Shipping is a fact about the world, so this one cannot refuse it: a refused capture
+            leaves the payment authorised with the reason recorded, rather than undoing a parcel.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.capture_on_shipment" class="JpmMartin\SyliusNmiPlugin\EventListener\CaptureOnShipmentListener">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="kernel.event_listener" event="workflow.sylius_shipment.completed.ship" />
+        </service>
+
         <service id="jpm_martin_sylius_nmi.command_handler.report_payment_status" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ReportPaymentStatusHandler">
             <argument type="service" id="sylius.provider.payment_request" />
             <argument type="service" id="sylius_abstraction.state_machine" />

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\CommandProvider;
 
+use JpmMartin\SyliusNmiPlugin\Command\CapturePayment;
 use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
 use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
 use Sylius\Bundle\PaymentBundle\CommandProvider\PaymentRequestCommandProviderInterface;
+use Sylius\Component\Payment\Model\PaymentInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 
 /**
@@ -33,6 +35,13 @@ final class CardPaymentCommandProvider implements PaymentRequestCommandProviderI
 
     public function provide(PaymentRequestInterface $paymentRequest): object
     {
+        // The capture action covers two different situations, and the payment says which. A
+        // payment already authorised has money reserved at the gateway and only needs claiming;
+        // there is no card to collect and no browser involved.
+        if (PaymentInterface::STATE_AUTHORIZED === $paymentRequest->getPayment()->getState()) {
+            return new CapturePayment($paymentRequest->getId());
+        }
+
         if (PaymentRequestInterface::STATE_PROCESSING === $paymentRequest->getState()) {
             return new CompleteCardPayment($paymentRequest->getId());
         }
