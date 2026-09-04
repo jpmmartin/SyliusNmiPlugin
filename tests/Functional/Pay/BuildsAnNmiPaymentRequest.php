@@ -10,6 +10,7 @@ use Sylius\Component\Core\Model\Channel;
 use Sylius\Component\Core\Model\Order;
 use Sylius\Component\Core\Model\Payment;
 use Sylius\Component\Core\Model\PaymentMethod;
+use Sylius\Component\Core\OrderPaymentStates;
 use Sylius\Component\Currency\Model\Currency;
 use Sylius\Component\Locale\Model\Locale;
 use Sylius\Component\Payment\Model\GatewayConfigInterface;
@@ -78,6 +79,10 @@ trait BuildsAnNmiPaymentRequest
         $order->setChannel($channel);
         $order->setCurrencyCode('USD');
         $order->setLocaleCode('en_US');
+        // An order reaching the pay page has been through checkout, so its payment state is
+        // already awaiting payment. Leaving it in `cart` would silently defeat the resolver that
+        // moves an order to paid or authorized: neither transition starts there.
+        $order->setPaymentState(OrderPaymentStates::STATE_AWAITING_PAYMENT);
         $manager->persist($order);
 
         $payment = new Payment();
@@ -88,6 +93,9 @@ trait BuildsAnNmiPaymentRequest
         // A payment starts life in `cart`; reaching the pay page means checkout has moved it on,
         // and the transitions this plugin applies all start from `new`.
         $payment->setState(PaymentInterface::STATE_NEW);
+        // Both sides of the relation: Sylius's order-payment resolver reads the order's own
+        // collection, and treats an order with no payments as one to mark paid.
+        $order->addPayment($payment);
         $manager->persist($payment);
 
         $paymentRequest = new PaymentRequest($payment, $paymentMethod);

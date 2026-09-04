@@ -12,6 +12,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
+use Sylius\Component\Core\OrderPaymentStates;
 use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -95,6 +96,9 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
 
         self::assertSame('12513506464', $paymentRequest->getResponseData()['transaction_id']);
         $this->assertRecorded('12513506464', NmiTransactionInterface::TYPE_SALE);
+
+        // The specification asks for the order too, not only the payment.
+        self::assertSame(OrderPaymentStates::STATE_PAID, $paymentRequest->getPayment()->getOrder()?->getPaymentState());
     }
 
     /**
@@ -126,6 +130,9 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
         self::assertSame(PaymentInterface::STATE_AUTHORIZED, $paymentRequest->getPayment()->getState());
         self::assertSame('authorize', $this->gateway->lastOperation);
         $this->assertRecorded('12513542107', NmiTransactionInterface::TYPE_AUTH);
+
+        // The specification asks for the order too, not only the payment.
+        self::assertSame(OrderPaymentStates::STATE_AUTHORIZED, $paymentRequest->getPayment()->getOrder()?->getPaymentState());
     }
 
     /** The shopper's problem: the order has to stay payable so another card can be tried. */
