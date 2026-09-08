@@ -12,7 +12,15 @@
             <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
         </service>
 
+        <!--
+            Only where the store saves cards. A store that never turned it on is promised no
+            observable change in the storefront, and an entry in every shopper's account menu is
+            one — and a store that skipped the optional account routes would get a menu that cannot
+            render at all, since KnpMenu resolves the route when the page is drawn.
+        -->
         <service id="jpm_martin_sylius_nmi.listener.shop_account_menu" class="JpmMartin\SyliusNmiPlugin\Menu\ShopAccountMenuListener">
+            <argument type="service" id="sylius.context.channel" />
+            <argument type="service" id="jpm_martin_sylius_nmi.provider.vaulting_payment_method" />
             <tag name="kernel.event_listener" event="sylius.menu.shop.account" method="addStoredCards" />
         </service>
 

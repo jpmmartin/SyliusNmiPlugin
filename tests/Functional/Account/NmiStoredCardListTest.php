@@ -9,6 +9,7 @@ use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
+use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
@@ -107,6 +108,7 @@ final class NmiStoredCardListTest extends WebTestCase
     public function testTheAccountMenuOffersTheWayIn(): void
     {
         $this->aSignedInCustomer();
+        $this->aPaymentMethod();
         $this->manager->flush();
 
         $crawler = $this->client->request('GET', '/en_US/account/dashboard');
@@ -117,6 +119,26 @@ final class NmiStoredCardListTest extends WebTestCase
             $crawler->filter(sprintf('a[href="%s"]', self::PATH)),
             'The account menu must offer exactly one way into the saved cards.',
         );
+    }
+
+    /**
+     * *Card saving left disabled*, in the one place it is easiest to forget.
+     *
+     * A store that never turns card saving on is promised no observable change in the storefront,
+     * and an extra entry in every shopper's account menu is about as observable as it gets. It also
+     * spares a store that skipped the optional account routes a menu that cannot render: KnpMenu
+     * resolves the route when the page is drawn, and a missing one takes the account area with it.
+     */
+    public function testAStoreThatSavesNoCardsOffersNoSuchMenuEntry(): void
+    {
+        $this->aSignedInCustomer();
+        $this->aPaymentMethod(storeCards: false);
+        $this->manager->flush();
+
+        $crawler = $this->client->request('GET', '/en_US/account/dashboard');
+        self::assertResponseIsSuccessful();
+
+        self::assertCount(0, $crawler->filter(sprintf('a[href="%s"]', self::PATH)));
     }
 
     /** 4.5: choosing another card moves the default, and only one holds it at a time. */
@@ -280,9 +302,22 @@ final class NmiStoredCardListTest extends WebTestCase
         return $customer;
     }
 
-    private function aPaymentMethod(): PaymentMethodInterface
+    private function aPaymentMethod(bool $storeCards = true): PaymentMethodInterface
     {
         $container = self::getContainer();
+
+        /** @var ChannelInterface $channel */
+        $channel = $container->get('sylius.repository.channel')->findOneBy([]);
+
+        // The account menu asks whether *this channel* saves cards, so the test has to own the
+        // channel's NMI methods rather than inherit whatever else ran against this database —
+        // Behat leaves its last scenario's rows behind by design.
+        /** @var PaymentMethodInterface $existing */
+        foreach ($container->get('sylius.repository.payment_method')->findAll() as $existing) {
+            if (NmiGatewayFactory::NAME === $existing->getGatewayConfig()?->getFactoryName() && $existing->hasChannel($channel)) {
+                $existing->removeChannel($channel);
+            }
+        }
 
         $gatewayConfig = $container->get('sylius.factory.gateway_config')->createNew();
         $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
@@ -295,6 +330,7 @@ final class NmiStoredCardListTest extends WebTestCase
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-account',
             NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => false,
+            NmiGatewayFactory::CONFIG_STORE_CARDS => $storeCards,
         ]);
         $this->manager->persist($gatewayConfig);
 
@@ -305,6 +341,8 @@ final class NmiStoredCardListTest extends WebTestCase
         $paymentMethod->setFallbackLocale('en_US');
         $paymentMethod->setName('Card');
         $paymentMethod->setGatewayConfig($gatewayConfig);
+        $paymentMethod->setEnabled(true);
+        $paymentMethod->addChannel($channel);
         $this->manager->persist($paymentMethod);
 
         return $paymentMethod;

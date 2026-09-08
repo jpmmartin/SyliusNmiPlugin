@@ -31,6 +31,26 @@ final readonly class NmiVaultingPaymentMethodProvider
 
     public function forChannel(ChannelInterface $channel): ?PaymentMethodInterface
     {
+        $candidates = $this->savingMethodsIn($channel);
+
+        return 1 === count($candidates) ? $candidates[0] : null;
+    }
+
+    /**
+     * Whether this channel offers saved cards at all.
+     *
+     * A weaker question than the one above and asked for a different reason: *which* account a new
+     * card belongs to has no answer when there are two, but *whether the store does this* has one —
+     * and that is what decides whether a shopper is shown a saved-cards page in their account.
+     */
+    public function savesCardsIn(ChannelInterface $channel): bool
+    {
+        return [] !== $this->savingMethodsIn($channel);
+    }
+
+    /** @return list<PaymentMethodInterface> */
+    private function savingMethodsIn(ChannelInterface $channel): array
+    {
         $candidates = [];
 
         foreach ($this->paymentMethodRepository->findEnabledForChannel($channel) as $paymentMethod) {
@@ -48,6 +68,6 @@ final readonly class NmiVaultingPaymentMethodProvider
             $candidates[] = $paymentMethod;
         }
 
-        return 1 === count($candidates) ? $candidates[0] : null;
+        return $candidates;
     }
 }

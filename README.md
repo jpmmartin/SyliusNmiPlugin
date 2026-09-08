@@ -15,6 +15,8 @@ card details tokenised in the shopper's browser so the store never handles them.
 - **Charge now, or authorise and capture later**, chosen per payment method.
 - **Capture** by hand from the order screen or automatically when a shipment goes out.
 - **Void and refund** from the order screen, with the plugin choosing between them.
+- **Saved cards**, off until you turn them on. A signed-in shopper can keep a card at NMI and pay
+  with it next time; the store holds no card number, only the reference NMI gives back.
 - **The same flow headless**, through the shop API Sylius already documents. No endpoint of this
   plugin is required.
 - **Per payment method credentials**, so two channels can charge two different NMI accounts.
@@ -65,17 +67,30 @@ jpm_martin_sylius_nmi_shop:
 jpm_martin_sylius_nmi_admin:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/admin.yaml"
     prefix: /%sylius_admin.path_name%
+
+# Required if you turn saved cards on, and harmless if you do not. See "Saved cards" below.
+jpm_martin_sylius_nmi_shop_account:
+    resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop_account.yaml"
+    prefix: /{_locale}/account
+    requirements:
+        _locale: ^[A-Za-z]{2,4}(_([A-Za-z]{4}|[0-9]{3}))?(_([A-Za-z]{2}|[0-9]{3}))?$
 ```
 
 The shop route receives the token the browser produces. The admin route adds the *Void* action to
-the payment row, which Sylius itself does not ship.
+the payment row, which Sylius itself does not ship. The account route is the shopper's saved-cards
+page.
 
-**The admin prefix is not cosmetic.** Sylius's admin firewall is defined by that path, so importing
-the admin routes without it leaves the void action reachable by anyone who knows the URL.
+**Neither prefix is cosmetic.** Sylius's admin firewall is defined by the admin path, so importing
+the admin routes without it leaves the void action reachable by anyone who knows the URL. The
+account rule is `^/(?!admin|api…)[^/]++/account`, and that first segment is the **locale** — mount
+the account routes without it and the pages sit inside the shop firewall but outside the rule that
+requires a signed-in shopper.
 
 ### 4. Run the migration
 
-The plugin adds one table, which records every transaction it makes at the gateway.
+The plugin adds two tables: one recording every transaction it makes at the gateway, and one for
+the cards shoppers save. The second is created whether or not you turn saved cards on, and stays
+empty until you do.
 
 ```bash
 bin/console doctrine:migrations:migrate
@@ -173,7 +188,7 @@ cannot be changed, including on a reseller account.
 
 ## Configuring a payment method
 
-*Configuration → Payment methods → Create → NMI*, then fill in four fields:
+*Configuration → Payment methods → Create → NMI*, then fill in the form:
 
 | Field | What it is |
 |---|---|
@@ -181,6 +196,8 @@ cannot be changed, including on a reseller account.
 | **Security key** | The private API key. It never leaves your server, and is stored encrypted |
 | **Environment** | *Sandbox* or *Production*. This selects the gateway host; NMI runs a separate sandbox server |
 | **Authorize first, capture later** | Off: checkout charges the card. On: checkout only reserves the money |
+| **Let shoppers save their card** | Off by default. See *Saved cards* below |
+| **Authenticate saved cards with 3-D Secure** | On by default, and only meaningful once the setting above is on |
 
 Both keys come from the NMI merchant portal, under *Settings → Security Keys*.
 
@@ -205,13 +222,67 @@ plugin decides how: it tries a void first, because a void never appears on the c
 statement, and falls back to a refund when the gateway says the transaction has settled. You do not
 have to know which applies — nothing the gateway exposes would tell you.
 
+## Saved cards
+
+Off until you turn it on, and *off* means absent rather than dormant: no option on the pay page, no
+entry in the account menu, no page that answers, and no row ever written. A store that leaves it
+alone behaves exactly as it did before this feature existed.
+
+Turn on **Let shoppers save their card** on the payment method, and import the account routes shown
+in step 3. **Import them before you turn the setting on**: the account menu links to those routes,
+and a menu whose route does not exist takes the whole account area down with it. With the setting
+off the entry is not added at all, which is why leaving the import out costs a store nothing until
+it opts in. Then:
+
+- A **signed-in** shopper is offered *Save this card for next time* on the pay page. Nothing is
+  saved unless they tick it, and a guest is never offered it at all.
+- Their saved cards appear at *My account → Saved cards*, where they can add one, choose which is
+  the default, and remove one.
+- At checkout their saved cards are offered with the default already chosen, so paying is a
+  choice rather than a retype.
+
+**The store never holds a card number.** What it keeps is the reference NMI gives back, encrypted
+at rest, plus the four digits, brand and expiry a receipt already prints. Removing a card asks the
+gateway to forget it before the row goes, and deleting a customer forgets theirs too.
+
+Cards belong to the payment method they were saved under, because a reference means nothing to any
+NMI account but the one that issued it. A shopper with cards on two of your channels sees each
+card only where it can be charged.
+
+**One caveat if a channel has more than one NMI method that saves cards.** Adding a card *from the
+account area* charges nothing, so there is no order to say which account it belongs to — and the
+browser mints the token with a particular account's tokenization key, so the choice has to be made
+before the card form appears. Rather than file the card against an account nobody picked, the
+add-a-card page answers 404 in that configuration. Saving a card *while paying* is unaffected: the
+payment names the account. If you need both, give each NMI account its own channel.
+
+### Authenticating a saved card
+
+**Authenticate saved cards with 3-D Secure** is on unless you turn it off, and the default is the
+answer to a question rather than an accident. Turn it off and paying with a saved card is one
+click. For cardholders in the EU and the UK that has consequences: the issuer may decline a payment
+that carries no authentication, and liability for a chargeback stays with you rather than moving to
+the issuer. Selling into North America that pressure does not apply the same way, and the one-click
+payment is the more common trade. The form says the same thing, so nobody has to read this first.
+
+> This paragraph and the form's help text make claims about issuer behaviour and chargeback
+> liability in two jurisdictions. They have not been reviewed by anyone qualified to make them.
+> Treat them as a prompt to check your own position, not as advice.
+
 ## Limitations
 
-Three things this release deliberately does not do. They are stated here rather than discovered.
+Four things this release deliberately does not do. They are stated here rather than discovered.
 
 **No webhooks.** Anything done inside NMI's own portal — a refund issued there, a chargeback, a
 card the issuer replaced — is invisible to the store. The store's record and the gateway's can
 drift apart, and only actions taken through Sylius keep them together.
+
+**A saved card the issuer renewed or closed keeps its old details.** The expiry a card was stored
+with is the one shown, and nothing updates it — so a card your shopper's bank has already reissued
+is shown as expired and cannot be chosen, and one the bank closed is offered and declines at
+checkout. Their recourse is to add the card again. This is the *No webhooks* limitation above with
+a face on it: NMI's Automatic Card Updater reports exactly these events, and until this plugin
+listens for them the store cannot hear them.
 
 **No partial captures.** An order shipped in several parcels is charged in full at the first
 shipment. This is not only a scoping decision: the gateway closes an authorisation on the first
@@ -344,6 +415,27 @@ The response comes back with `state` `completed` and the gateway's transaction i
 The order must be placed — the platform refuses a payment request for an order whose checkout is
 not complete.
 
+**Saved cards, headlessly.** With the setting on and the shopper signed in, step 1 also answers
+with `can_store_card: true`, the cards they already have, and whether paying with one authenticates
+again. Both keys are **absent** rather than false when they do not apply, so a store that never
+turned saved cards on sees exactly the response shown above.
+
+```json
+{
+    "can_store_card": true,
+    "authenticate_stored_cards": true,
+    "stored_cards": [
+        { "id": 42, "brand": "Visa", "last_four": "1111", "expiry_month": 10, "expiry_year": 2030, "is_default": true, "is_expired": false }
+    ]
+}
+```
+
+`id` names the card in this store and nowhere else; the gateway's own reference stays on the
+server. In step 2, add `"store_card": "1"` to keep the card being paid with, or send
+`"stored_card": "42"` **instead of** `payment_token` to pay with one already saved. An expired card,
+another shopper's, or one saved under a different payment method is refused there rather than
+charged.
+
 ## What the pay page carries
 
 Two things worth knowing before you go live.
@@ -357,6 +449,13 @@ told about them, and the gateway is explicit that the more it receives the fewer
 are. If you would rather send less, override
 `@JpmMartinSyliusNmiPlugin/shop/pay/nmi/card_form.html.twig` and drop the fields you do not want;
 expect more challenges.
+
+**A saved card's reference is fetched, not rendered.** With authentication on, the browser needs
+the gateway's own reference in order to authenticate a saved card — 3-D Secure runs in the browser
+and has no server-side form. The page does not carry it: it is fetched when the shopper presses
+Pay, from a route that answers only the owner of that card, so the reference appears in no page
+source, cached copy or screenshot. It cannot charge anything on its own; charging still needs the
+security key, which never leaves your server.
 
 **Credentials are encrypted by Sylius, not by this plugin — and only when the gateway config says
 it is not a Payum one.** A fresh `GatewayConfig` has `usePayum = true`, and Sylius encrypts only
