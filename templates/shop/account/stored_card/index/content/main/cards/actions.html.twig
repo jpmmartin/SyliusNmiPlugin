@@ -1,0 +1,22 @@
+{% import '@SyliusShop/shared/buttons.html.twig' as buttons %}
+
+<div class="d-flex gap-2 align-items-center">
+    {% if not card.isDefault() and not card.isExpired() %}
+        {#
+            A choice, not an edit: the form carries no field, only the intent and its token. What it
+            means is decided server-side, so there is nothing here a shopper could submit wrongly.
+            The token is nested under the form's own name, which is how the resource controller
+            hands the request to a named root form.
+        #}
+        <form action="{{ path('jpm_martin_sylius_nmi_shop_account_stored_card_set_default', {'id': card.id}) }}" method="post">
+            <input type="hidden" name="_method" value="PATCH">
+            <input type="hidden" name="jpm_martin_sylius_nmi_stored_card_default[_token]" value="{{ csrf_token('jpm_martin_sylius_nmi_stored_card_default') }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" {{ sylius_test_html_attribute('nmi-stored-card-make-default', card.id) }}>
+                {{ 'jpm_martin_sylius_nmi.ui.make_default'|trans }}
+            </button>
+        </form>
+    {% endif %}
+
+    {# The platform's own macro, so the token it emits is the one the resource controller checks. #}
+    {{ buttons.delete(path('jpm_martin_sylius_nmi_shop_account_stored_card_delete', {'id': card.id}), null, true, card.id) }}
+</div>

@@ -10,3 +10,13 @@ jpm_martin_sylius_nmi:
         refund_refused: La pasarela rechazó la devolución, así que el pago no se ha reembolsado.
         already_refunded: Este pago ya ha sido reembolsado.
         nothing_to_refund: Este pago no tiene ninguna transacción registrada que devolver.
+    stored_card:
+        default_changed: Esa tarjeta es ahora tu predeterminada.
+        deleted: La tarjeta se ha eliminado.
+        not_forgotten: La pasarela se negó a olvidar la tarjeta, así que no se ha eliminado nada.
+        gateway_unreachable: No se ha podido contactar con la pasarela, así que la tarjeta no se ha eliminado. Inténtalo de nuevo.
+        not_configured: Este método de pago no está configurado, así que la tarjeta no se puede olvidar en la pasarela.
+        added: La tarjeta se ha guardado.
+        rejected: La pasarela no ha aceptado esa tarjeta.
+        no_token: No se han recibido los datos de la tarjeta. Inténtalo de nuevo.
+        not_described: La tarjeta se guardó en la pasarela pero no se ha podido archivar aquí. Contacta con la tienda.

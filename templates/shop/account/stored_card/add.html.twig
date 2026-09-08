@@ -1,0 +1,6 @@
+{% extends '@SyliusShop/account/common/index.html.twig' %}
+
+{% set prefixes = ['jpm_martin_sylius_nmi.shop.account.stored_card_add'] %}
+{% set attrs = { tokenization_key, customer } %}
+
+{% block title %}{{ 'jpm_martin_sylius_nmi.ui.add_card'|trans }} | {{ parent() }}{% endblock %}

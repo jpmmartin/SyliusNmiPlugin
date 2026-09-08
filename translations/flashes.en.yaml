@@ -10,3 +10,13 @@ jpm_martin_sylius_nmi:
         refund_refused: The gateway refused to give the money back, so the payment has not been refunded.
         already_refunded: This payment has already been refunded.
         nothing_to_refund: This payment has no recorded transaction to give back.
+    stored_card:
+        default_changed: That card is now your default.
+        deleted: The card has been removed.
+        not_forgotten: The gateway refused to forget the card, so nothing has been deleted.
+        gateway_unreachable: The gateway could not be reached, so the card has not been deleted. Please try again.
+        not_configured: This payment method is not configured, so the card cannot be forgotten at the gateway.
+        added: The card has been saved.
+        rejected: The gateway would not accept that card.
+        no_token: No card details were received. Please try again.
+        not_described: The card was saved at the gateway but could not be filed here. Please contact the shop.

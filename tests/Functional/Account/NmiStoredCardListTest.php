@@ -6,12 +6,15 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Account;
 
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
+use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
+use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
 /**
  * The saved-cards page in the shopper's account.
@@ -27,10 +30,15 @@ final class NmiStoredCardListTest extends WebTestCase
 
     private EntityManagerInterface $manager;
 
+    private FakeNmiClient $gateway;
+
     protected function setUp(): void
     {
         $this->client = self::createClient();
         $this->client->disableReboot();
+
+        $this->gateway = new FakeNmiClient();
+        self::getContainer()->set('jpm_martin_sylius_nmi.gateway.client', $this->gateway);
 
         /** @var EntityManagerInterface $manager */
         $manager = self::getContainer()->get('doctrine.orm.default_entity_manager');
@@ -111,6 +119,143 @@ final class NmiStoredCardListTest extends WebTestCase
         );
     }
 
+    /** 4.5: choosing another card moves the default, and only one holds it at a time. */
+    public function testChoosingAnotherCardMovesTheDefault(): void
+    {
+        $customer = $this->aSignedInCustomer();
+        $method = $this->aPaymentMethod();
+        $first = $this->aCard($customer, $method, '1111', true);
+        $second = $this->aCard($customer, $method, '2222');
+        $this->manager->flush();
+
+        // Submitted as the page renders it, tokens and method override included, rather than
+        // assembled here — a request this test built could pass while the markup was wrong.
+        $crawler = $this->client->request('GET', self::PATH);
+        $this->client->submit($crawler->filter(sprintf('[data-test-nmi-stored-card-make-default="%d"]', $second->getId()))->form());
+
+        self::assertTrue($this->client->getResponse()->isRedirect());
+        // Re-read rather than refresh: the request cycle has its own unit of work, so the objects
+        // this test built are no longer the ones the controller changed.
+        self::assertTrue($this->reload($second)?->isDefault(), 'The chosen card must become the default.');
+        self::assertFalse($this->reload($first)?->isDefault(), 'And the previous one must stop being it.');
+    }
+
+    /** The default card is not offered the button that would make it the default again. */
+    public function testTheDefaultCardIsNotOfferedTheChoiceItAlreadyHolds(): void
+    {
+        $customer = $this->aSignedInCustomer();
+        $method = $this->aPaymentMethod();
+        $default = $this->aCard($customer, $method, '1111', true);
+        $this->manager->flush();
+
+        $crawler = $this->client->request('GET', self::PATH);
+
+        self::assertCount(0, $crawler->filter(sprintf('[data-test-nmi-stored-card-make-default="%d"]', $default->getId())));
+    }
+
+    /** 4.6: the row goes and so does the gateway's record. */
+    public function testDeletingACardForgetsItAtTheGatewayToo(): void
+    {
+        $customer = $this->aSignedInCustomer();
+        $method = $this->aPaymentMethod();
+        $card = $this->aCard($customer, $method, '1111', true);
+        $this->manager->flush();
+        $id = (int) $card->getId();
+
+        $crawler = $this->client->request('GET', self::PATH);
+        $this->client->submit($this->deleteFormFor($crawler, $id));
+
+        self::assertTrue($this->client->getResponse()->isRedirect());
+        self::assertContains('vault-1111', $this->gateway->deletedVaultIds, 'The gateway must be told to forget it.');
+        self::assertNull(
+            self::getContainer()->get('jpm_martin_sylius_nmi.repository.nmi_stored_card')->find($id),
+            'The row must be gone.',
+        );
+    }
+
+    /** And the default does not simply vanish with it. */
+    public function testDeletingTheDefaultElectsAnother(): void
+    {
+        $customer = $this->aSignedInCustomer();
+        $method = $this->aPaymentMethod();
+        $default = $this->aCard($customer, $method, '1111', true);
+        $other = $this->aCard($customer, $method, '2222');
+        $this->manager->flush();
+
+        $crawler = $this->client->request('GET', self::PATH);
+        $this->client->submit($this->deleteFormFor($crawler, (int) $default->getId()));
+
+        self::assertTrue($this->reload($other)?->isDefault(), 'A survivor must take over as the default.');
+    }
+
+    /**
+     * A gateway that refuses leaves both halves intact. Deleting the row anyway would strand the
+     * vault record with nothing left pointing at it, so nobody could ever remove it.
+     */
+    public function testAGatewayThatRefusesLeavesTheCardWhereItIs(): void
+    {
+        $this->gateway->willFailOn('delete_vault_record', NmiGatewayException::fromHttpStatus(400));
+
+        $card = $this->aCardOfMyOwn();
+        $crawler = $this->client->request('GET', self::PATH);
+        $this->client->submit($this->deleteFormFor($crawler, (int) $card->getId()));
+
+        self::assertNotNull($this->reload($card), 'Nothing may be deleted when the gateway refused.');
+    }
+
+    /** Unreachable is not refused: whether the record is gone is unknown, so nothing moves. */
+    public function testAnUnreachableGatewayLeavesTheCardWhereItIs(): void
+    {
+        $this->gateway->willFailOn('delete_vault_record', NmiTransportException::fromInconclusiveStatus(503));
+
+        $card = $this->aCardOfMyOwn();
+        $crawler = $this->client->request('GET', self::PATH);
+        $this->client->submit($this->deleteFormFor($crawler, (int) $card->getId()));
+
+        self::assertNotNull($this->reload($card));
+    }
+
+    /** A record the gateway no longer has is the state being asked for, so the row may go. */
+    public function testACardTheGatewayAlreadyForgotIsStillDeletedHere(): void
+    {
+        $this->gateway->willFailOn('delete_vault_record', NmiGatewayException::fromHttpStatus(404));
+
+        $card = $this->aCardOfMyOwn();
+        $id = (int) $card->getId();
+        $crawler = $this->client->request('GET', self::PATH);
+        $this->client->submit($this->deleteFormFor($crawler, $id));
+
+        self::assertNull(
+            self::getContainer()->get('jpm_martin_sylius_nmi.repository.nmi_stored_card')->find($id),
+            'A vault record that is already gone is a deletion that already happened.',
+        );
+    }
+
+    private function aCardOfMyOwn(): NmiStoredCardInterface
+    {
+        $customer = $this->aSignedInCustomer();
+        $card = $this->aCard($customer, $this->aPaymentMethod(), '1111', true);
+        $this->manager->flush();
+
+        return $card;
+    }
+
+    private function reload(NmiStoredCardInterface $card): ?NmiStoredCardInterface
+    {
+        /** @var NmiStoredCardInterface|null $reloaded */
+        $reloaded = self::getContainer()->get('jpm_martin_sylius_nmi.repository.nmi_stored_card')->find($card->getId());
+
+        return $reloaded;
+    }
+
+    private function deleteFormFor(\Symfony\Component\DomCrawler\Crawler $crawler, int $id): \Symfony\Component\DomCrawler\Form
+    {
+        return $crawler
+            ->filter(sprintf('[data-test-nmi-stored-card="%d"] [data-test-button="delete"]', $id))
+            ->form()
+        ;
+    }
+
     private function aSignedInCustomer(): CustomerInterface
     {
         $container = self::getContainer();
@@ -143,7 +288,14 @@ final class NmiStoredCardListTest extends WebTestCase
         $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
         $gatewayConfig->setFactoryName(NmiGatewayFactory::NAME);
         $gatewayConfig->setUsePayum(false);
-        $gatewayConfig->setConfig([NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-account']);
+        // A complete configuration, as a store has: an incomplete one is a different failure and
+        // must not be what these tests are exercising.
+        $gatewayConfig->setConfig([
+            NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-account',
+            NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-account',
+            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_USE_AUTHORIZE => false,
+        ]);
         $this->manager->persist($gatewayConfig);
 
         /** @var PaymentMethodInterface $paymentMethod */

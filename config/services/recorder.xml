@@ -20,6 +20,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_stored_card" />
             <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
             <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_stored_card" />
+            <argument type="service" id="jpm_martin_sylius_nmi.stored_card.default" />
         </service>
         <service id="JpmMartin\SyliusNmiPlugin\Recorder\NmiStoredCardRecorderInterface" alias="jpm_martin_sylius_nmi.recorder.stored_card" />
     </services>

@@ -20,3 +20,48 @@ jpm_martin_sylius_nmi_shop_account_stored_card_index:
                 method: findByCustomer
                 arguments:
                     - "expr:service('sylius.context.customer').getCustomer()"
+
+jpm_martin_sylius_nmi_shop_account_stored_card_set_default:
+    path: /saved-cards/{id}/default
+    methods: [PATCH]
+    defaults:
+        _controller: jpm_martin_sylius_nmi.controller.nmi_stored_card::updateAction
+        _sylius:
+            section: shop_account
+            event: set_default
+            form:
+                type: JpmMartin\SyliusNmiPlugin\Form\Type\NmiStoredCardDefaultType
+            repository:
+                method: findOneByCustomer
+                arguments:
+                    - $id
+                    - "expr:service('sylius.context.customer').getCustomer()"
+            redirect:
+                route: jpm_martin_sylius_nmi_shop_account_stored_card_index
+                parameters: {}
+            flash: jpm_martin_sylius_nmi.stored_card.default_changed
+
+jpm_martin_sylius_nmi_shop_account_stored_card_delete:
+    path: /saved-cards/{id}
+    methods: [DELETE]
+    defaults:
+        _controller: jpm_martin_sylius_nmi.controller.nmi_stored_card::deleteAction
+        _sylius:
+            section: shop_account
+            repository:
+                method: findOneByCustomer
+                arguments:
+                    - $id
+                    - "expr:service('sylius.context.customer').getCustomer()"
+            redirect:
+                route: jpm_martin_sylius_nmi_shop_account_stored_card_index
+                parameters: {}
+            flash: jpm_martin_sylius_nmi.stored_card.deleted
+
+# One route for both halves: the page renders the card form, and the component posts the token
+# straight back to it. There is nothing between them worth a second route.
+jpm_martin_sylius_nmi_shop_account_stored_card_add:
+    path: /saved-cards/add
+    methods: [GET, POST]
+    defaults:
+        _controller: JpmMartin\SyliusNmiPlugin\Controller\AddStoredCardAction

@@ -27,11 +27,14 @@
                         {% endif %}
                     </div>
                 </div>
-                {% if card.isDefault() %}
-                    <span class="badge text-bg-secondary" {{ sylius_test_html_attribute('nmi-stored-card-default') }}>
-                        {{ 'jpm_martin_sylius_nmi.ui.default_card'|trans }}
-                    </span>
-                {% endif %}
+                <div class="d-flex align-items-center gap-2">
+                    {% if card.isDefault() %}
+                        <span class="badge text-bg-secondary" {{ sylius_test_html_attribute('nmi-stored-card-default') }}>
+                            {{ 'jpm_martin_sylius_nmi.ui.default_card'|trans }}
+                        </span>
+                    {% endif %}
+                    {{ include('@JpmMartinSyliusNmiPlugin/shop/account/stored_card/index/content/main/cards/actions.html.twig', { card }) }}
+                </div>
             </div>
         </div>
     {% endfor %}

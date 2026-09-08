@@ -1,0 +1,10 @@
+{% import '@SyliusShop/shared/buttons.html.twig' as buttons %}
+
+{# The macro translates the message itself, so this passes the key. #}
+{{ buttons.default(
+    path('jpm_martin_sylius_nmi_shop_account_stored_card_add'),
+    'jpm_martin_sylius_nmi.ui.add_card',
+    'nmi-add-card',
+    'tabler:plus',
+    'btn-primary'
+) }}

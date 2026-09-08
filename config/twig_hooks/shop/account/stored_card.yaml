@@ -20,3 +20,24 @@ sylius_twig_hooks:
             title:
                 template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/index/content/main/header/title.html.twig'
                 priority: 100
+            buttons:
+                template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/index/content/main/header/buttons/add.html.twig'
+                priority: -100
+
+        'jpm_martin_sylius_nmi.shop.account.stored_card_add.index.content':
+            menu:
+                template: '@SyliusShop/account/common/content/menu.html.twig'
+                priority: 100
+            main:
+                template: '@SyliusShop/account/common/content/main.html.twig'
+                priority: 0
+
+        'jpm_martin_sylius_nmi.shop.account.stored_card_add.index.content.main':
+            form:
+                template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/add/content/main/form.html.twig'
+                priority: 0
+
+        'jpm_martin_sylius_nmi.shop.account.stored_card_add.index.content.main.header':
+            title:
+                template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/add/content/main/header/title.html.twig'
+                priority: 100

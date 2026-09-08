@@ -7,6 +7,8 @@ jpm_martin_sylius_nmi:
         expires: Caduca
         expired: Caducada
         default_card: Predeterminada
+        make_default: Hacer predeterminada
+        add_card: Añadir una tarjeta
     admin:
         void: Anular
         refund_plugin_notice: >-

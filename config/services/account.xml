@@ -6,8 +6,50 @@
         xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
 >
     <services>
+        <!-- One place for "exactly one card is the default", because its three triggers would
+             otherwise each carry their own copy of the rule. -->
+        <service id="jpm_martin_sylius_nmi.stored_card.default" class="JpmMartin\SyliusNmiPlugin\StoredCard\NmiDefaultCard">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
+        </service>
+
         <service id="jpm_martin_sylius_nmi.listener.shop_account_menu" class="JpmMartin\SyliusNmiPlugin\Menu\ShopAccountMenuListener">
             <tag name="kernel.event_listener" event="sylius.menu.shop.account" method="addStoredCards" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.form.type.stored_card_default" class="JpmMartin\SyliusNmiPlugin\Form\Type\NmiStoredCardDefaultType">
+            <argument>%jpm_martin_sylius_nmi.model.nmi_stored_card.class%</argument>
+            <tag name="form.type" />
+        </service>
+
+        <!-- Before the flush, so the previous default is cleared in the same transaction. -->
+        <service id="jpm_martin_sylius_nmi.listener.stored_card_default" class="JpmMartin\SyliusNmiPlugin\EventListener\NmiStoredCardDefaultListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.stored_card.default" />
+            <tag name="kernel.event_listener" event="jpm_martin_sylius_nmi.nmi_stored_card.pre_set_default" />
+        </service>
+
+        <!-- Before the row goes, so a gateway that refuses leaves both halves intact. -->
+        <service id="jpm_martin_sylius_nmi.listener.stored_card_deletion" class="JpmMartin\SyliusNmiPlugin\EventListener\NmiStoredCardDeletionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.stored_card.default" />
+            <tag name="kernel.event_listener" event="jpm_martin_sylius_nmi.nmi_stored_card.pre_delete" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.provider.vaulting_payment_method" class="JpmMartin\SyliusNmiPlugin\Provider\NmiVaultingPaymentMethodProvider">
+            <argument type="service" id="sylius.repository.payment_method" />
+        </service>
+
+        <service id="JpmMartin\SyliusNmiPlugin\Controller\AddStoredCardAction" public="true">
+            <argument type="service" id="sylius.context.customer" />
+            <argument type="service" id="sylius.context.channel" />
+            <argument type="service" id="jpm_martin_sylius_nmi.provider.vaulting_payment_method" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.stored_card" />
+            <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_stored_card" />
+            <argument type="service" id="twig" />
+            <argument type="service" id="router" />
+            <argument type="service" id="translator" />
         </service>
     </services>
 </container>

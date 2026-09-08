@@ -6,6 +6,7 @@ namespace JpmMartin\SyliusNmiPlugin\Recorder;
 
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiVaultRecord;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 
@@ -31,5 +32,20 @@ interface NmiStoredCardRecorderInterface
         CustomerInterface $customer,
         PaymentMethodInterface $paymentMethod,
         NmiResponse $response,
+    ): ?NmiStoredCardInterface;
+
+    /**
+     * The same filing, for a card stored from the account area rather than alongside a payment.
+     *
+     * That call answers with a customer rather than a transaction, so there is no transaction to
+     * cite later — the column stays null — and the card is described by the gateway's own masked
+     * number rather than by anything the browser reported.
+     *
+     * Null when the answer carried no card this can read.
+     */
+    public function recordVaulted(
+        CustomerInterface $customer,
+        PaymentMethodInterface $paymentMethod,
+        NmiVaultRecord $record,
     ): ?NmiStoredCardInterface;
 }

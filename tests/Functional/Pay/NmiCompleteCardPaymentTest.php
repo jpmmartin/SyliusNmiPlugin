@@ -410,6 +410,59 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
     }
 
     /**
+     * *The first card becomes the default.* A list of one with nothing chosen is a choice nobody
+     * made, so the first card a shopper saves is theirs by default.
+     */
+    public function testTheFirstCardAShopperSavesBecomesTheirDefault(): void
+    {
+        $this->gateway->willApproveAndKeepTheCard();
+        $user = $this->signedInShopper();
+        $paymentRequest = $this->processingRequest(storeCards: true, customer: $user->getCustomer());
+
+        $this->post($paymentRequest, [self::TOKEN, 'store_card' => '1']);
+
+        $cards = $this->storedCardsOf($user->getCustomer());
+        self::assertCount(1, $cards);
+        self::assertTrue($cards[0]->isDefault(), 'The only card a shopper has is the one they pay with.');
+    }
+
+    /**
+     * And the second does not quietly take over. Moving the default is a choice the shopper makes
+     * from their account; paying again is not that choice.
+     */
+    public function testASecondSavedCardDoesNotDisplaceTheDefault(): void
+    {
+        $user = $this->signedInShopper();
+
+        $this->gateway->willApproveAndKeepTheCard();
+        $first = $this->processingRequest(storeCards: true, customer: $this->managedCustomer($user));
+        $this->post($first, [self::TOKEN, 'store_card' => '1']);
+
+        // A genuinely different card: same brand and expiry would be read as the same one by the
+        // duplicate heuristic, and this test would then prove nothing about two rows.
+        $this->gateway->willApproveAndKeepTheCard(
+            vaultId: '1338089755',
+            transactionId: '12518163944',
+            lastFour: '4242',
+        );
+        // The same NMI account, deliberately: "the default" only means anything within one, so two
+        // payment methods would correctly hold one default each and this would prove nothing.
+        $second = $this->processingRequest(
+            storeCards: true,
+            customer: $this->managedCustomer($user),
+            paymentMethod: $this->sameAccountAs($first),
+        );
+        $this->post($second, [self::TOKEN, 'store_card' => '1']);
+
+        $cards = $this->storedCardsOf($this->managedCustomer($user));
+        self::assertCount(2, $cards, 'Two different cards, two rows.');
+
+        $defaults = array_filter($cards, static fn ($card): bool => $card->isDefault());
+        self::assertCount(1, $defaults, 'Exactly one card is the default, never two and never none.');
+        self::assertSame('1730549219', reset($defaults)->getVaultId(), 'And it is still the first one.');
+    }
+
+    /**
      * *Saving alongside a declined payment.* The shopper asked, the gateway refused, and nothing
      * is filed — not a half-built row, not a row with no vault reference.
      */
