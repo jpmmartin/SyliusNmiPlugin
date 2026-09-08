@@ -9,6 +9,22 @@
 <div class="col-12 col-md-6">
     {{ form_row(config.environment, sylius_test_form_attribute('nmi-environment')) }}
 </div>
+{#
+    Every field is laid out here by name, and nothing renders what this file leaves out: the
+    embedded configuration form is never passed to `form_rest`, so a field missing from this
+    template is a field an operator cannot set. Both card settings were missing exactly that way
+    until the test started reading this page instead of the form on its own.
+#}
 <div class="col-12 col-md-6 mt-5">
     {{ form_row(config.use_authorize, sylius_test_form_attribute('nmi-use-authorize')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
+</div>
+<div class="col-12 col-md-6 mt-5">
+    {{ form_row(config.store_cards, sylius_test_form_attribute('nmi-store-cards')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
+</div>
+{#
+    Full width: its help text is a paragraph rather than a line, and it is a follow-up to the
+    setting above rather than a fifth independent switch.
+#}
+<div class="col-12">
+    {{ form_row(config.authenticate_stored_cards, sylius_test_form_attribute('nmi-authenticate-stored-cards')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
 </div>

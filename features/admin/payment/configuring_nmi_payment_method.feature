@@ -98,3 +98,58 @@ Feature: Configuring an NMI payment method
         And I add it
         Then I should be notified that it has been successfully created
         And the security key "sec-private-4567" of the "Card" payment method should not be readable in the database
+
+    @ui
+    Scenario: Saving cards is off and authenticating them is on, before anyone chooses
+        When I want to create a new payment method with "NMI" gateway factory
+        Then saving cards should be offered off
+        And authenticating saved cards should be offered already on
+
+    @ui
+    Scenario: Letting shoppers save their card
+        When I want to create a new payment method with "NMI" gateway factory
+        And I name it "Card" in "English (United States)"
+        And I specify its code as "nmi_card"
+        And I set its tokenization key as "tok-public-0123"
+        And I set its security key as "sec-private-4567"
+        And I choose the "sandbox" environment
+        And I let shoppers save their card
+        And I add it
+        Then I should be notified that it has been successfully created
+        And this payment method should let shoppers save their card
+        And this payment method should authenticate saved cards
+
+    @ui
+    Scenario: Turning off authentication for saved cards
+        When I want to create a new payment method with "NMI" gateway factory
+        And I name it "Card" in "English (United States)"
+        And I specify its code as "nmi_card"
+        And I set its tokenization key as "tok-public-0123"
+        And I set its security key as "sec-private-4567"
+        And I choose the "sandbox" environment
+        And I let shoppers save their card
+        And I turn off authenticating saved cards
+        And I add it
+        Then I should be notified that it has been successfully created
+        And this payment method should let shoppers save their card
+        And this payment method should not authenticate saved cards
+
+    @ui
+    Scenario: A store that says nothing about card saving gets none of it
+        When I want to create a new payment method with "NMI" gateway factory
+        And I name it "Card" in "English (United States)"
+        And I specify its code as "nmi_card"
+        And I set its tokenization key as "tok-public-0123"
+        And I set its security key as "sec-private-4567"
+        And I choose the "sandbox" environment
+        And I add it
+        Then I should be notified that it has been successfully created
+        And this payment method should not let shoppers save their card
+
+    @ui
+    Scenario: The authentication setting explains its own consequences
+        When I want to create a new payment method with "NMI" gateway factory
+        Then the saved-card authentication setting should warn that "paying with a saved card is one click"
+        And the saved-card authentication setting should warn that "issuer may decline a payment that carries no authentication"
+        And the saved-card authentication setting should warn that "liability for a chargeback stays with you"
+        And the saved-card authentication setting should warn that "North America"

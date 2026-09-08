@@ -38,12 +38,12 @@ jpm_martin_sylius_nmi:
                 en esta pasarela.
             authenticate_stored_cards: Autenticar las tarjetas guardadas con 3-D Secure
             authenticate_stored_cards_help: >-
-                Déjalo activado y quien vuelva se autenticará otra vez antes de cada pago.
-                Desactívalo y pagar con una tarjeta guardada es un solo clic.
+                Si se deja activada, quien vuelva se autenticará otra vez antes de cada pago.
+                Si se desactiva, pagar con una tarjeta guardada es un solo clic.
                 <strong>Para titulares de la UE y el Reino Unido esa elección tiene consecuencias:</strong>
                 el emisor puede rechazar un pago que no lleve autenticación, y la responsabilidad
-                por un contracargo se queda contigo en vez de pasar al emisor. Vendiendo a
-                Norteamérica esa presión no aplica igual, y el pago de un clic es lo habitual.
+                por un contracargo se queda en la tienda en vez de pasar al emisor. Vendiendo a
+                Norteamérica esa presión no aplica igual, y el pago de un solo clic es lo habitual.
     shop:
         pay:
             heading: Pagar con tarjeta

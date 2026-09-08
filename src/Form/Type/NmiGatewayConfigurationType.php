@@ -11,6 +11,8 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -76,6 +78,24 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'required' => false,
             ])
         ;
+
+        // The provider reads an absent key as "yes", and the form has to agree with it or the
+        // agreement is worthless: a checkbox rendered unchecked posts nothing, which Symfony
+        // stores as an explicit false. Every payment method saved through this form would then
+        // carry the answer nobody gave — and the "silence means authenticate" reading would only
+        // ever apply to configurations written before the field existed.
+        $builder->addEventListener(FormEvents::PRE_SET_DATA, static function (FormEvent $event): void {
+            $config = $event->getData();
+
+            if (!is_array($config) || array_key_exists(NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS, $config)) {
+                return;
+            }
+
+            // Only when the key is absent, so a store that deliberately turned it off keeps it off.
+            $config[NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS] = true;
+
+            $event->setData($config);
+        });
     }
 
     public function configureOptions(OptionsResolver $resolver): void

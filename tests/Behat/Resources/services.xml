@@ -37,5 +37,24 @@
             <argument type="service" id="doctrine.dbal.default_connection" />
         </service>
 
+        <!--
+            The shopper's saved-cards page. Not one of Sylius's, so it is registered here rather
+            than overridden.
+        -->
+        <service id="jpm_martin_sylius_nmi.behat.page.shop.account.stored_card.index" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Shop\Account\StoredCardIndexPage" parent="sylius.behat.symfony_page" />
+
+        <service id="jpm_martin_sylius_nmi.context.setup.stored_card" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Setup\NmiStoredCardContext">
+            <argument type="service" id="sylius.behat.shared_storage" />
+            <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_stored_card" />
+            <argument type="service" id="sylius.factory.payment_method" />
+            <argument type="service" id="sylius.factory.gateway_config" />
+            <argument type="service" id="sylius.repository.customer" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.context.ui.shop.managing_nmi_stored_cards" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Shop\ManagingNmiStoredCardsContext">
+            <argument type="service" id="jpm_martin_sylius_nmi.behat.page.shop.account.stored_card.index" />
+        </service>
+
     </services>
 </container>

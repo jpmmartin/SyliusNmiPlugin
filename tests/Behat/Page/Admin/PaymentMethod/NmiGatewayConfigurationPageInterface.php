@@ -15,4 +15,14 @@ interface NmiGatewayConfigurationPageInterface
     public function enableAuthorizeThenCapture(): void;
 
     public function isAuthorizeThenCaptureEnabled(): bool;
+
+    public function enableCardSaving(): void;
+
+    public function isCardSavingEnabled(): bool;
+
+    public function disableStoredCardAuthentication(): void;
+
+    public function isStoredCardAuthenticationEnabled(): bool;
+
+    public function getStoredCardAuthenticationHelp(): string;
 }

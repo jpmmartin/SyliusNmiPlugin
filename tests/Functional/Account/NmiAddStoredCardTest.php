@@ -154,6 +154,15 @@ final class NmiAddStoredCardTest extends WebTestCase
         /** @var ChannelInterface $channel */
         $channel = $container->get('sylius.repository.channel')->findOneBy([]);
 
+        // **What this test asserts is about the channel's NMI methods, so it has to own them.**
+        // The page answers only when the channel has exactly one NMI method that saves cards, and
+        // the channel is whichever one the hostname resolves to — shared with whatever else has
+        // run against this database. Behat leaves its last scenario's rows behind by design, so
+        // without this the "no such page" case passes or fails on the order the suites ran in.
+        foreach ($this->nmiMethodsOn($channel) as $existing) {
+            $existing->removeChannel($channel);
+        }
+
         $gatewayConfig = $container->get('sylius.factory.gateway_config')->createNew();
         $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
         $gatewayConfig->setFactoryName(NmiGatewayFactory::NAME);
@@ -180,6 +189,25 @@ final class NmiAddStoredCardTest extends WebTestCase
         $this->manager->flush();
 
         return $paymentMethod;
+    }
+
+    /**
+     * The NMI payment methods already attached to a channel.
+     *
+     * @return list<PaymentMethodInterface>
+     */
+    private function nmiMethodsOn(ChannelInterface $channel): array
+    {
+        $nmi = [];
+
+        /** @var PaymentMethodInterface $paymentMethod */
+        foreach (self::getContainer()->get('sylius.repository.payment_method')->findAll() as $paymentMethod) {
+            if (NmiGatewayFactory::NAME === $paymentMethod->getGatewayConfig()?->getFactoryName() && $paymentMethod->hasChannel($channel)) {
+                $nmi[] = $paymentMethod;
+            }
+        }
+
+        return $nmi;
     }
 
     private function signIn(): CustomerInterface

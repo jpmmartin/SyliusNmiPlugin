@@ -63,6 +63,22 @@ final class ManagingNmiPaymentMethodsContext implements Context
     }
 
     /**
+     * @When I let shoppers save their card
+     */
+    public function iLetShoppersSaveTheirCard(): void
+    {
+        $this->createPage->enableCardSaving();
+    }
+
+    /**
+     * @When I turn off authenticating saved cards
+     */
+    public function iTurnOffAuthenticatingSavedCards(): void
+    {
+        $this->createPage->disableStoredCardAuthentication();
+    }
+
+    /**
      * @Then NMI should be available as a gateway factory
      */
     public function nmiShouldBeAvailableAsAGatewayFactory(): void
@@ -99,6 +115,72 @@ final class ManagingNmiPaymentMethodsContext implements Context
     public function thisPaymentMethodShouldAuthorizeFirstAndCaptureLater(): void
     {
         Assert::true($this->updatePage->isAuthorizeThenCaptureEnabled());
+    }
+
+    /**
+     * @Then this payment method should let shoppers save their card
+     */
+    public function thisPaymentMethodShouldLetShoppersSaveTheirCard(): void
+    {
+        Assert::true($this->updatePage->isCardSavingEnabled());
+    }
+
+    /**
+     * @Then this payment method should not let shoppers save their card
+     */
+    public function thisPaymentMethodShouldNotLetShoppersSaveTheirCard(): void
+    {
+        Assert::false($this->updatePage->isCardSavingEnabled());
+    }
+
+    /**
+     * @Then this payment method should authenticate saved cards
+     */
+    public function thisPaymentMethodShouldAuthenticateSavedCards(): void
+    {
+        Assert::true($this->updatePage->isStoredCardAuthenticationEnabled());
+    }
+
+    /**
+     * @Then this payment method should not authenticate saved cards
+     */
+    public function thisPaymentMethodShouldNotAuthenticateSavedCards(): void
+    {
+        Assert::false($this->updatePage->isStoredCardAuthenticationEnabled());
+    }
+
+    /**
+     * The setting is offered already on, because that is what the code reads an unanswered
+     * question as — and a form that showed it off would write the answer nobody gave.
+     *
+     * @Then authenticating saved cards should be offered already on
+     */
+    public function authenticatingSavedCardsShouldBeOfferedAlreadyOn(): void
+    {
+        Assert::true($this->createPage->isStoredCardAuthenticationEnabled());
+    }
+
+    /**
+     * @Then saving cards should be offered off
+     */
+    public function savingCardsShouldBeOfferedOff(): void
+    {
+        Assert::false($this->createPage->isCardSavingEnabled());
+    }
+
+    /**
+     * The scenario this serves is about words: an operator who has never read the specification
+     * has to be able to make the choice from the form alone. So the phrase is named in the feature
+     * file and checked here, rather than the test settling for "some help text exists".
+     *
+     * A phrase in the feature file must not begin with "the": Sylius transforms a quoted argument
+     * that does into a shared-storage lookup, and the step fails hunting for a key nobody stored.
+     *
+     * @Then /^the saved-card authentication setting should warn that "([^"]+)"$/
+     */
+    public function theSavedCardAuthenticationSettingShouldWarnThat(string $phrase): void
+    {
+        Assert::contains($this->createPage->getStoredCardAuthenticationHelp(), $phrase);
     }
 
     /**

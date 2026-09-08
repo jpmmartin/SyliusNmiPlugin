@@ -101,3 +101,36 @@ default:
 
             filters:
                 tags: "@paying_with_nmi&&@ui"
+
+        # Shop UI: the saved-cards page in the shopper's account.
+        #
+        # No scenario here puts a card on file, and that is a limitation rather than a choice: the
+        # two flows that do — saving while paying, and adding one from the account — mint a token
+        # inside the gateway's own frames, which needs a browser and live credentials. CI runs
+        # Behat with `~@javascript`, so those belong to the sandbox walkthrough instead.
+        ui_managing_nmi_stored_cards:
+            contexts:
+                - sylius.behat.context.hook.doctrine_orm
+                - sylius.behat.context.hook.session
+
+                - sylius.behat.context.transform.channel
+                - sylius.behat.context.transform.customer
+                - sylius.behat.context.transform.lexical
+                - sylius.behat.context.transform.locale
+                - sylius.behat.context.transform.shared_storage
+                - sylius.behat.context.transform.user
+
+                - sylius.behat.context.setup.channel
+                - sylius.behat.context.setup.currency
+                - sylius.behat.context.setup.customer
+                - sylius.behat.context.setup.geographical
+                - sylius.behat.context.setup.locale
+                - sylius.behat.context.setup.shop_security
+                - sylius.behat.context.setup.user
+                - jpm_martin_sylius_nmi.context.setup.stored_card
+
+                - sylius.behat.context.ui.shop.account
+                - jpm_martin_sylius_nmi.context.ui.shop.managing_nmi_stored_cards
+
+            filters:
+                tags: "@managing_nmi_stored_cards&&@ui"
