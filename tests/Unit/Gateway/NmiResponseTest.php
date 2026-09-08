@@ -119,4 +119,55 @@ final class NmiResponseTest extends TestCase
         yield 'a response outside 1-3' => ['{"response":"9"}'];
         yield 'an error body' => ['{"type":"inputError","error_code":"E_INVALID_CC_NUMBER","message":"Invalid Credit Card Number"}'];
     }
+
+    /**
+     * Brand, last four and expiry all arrive on the charge itself, which is what lets a card be
+     * stored without a second call to ask the gateway what it just took.
+     */
+    public function testItReadsTheCardTheGatewayDescribed(): void
+    {
+        $card = NmiResponse::fromBody(self::APPROVED_SALE)->card;
+
+        self::assertNotNull($card);
+        self::assertSame('Visa', $card->brand);
+        // Read out of the gateway's own mask, `411111******1111`. The plugin never holds a number
+        // it could take the last four digits from.
+        self::assertSame('1111', $card->lastFour);
+        self::assertSame(10, $card->expiryMonth);
+        self::assertSame(2029, $card->expiryYear);
+    }
+
+    public function testATransactionThatDescribesNoCardCarriesNone(): void
+    {
+        self::assertNull(NmiResponse::fromBody(self::DECLINED_SALE)->card);
+    }
+
+    /**
+     * A description this cannot read yields no card rather than a half-built one. Storing a card
+     * a shopper cannot recognise in a list is worse than storing none.
+     */
+    #[DataProvider('unreadableCardDescriptions')]
+    public function testACardDescriptionThatCannotBeReadYieldsNoCard(string $paymentDetails): void
+    {
+        $body = str_replace(
+            '"payment_details":{"card_number":"411111******1111","card_exp":"1029","card_type":"Visa"}',
+            sprintf('"payment_details":%s', $paymentDetails),
+            self::APPROVED_SALE,
+        );
+
+        self::assertNull(NmiResponse::fromBody($body)->card);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function unreadableCardDescriptions(): iterable
+    {
+        yield 'no brand' => ['{"card_number":"411111******1111","card_exp":"1029"}'];
+        yield 'no number' => ['{"card_exp":"1029","card_type":"Visa"}'];
+        yield 'no expiry' => ['{"card_number":"411111******1111","card_type":"Visa"}'];
+        yield 'an empty brand' => ['{"card_number":"411111******1111","card_exp":"1029","card_type":""}'];
+        yield 'an expiry that is not four digits' => ['{"card_number":"411111******1111","card_exp":"102029","card_type":"Visa"}'];
+        yield 'an expiry whose month cannot exist' => ['{"card_number":"411111******1111","card_exp":"1329","card_type":"Visa"}'];
+        yield 'a number with fewer than four digits' => ['{"card_number":"***","card_exp":"1029","card_type":"Visa"}'];
+        yield 'not an object' => ['"411111******1111"'];
+    }
 }

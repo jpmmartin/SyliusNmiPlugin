@@ -36,6 +36,8 @@ final class CompleteCardPaymentAction
 
     public const FAILED_MESSAGE_KEY = 'jpm_martin_sylius_nmi.payment.failed';
 
+    public const ALREADY_SAVED_MESSAGE_KEY = 'jpm_martin_sylius_nmi.payment.card_already_saved';
+
     /**
      * The only fields taken from the request body. Everything else is ignored — the payload is
      * stored encrypted and read back by the charge, and letting a browser put arbitrary keys in
@@ -43,12 +45,39 @@ final class CompleteCardPaymentAction
      */
     private const ACCEPTED_FIELDS = [
         'payment_token',
+        // A request, not a permission: whether it is honoured is decided on the server, against
+        // the session rather than against anything the browser said.
+        'store_card',
+        // How the browser's own token lookup described the card, so the store can tell it is one
+        // the shopper already has *before* asking the gateway to keep a second copy of it.
+        //
+        // **The last four digits, not a number.** Named apart from the gateway's own `card_*`
+        // keys, which stay refused, and each checked into its own shape before it is believed —
+        // an accepted field is somewhere a full card number could otherwise land.
+        'store_card_brand',
+        'store_card_last_four',
+        'store_card_exp',
         'cardholder_auth',
         'cavv',
         'xid',
         'eci',
         'three_ds_version',
         'directory_server_id',
+    ];
+
+    /**
+     * The shape a field must have before it is kept at all.
+     *
+     * **This is where "a card number is never stored" is actually enforced.** Refusing the value
+     * further down would keep it off the gateway and out of the row, and still leave it sitting in
+     * the request's payload — which is storage, encrypted or not. A field with no entry here is
+     * taken as posted, as it always was.
+     */
+    private const FIELD_SHAPES = [
+        'store_card' => '/^[A-Za-z0-9]{1,8}$/',
+        'store_card_brand' => '/^[\p{L}\p{N} .\-]{1,32}$/u',
+        'store_card_last_four' => '/^\d{4}$/',
+        'store_card_exp' => '/^\d{4}$/',
     ];
 
     /** @param PaymentRequestRepositoryInterface<PaymentRequestInterface> $paymentRequestRepository */
@@ -101,11 +130,19 @@ final class CompleteCardPaymentAction
      */
     private function tellTheShopper(Request $request, PaymentRequestInterface $paymentRequest): void
     {
+        $responseData = $paymentRequest->getResponseData();
+
         if (PaymentRequestInterface::STATE_FAILED !== $paymentRequest->getState()) {
+            // A payment that went through can still owe the shopper an answer: they asked for a
+            // card to be kept and it was one they already had, so nothing was stored and saying
+            // nothing would look like the option had simply been ignored.
+            if (true === ($responseData['card_already_saved'] ?? null)) {
+                $this->flash($request, 'info', $this->translator->trans(self::ALREADY_SAVED_MESSAGE_KEY, [], 'flashes'));
+            }
+
             return;
         }
 
-        $responseData = $paymentRequest->getResponseData();
         $key = is_string($responseData['message_key'] ?? null) ? $responseData['message_key'] : self::FAILED_MESSAGE_KEY;
         $message = $this->translator->trans($key, [], 'flashes');
 
@@ -117,9 +154,15 @@ final class CompleteCardPaymentAction
             $message = sprintf('%s %s', $message, $detail);
         }
 
+        $this->flash($request, 'error', $message);
+    }
+
+    /** A stateless request has no flash bag, and the shop API is one. */
+    private function flash(Request $request, string $type, string $message): void
+    {
         $session = $request->getSession();
         if ($session instanceof \Symfony\Component\HttpFoundation\Session\Session) {
-            $session->getFlashBag()->add('error', $message);
+            $session->getFlashBag()->add($type, $message);
         }
     }
 
@@ -131,9 +174,18 @@ final class CompleteCardPaymentAction
 
         foreach (self::ACCEPTED_FIELDS as $field) {
             $value = $request->request->get($field);
-            if (is_string($value) && '' !== trim($value)) {
-                $payload[$field] = trim($value);
+            if (!is_string($value) || '' === trim($value)) {
+                continue;
             }
+
+            $value = trim($value);
+
+            $shape = self::FIELD_SHAPES[$field] ?? null;
+            if (null !== $shape && 1 !== preg_match($shape, $value)) {
+                continue;
+            }
+
+            $payload[$field] = $value;
         }
 
         // Taken from the connection, never from the body: a shopper's browser must not be able to

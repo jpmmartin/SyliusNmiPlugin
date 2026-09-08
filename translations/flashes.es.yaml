@@ -3,6 +3,7 @@ jpm_martin_sylius_nmi:
         declined: Tu tarjeta ha sido rechazada.
         failed: No se ha podido completar el pago. Inténtalo de nuevo o usa otra tarjeta.
         unreachable: No se ha podido contactar con la pasarela de pago. No se ha cobrado nada; inténtalo de nuevo.
+        card_already_saved: Ya tienes esta tarjeta guardada, así que no se ha añadido otra vez.
         capture_refused: La pasarela rechazó la captura, así que el pago no se ha completado.
         no_authorisation: Este pago no tiene ninguna autorización registrada que capturar.
         void_refused: La pasarela rechazó la anulación, así que el pago no se ha cancelado.

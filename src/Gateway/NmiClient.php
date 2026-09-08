@@ -101,6 +101,12 @@ final class NmiClient implements NmiClientInterface
             $body['cardholder_auth'] = $threeDSecure;
         }
 
+        // `add_to_vault`, not the `add_customer` the published examples show: that spelling is
+        // refused as an unexpected parameter. Established against the gateway, not read.
+        if ($charge->storeCard) {
+            $body['customer_vault'] = ['add_to_vault' => true];
+        }
+
         return $body;
     }
 

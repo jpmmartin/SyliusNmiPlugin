@@ -6,7 +6,9 @@ namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiAmountFormatter;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
+use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -27,6 +29,7 @@ final class PrepareCardPaymentHandler
         private readonly NmiGatewayConfigurationProviderInterface $configurationProvider,
         private readonly StateMachineInterface $stateMachine,
         private readonly NmiAmountFormatter $amountFormatter,
+        private readonly NmiCardSavingCustomerProviderInterface $cardSavingCustomerProvider,
     ) {
     }
 
@@ -55,13 +58,31 @@ final class PrepareCardPaymentHandler
             // Which of the two ways this payment is taken was decided upstream from the payment
             // method's configuration; the browser is told so it can label its own button.
             'action' => $paymentRequest->getAction(),
-        ] + $this->cardholderFrom($payment));
+        ] + $this->cardholderFrom($payment) + $this->cardSavingFrom($payment, $configuration));
 
         $this->stateMachine->apply(
             $paymentRequest,
             PaymentRequestTransitions::GRAPH,
             PaymentRequestTransitions::TRANSITION_PROCESS,
         );
+    }
+
+    /**
+     * Present only when a card may actually be saved out of this payment, and absent otherwise —
+     * which is what keeps a store that never turned the setting on from seeing a key it has no
+     * use for, in the storefront and in the API response alike.
+     *
+     * @return array<string, bool>
+     */
+    private function cardSavingFrom(mixed $payment, NmiGatewayConfiguration $configuration): array
+    {
+        if (!$payment instanceof PaymentInterface) {
+            return [];
+        }
+
+        return null === $this->cardSavingCustomerProvider->forPayment($payment, $configuration)
+            ? []
+            : ['can_store_card' => true];
     }
 
     /**

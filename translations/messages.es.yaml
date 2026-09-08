@@ -21,9 +21,17 @@ jpm_martin_sylius_nmi:
                 sandbox: Sandbox
             use_authorize: Autorizar primero, capturar después
             use_authorize_help: Si se activa, el checkout sólo autoriza la tarjeta. El importe se captura cuando el pedido se envía o a mano desde la página del pedido.
+            store_cards: Permitir que los compradores guarden su tarjeta
+            store_cards_help: >-
+                Si se activa, un comprador identificado puede dejar una tarjeta guardada en NMI y
+                pagar con ella la próxima vez. A nadie se le guarda nada si no lo pide, a los
+                invitados no se les ofrece nunca, y la tienda no llega a tener el número de la
+                tarjeta: sólo la referencia que devuelve NMI. Si se deja desactivada, nada cambia
+                en esta pasarela.
     shop:
         pay:
             heading: Pagar con tarjeta
             amount: Importe a pagar:
             card_unreadable: No se han podido leer los datos de la tarjeta. Revísalos e inténtalo de nuevo.
             not_authenticated: No se ha podido autenticar la tarjeta, así que no se ha cobrado nada. Inténtalo de nuevo o usa otra tarjeta.
+            save_card: Guardar esta tarjeta para la próxima vez

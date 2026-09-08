@@ -12,6 +12,39 @@ import { mountNmiPayments, mountNmiThreeDSecure } from '@nmipayments/nmi-pay';
 
 const MOUNT_SELECTOR = '#nmi-payment';
 const THREE_D_SECURE_SELECTOR = '#nmi-three-d-secure';
+const STORE_CARD_SELECTOR = '#nmi-store-card';
+
+/*
+ * Whether the shopper asked for the card to be kept.
+ *
+ * Read when the form is submitted rather than when it is mounted, because they may tick it after
+ * the card fields are already up. Absent unless the server rendered it — and the server checks
+ * again on the way in regardless, because this is a request for something, never permission.
+ */
+const storeCardRequested = () => document.querySelector(STORE_CARD_SELECTOR)?.checked === true;
+
+/*
+ * How the component's own token lookup described the card: the gateway's masked number, the
+ * expiry and the brand. Sent only when the shopper asked for the card to be kept, and only to let
+ * the store notice it is one they already have before the gateway is asked to keep a second copy.
+ *
+ * `lookupData` is documented as present only when the lookup succeeded, so every field here is
+ * optional and postToken drops the ones that are missing. **This is never a card number**: the
+ * component reports it already masked, as `411111******1111`.
+ */
+const describedCard = (event) => {
+    const card = event.lookupData?.card;
+    if (!card) {
+        return {};
+    }
+
+    // The last four digits, taken from the mask the component already returns. The store refuses
+    // anything else in this field, and there is nothing else here to send: the number never
+    // existed on this page in a readable form.
+    const lastFour = (card.number ?? '').replace(/\D/g, '').slice(-4);
+
+    return { store_card_brand: card.type, store_card_last_four: lastFour, store_card_exp: card.exp };
+};
 
 /**
  * Posts the token as an ordinary form so the browser follows the store's redirect itself and
@@ -166,6 +199,9 @@ const mount = (container) => {
             postToken(container, {
                 payment_token: event.token,
                 _csrf_token: container.dataset.nmiCsrfToken,
+                // Omitted when unticked: postToken drops empty values, so an unsaved card sends
+                // nothing at all rather than a falsy flag the server would have to interpret.
+                ...(storeCardRequested() ? { store_card: '1', ...describedCard(event) } : {}),
                 ...fields,
             });
 

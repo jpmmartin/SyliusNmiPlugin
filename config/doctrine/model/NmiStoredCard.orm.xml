@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      http://doctrine-project.org/schemas/orm/doctrine-mapping.xsd"
+>
+    <!--
+        A mapped superclass, like the transaction log beside it: registering it as a resource turns
+        it into a concrete entity a store may replace.
+
+        The three identifier columns hold ciphertext, so they are sized for it rather than for the
+        gateway's own values, which are short. The four display columns are in the clear because
+        both the account listing and the duplicate check query them.
+    -->
+    <mapped-superclass name="JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard" table="jpm_martin_sylius_nmi_stored_card">
+        <indexes>
+            <!-- Every read starts from the customer; the payment method narrows it, because a card
+                 stored against one NMI account cannot be charged against another. -->
+            <index name="idx_jpm_martin_sylius_nmi_stored_card_owner" columns="customer_id,payment_method_id" />
+        </indexes>
+
+        <id name="id" column="id" type="integer">
+            <generator strategy="AUTO" />
+        </id>
+
+        <field name="vaultId" column="vault_id" type="text" />
+        <!-- Null for a card stored while paying: that charge returns no billing-shaped key at all,
+             only the vault reference. Filled by the account-area path, which does return one. -->
+        <field name="billingId" column="billing_id" type="text" nullable="true" />
+        <!-- Null for a card added from the account area: that call reports no transaction. -->
+        <field name="vaultingTransactionId" column="vaulting_transaction_id" type="text" nullable="true" />
+
+        <field name="brand" column="brand" type="string" length="32" />
+        <field name="lastFour" column="last_four" type="string" length="4" />
+        <field name="expiryMonth" column="expiry_month" type="smallint" />
+        <field name="expiryYear" column="expiry_year" type="smallint" />
+
+        <field name="default" column="is_default" type="boolean" />
+        <field name="createdAt" column="created_at" type="datetime_immutable" />
+        <field name="updatedAt" column="updated_at" type="datetime_immutable" nullable="true" />
+
+        <many-to-one field="customer" target-entity="Sylius\Component\Core\Model\CustomerInterface">
+            <join-column name="customer_id" referenced-column-name="id" nullable="false" on-delete="CASCADE" />
+        </many-to-one>
+
+        <!-- Restricted rather than cascaded: deleting a payment method that still has stored cards
+             would strand vault records at the gateway with nothing left pointing at them. -->
+        <many-to-one field="paymentMethod" target-entity="Sylius\Component\Core\Model\PaymentMethodInterface">
+            <join-column name="payment_method_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT" />
+        </many-to-one>
+    </mapped-superclass>
+</doctrine-mapping>

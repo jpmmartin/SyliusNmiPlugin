@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
+use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepository;
 use Sylius\Bundle\ResourceBundle\SyliusResourceBundle;
 use Sylius\Resource\Factory\Factory;
@@ -51,6 +53,19 @@ final class Configuration implements ConfigurationInterface
                                     ->children()
                                         ->scalarNode('model')->defaultValue(NmiTransaction::class)->cannotBeEmpty()->end()
                                         ->scalarNode('repository')->defaultValue(NmiTransactionRepository::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('factory')->defaultValue(Factory::class)->end()
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('nmi_stored_card')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->arrayNode('classes')
+                                    ->addDefaultsIfNotSet()
+                                    ->children()
+                                        ->scalarNode('model')->defaultValue(NmiStoredCard::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('repository')->defaultValue(NmiStoredCardRepository::class)->cannotBeEmpty()->end()
                                         ->scalarNode('factory')->defaultValue(Factory::class)->end()
                                     ->end()
                                 ->end()

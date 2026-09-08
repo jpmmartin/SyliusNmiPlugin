@@ -34,6 +34,8 @@ final class NmiGatewayConfigurationFormTest extends KernelTestCase
             'Sandbox',
             'Authorize first, capture later',
             'checkout only authorizes the card',
+            'Let shoppers save their card',
+            'may keep a card on file with NMI',
         ],
         'es' => [
             'Clave de tokenización',
@@ -47,6 +49,8 @@ final class NmiGatewayConfigurationFormTest extends KernelTestCase
             'Sandbox',
             'Autorizar primero, capturar después',
             'el checkout sólo autoriza la tarjeta',
+            'Permitir que los compradores guarden su tarjeta',
+            'puede dejar una tarjeta guardada en NMI',
         ],
     ];
 

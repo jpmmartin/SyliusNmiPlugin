@@ -55,6 +55,9 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             environment: $environment,
             useAuthorize: (bool) ($config[NmiGatewayFactory::CONFIG_USE_AUTHORIZE] ?? false),
             apiBaseUrl: $this->apiBaseUrlOverride ?? $this->baseUrlFor($environment),
+            // Absent means off, which is what a store that installed this plugin before the
+            // setting existed has stored.
+            storeCards: (bool) ($config[NmiGatewayFactory::CONFIG_STORE_CARDS] ?? false),
         );
     }
 

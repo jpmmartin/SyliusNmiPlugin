@@ -53,6 +53,35 @@ final class FakeNmiClient implements NmiClientInterface
         $this->failure = null;
     }
 
+    /**
+     * An approval that also kept the card: the vault reference sits beside the transaction, and
+     * the charge describes the card it took. Both were observed against the sandbox — the gateway
+     * returns no billing-shaped key here, which is why the entity's billing id stays null.
+     */
+    public function willApproveAndKeepTheCard(
+        string $vaultId = '1730549219',
+        string $transactionId = '12513506464',
+        string $brand = 'Visa',
+        string $lastFour = '1111',
+        string $expiry = '1029',
+    ): void {
+        $this->willApprove($transactionId);
+
+        /** @var array<string, mixed> $body */
+        $body = $this->response?->raw ?? [];
+        $body['customer_vault_id'] = $vaultId;
+        $body['payment_details'] = [
+            // Masked by the gateway, and capitalised by it too — the browser spells the same
+            // brand `visa`, which is why nothing compares these two as they arrive.
+            'card_number' => '411111******' . $lastFour,
+            'card_exp' => $expiry,
+            'card_type' => $brand,
+            'card_bin' => '411111',
+        ];
+
+        $this->response = NmiResponse::fromBody(json_encode($body, \JSON_THROW_ON_ERROR));
+    }
+
     public function willFail(\Throwable $failure): void
     {
         $this->failure = $failure;

@@ -28,6 +28,14 @@ final class NmiGatewayFactory
     /** Read by Sylius's own DefaultActionProvider: truthy selects the authorize action. */
     public const CONFIG_USE_AUTHORIZE = 'use_authorize';
 
+    /**
+     * Whether shoppers may keep a card on file with this account.
+     *
+     * Off unless an operator says otherwise, and off is the whole feature absent: no option on the
+     * pay page, no entry in the account menu, no row ever written.
+     */
+    public const CONFIG_STORE_CARDS = 'store_cards';
+
     public const ENVIRONMENT_PRODUCTION = 'production';
 
     public const ENVIRONMENT_SANDBOX = 'sandbox';

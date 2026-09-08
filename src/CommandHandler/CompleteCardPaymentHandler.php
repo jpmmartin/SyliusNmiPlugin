@@ -9,15 +9,22 @@ use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiCardDetails;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\ThreeDSecureResult;
+use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
+use JpmMartin\SyliusNmiPlugin\Recorder\NmiStoredCardRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
+use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Sylius\Component\Payment\PaymentRequestTransitions;
 use Sylius\Component\Payment\PaymentTransitions;
@@ -45,6 +52,9 @@ final class CompleteCardPaymentHandler
         private readonly NmiClientInterface $client,
         private readonly NmiTransactionRecorderInterface $recorder,
         private readonly StateMachineInterface $stateMachine,
+        private readonly NmiCardSavingCustomerProviderInterface $cardSavingCustomerProvider,
+        private readonly NmiStoredCardRecorderInterface $storedCardRecorder,
+        private readonly NmiStoredCardRepositoryInterface $storedCardRepository,
     ) {
     }
 
@@ -72,10 +82,21 @@ final class CompleteCardPaymentHandler
         }
 
         $authorizing = PaymentRequestInterface::ACTION_AUTHORIZE === $paymentRequest->getAction();
-        $charge = $this->chargeFrom($payment, $token, $payload);
 
         try {
             $configuration = $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod());
+
+            // Asked once, here, and used twice: it decides whether the charge asks the gateway to
+            // keep the card and, if it does, who the card ends up filed against. Inside the try
+            // because it needs the configuration, and resolving that can fail like anything else.
+            $savingFor = $this->customerSavingTheCard($payment, $payload, $configuration);
+
+            // **Before the charge, which is the only moment it can be.** Once the sale has run
+            // with `add_to_vault` the gateway has already made a second vault record — it
+            // deduplicates nothing — and there would be no undoing it from here.
+            $alreadySaved = null !== $savingFor && $this->alreadyOnFile($savingFor, $paymentRequest->getMethod(), $payload);
+
+            $charge = $this->chargeFrom($payment, $token, $payload, null !== $savingFor && !$alreadySaved);
 
             $response = $authorizing
                 ? $this->client->authorize($configuration, $charge)
@@ -101,13 +122,21 @@ final class CompleteCardPaymentHandler
 
         $this->recorder->record($payment, $response, $this->typeFor($authorizing));
 
+        // **After the approval, and only after it.** A declined card never reaches this line,
+        // because the decline was caught above and returned — which is the whole of how "a
+        // declined payment leaves no stored card" is kept true.
+        $method = $paymentRequest->getMethod();
+        if (null !== $savingFor && !$alreadySaved && $method instanceof PaymentMethodInterface) {
+            $this->storedCardRecorder->record($savingFor, $method, $response);
+        }
+
         $this->stateMachine->apply(
             $payment,
             PaymentTransitions::GRAPH,
             $authorizing ? PaymentTransitions::TRANSITION_AUTHORIZE : PaymentTransitions::TRANSITION_COMPLETE,
         );
 
-        $paymentRequest->setResponseData($this->responseDataFrom($response));
+        $paymentRequest->setResponseData($this->responseDataFrom($response) + ($alreadySaved ? ['card_already_saved' => true] : []));
 
         $this->stateMachine->apply(
             $paymentRequest,
@@ -117,7 +146,7 @@ final class CompleteCardPaymentHandler
     }
 
     /** @param array<string, mixed> $payload */
-    private function chargeFrom(PaymentInterface $payment, string $token, array $payload): Charge
+    private function chargeFrom(PaymentInterface $payment, string $token, array $payload, bool $storeCard): Charge
     {
         $order = $payment->getOrder();
 
@@ -131,7 +160,68 @@ final class CompleteCardPaymentHandler
             orderId: $order?->getTokenValue(),
             ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
             threeDSecure: $this->threeDSecureFrom($payload),
+            storeCard: $storeCard,
         );
+    }
+
+    /**
+     * Whether this shopper already has this card on file for this payment method.
+     *
+     * The browser is what makes the check possible in time: its token lookup reports the masked
+     * number, the expiry and the brand, so the same three values the row is keyed on are known
+     * before anything is charged. **Verified in the component's own typings** — `PaymentEvent`
+     * carries an optional `lookupData.card` — not assumed from how Collect.js behaves.
+     *
+     * Optional there, and therefore optional here: a lookup that did not happen means no check
+     * happens now, and the recorder's own guard is what still keeps a second row from appearing.
+     * Trusting the browser for these three values is safe because this is a convenience, not a
+     * constraint — the worst a tampered one achieves is a card of its own that is not saved.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function alreadyOnFile(CustomerInterface $customer, mixed $paymentMethod, array $payload): bool
+    {
+        if (!$paymentMethod instanceof PaymentMethodInterface) {
+            return false;
+        }
+
+        $card = NmiCardDetails::fromBrowserReport(
+            $payload['store_card_brand'] ?? null,
+            $payload['store_card_last_four'] ?? null,
+            $payload['store_card_exp'] ?? null,
+        );
+
+        if (null === $card) {
+            return false;
+        }
+
+        return null !== $this->storedCardRepository->findOneDuplicate(
+            $customer,
+            $paymentMethod,
+            $card->brand,
+            $card->lastFour,
+            $card->expiryMonth,
+            $card->expiryYear,
+        );
+    }
+
+    /**
+     * The browser asked; this decides, and answers with who the card would belong to.
+     *
+     * Both halves are required. What was posted is a request; the eligibility check is the
+     * permission. A guest who posts the flag anyway — by hand, or because the page was left open
+     * after signing out — gets a charge with no vault instruction on it at all, which is the only
+     * place that guarantee can actually be made.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function customerSavingTheCard(PaymentInterface $payment, array $payload, NmiGatewayConfiguration $configuration): ?CustomerInterface
+    {
+        if (null === $this->stringOrNull($payload['store_card'] ?? null)) {
+            return null;
+        }
+
+        return $this->cardSavingCustomerProvider->forPayment($payment, $configuration);
     }
 
     /** @param array<string, mixed> $payload */

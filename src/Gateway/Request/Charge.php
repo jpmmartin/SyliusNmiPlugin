@@ -16,6 +16,13 @@ final class Charge
         public readonly ?string $ipAddress = null,
         public readonly ?BillingDetails $billing = null,
         public readonly ?ThreeDSecureResult $threeDSecure = null,
+        /**
+         * Whether the gateway should keep this card after charging it.
+         *
+         * One flag rather than a second call: the sale that takes the money is the same one that
+         * stores the card, which is why a declined payment cannot leave a stored card behind.
+         */
+        public readonly bool $storeCard = false,
     ) {
     }
 }

@@ -50,6 +50,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
             <argument type="service" id="sylius_abstraction.state_machine" />
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
+            <argument type="service" id="jpm_martin_sylius_nmi.provider.card_saving_customer" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 
@@ -59,6 +60,9 @@
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
             <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="jpm_martin_sylius_nmi.provider.card_saving_customer" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.stored_card" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

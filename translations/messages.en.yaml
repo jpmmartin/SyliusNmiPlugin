@@ -21,9 +21,16 @@ jpm_martin_sylius_nmi:
                 sandbox: Sandbox
             use_authorize: Authorize first, capture later
             use_authorize_help: When enabled, checkout only authorizes the card. The amount is captured when the order ships or by hand from the order page.
+            store_cards: Let shoppers save their card
+            store_cards_help: >-
+                When enabled, a signed-in shopper may keep a card on file with NMI and pay with it
+                next time. Nobody saves anything unless they ask to, guests are never offered it,
+                and the store never holds a card number — only the reference NMI gives back. Leave
+                it off and nothing about this gateway changes.
     shop:
         pay:
             heading: Pay by card
             amount: Amount to pay:
             card_unreadable: The card details could not be read. Please check them and try again.
             not_authenticated: The card could not be authenticated, so it has not been charged. Try again or use another card.
+            save_card: Save this card for next time

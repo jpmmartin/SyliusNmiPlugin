@@ -132,6 +132,54 @@ final class NmiClientTest extends TestCase
         ], $body['cardholder_auth']);
     }
 
+    /**
+     * Asking the gateway to keep the card is a flag on the charge, not a second call — which is
+     * what makes a declined payment incapable of leaving a stored card behind.
+     */
+    public function testAChargeCanAskTheGatewayToKeepTheCard(): void
+    {
+        $this->answerWith(self::approvedAndVaulted());
+
+        $response = $this->client->sale($this->configuration, new Charge(
+            paymentToken: 'tok-once-abc',
+            amount: 1234,
+            currencyCode: 'usd',
+            storeCard: true,
+        ));
+
+        // `add_to_vault`. The published example says `add_customer`, which the gateway refuses as
+        // an unexpected parameter — established against it rather than read.
+        self::assertSame(
+            ['add_to_vault' => true],
+            $this->httpClient->lastBodyJson()['customer_vault'] ?? null,
+        );
+        self::assertSame('1730549219', $response->customerVaultId);
+        // The transaction that stored the card, kept so a later re-use can cite it.
+        self::assertSame(self::TRANSACTION_ID, $response->transactionId);
+
+        // And the three display fields, off the same response.
+        self::assertNotNull($response->card);
+        self::assertSame('Visa', $response->card->brand);
+        self::assertSame('1111', $response->card->lastFour);
+        self::assertSame(10, $response->card->expiryMonth);
+        self::assertSame(2029, $response->card->expiryYear);
+    }
+
+    /** And a charge that was not asked to keep it says nothing about the vault at all. */
+    public function testAnOrdinaryChargeMentionsNoVault(): void
+    {
+        $this->answerWith(self::approved());
+
+        $response = $this->client->sale($this->configuration, new Charge(
+            paymentToken: 'tok-once-abc',
+            amount: 1234,
+            currencyCode: 'usd',
+        ));
+
+        self::assertArrayNotHasKey('customer_vault', $this->httpClient->lastBodyJson());
+        self::assertNull($response->customerVaultId, 'An empty vault id in the body is not a stored card.');
+    }
+
     public function testAnAuthorisationGoesToItsOwnPath(): void
     {
         $this->answerWith(self::approved());
@@ -351,6 +399,25 @@ final class NmiClientTest extends TestCase
     private static function charge(): Charge
     {
         return new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD');
+    }
+
+    /**
+     * What the gateway returned for a stored card: the vault id sits beside the transaction, and
+     * the charge describes the card it took — which is why storing one needs no second call.
+     */
+    private static function approvedAndVaulted(): string
+    {
+        /** @var array<string, mixed> $decoded */
+        $decoded = json_decode(self::approved(), true, 512, \JSON_THROW_ON_ERROR);
+        $decoded['customer_vault_id'] = '1730549219';
+        $decoded['payment_details'] = [
+            'card_number' => '411111******1111',
+            'card_exp' => '1029',
+            'card_type' => 'Visa',
+            'card_bin' => '411111',
+        ];
+
+        return json_encode($decoded, \JSON_THROW_ON_ERROR);
     }
 
     private static function approved(): string

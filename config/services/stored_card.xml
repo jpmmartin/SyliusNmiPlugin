@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <!--
+            Who may keep a card on file out of a payment. Asked by the page that offers the option
+            and again by the handler that acts on it, so the two can never disagree.
+        -->
+        <service id="jpm_martin_sylius_nmi.provider.card_saving_customer" class="JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProvider">
+            <argument type="service" id="sylius.context.customer" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface" alias="jpm_martin_sylius_nmi.provider.card_saving_customer" />
+
+        <!--
+            The platform's encryption, registered rather than reimplemented: its generic Doctrine
+            listener, pointed at this entity, driven by an encrypter that only names which fields
+            are credentials. `sylius.encrypter` is the platform's own and does the cryptography.
+        -->
+        <service id="jpm_martin_sylius_nmi.encryption.stored_card" class="JpmMartin\SyliusNmiPlugin\Encryption\NmiStoredCardEncrypter">
+            <argument type="service" id="sylius.encrypter" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.listener.stored_card_encryption" class="Sylius\Bundle\PaymentBundle\Listener\EntityEncryptionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.encryption.stored_card" />
+            <argument>%jpm_martin_sylius_nmi.model.nmi_stored_card.class%</argument>
+            <tag name="doctrine.event_listener" event="onFlush" />
+            <tag name="doctrine.event_listener" event="postFlush" />
+            <tag name="doctrine.event_listener" event="postLoad" />
+        </service>
+    </services>
+</container>

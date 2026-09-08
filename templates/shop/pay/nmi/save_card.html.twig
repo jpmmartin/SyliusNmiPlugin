@@ -1,0 +1,24 @@
+{% set nmi = hookable_metadata.context.nmi %}
+
+{#
+    Only rendered when the server has said a card may actually be saved out of this payment: the
+    setting is on, the shopper is signed in, and the order is theirs. A guest never reaches this,
+    and neither does a shop that left the setting alone.
+
+    The checkbox sits outside any form on purpose — the component builds its own and posts it — so
+    the name is for the person reading the markup; what the browser reads is the id.
+#}
+{% if nmi.can_store_card|default(false) %}
+    <p>
+        <label for="nmi-store-card">
+            <input
+                type="checkbox"
+                id="nmi-store-card"
+                name="store_card"
+                value="1"
+                {{ sylius_test_html_attribute('nmi-store-card') }}
+            >
+            {{ 'jpm_martin_sylius_nmi.shop.pay.save_card'|trans }}
+        </label>
+    </p>
+{% endif %}

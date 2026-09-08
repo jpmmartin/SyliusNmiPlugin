@@ -16,6 +16,8 @@ final class NmiGatewayConfiguration
         public readonly string $environment,
         public readonly bool $useAuthorize,
         public readonly string $apiBaseUrl,
+        /** Last and defaulted only because PHP will not take an optional argument before a required one. */
+        public readonly bool $storeCards = false,
     ) {
     }
 }

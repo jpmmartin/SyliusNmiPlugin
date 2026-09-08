@@ -50,6 +50,10 @@ final class NmiResponse
         public readonly ?string $type,
         public readonly ?string $amount,
         public readonly ?string $currency,
+        /** Set only when the charge was asked to store the card, and only if it did. */
+        public readonly ?string $customerVaultId,
+        /** How the gateway describes the card it just charged, when it described it at all. */
+        public readonly ?NmiCardDetails $card,
         public readonly array $actions,
         public readonly array $raw,
     ) {
@@ -93,6 +97,15 @@ final class NmiResponse
             }
         }
 
+        // Read the same way as the actions above: narrowed here rather than inline, because the
+        // decoded body is `mixed` all the way down.
+        $card = null;
+        if (isset($raw['payment_details']) && is_array($raw['payment_details'])) {
+            /** @var array<string, mixed> $paymentDetails */
+            $paymentDetails = $raw['payment_details'];
+            $card = NmiCardDetails::fromPaymentDetails($paymentDetails);
+        }
+
         return new self(
             result: (int) (string) $result,
             responseText: $string($raw['response_text'] ?? null) ?? '',
@@ -105,6 +118,12 @@ final class NmiResponse
             type: $string($raw['type'] ?? null),
             amount: $string($raw['amount'] ?? null),
             currency: $string($raw['currency'] ?? null),
+            // The gateway returns this key on every charge and leaves it empty unless the card was
+            // stored, so `$string` turning '' into null is what distinguishes the two.
+            customerVaultId: $string($raw['customer_vault_id'] ?? null),
+            // Brand, last four and expiry come back on the charge itself, so storing a card needs
+            // no second call to describe it.
+            card: $card,
             actions: $actions,
             raw: $raw,
         );

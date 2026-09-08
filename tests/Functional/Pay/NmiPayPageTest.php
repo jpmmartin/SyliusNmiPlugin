@@ -168,6 +168,82 @@ final class NmiPayPageTest extends WebTestCase
         self::assertResponseRedirects();
     }
 
+    /**
+     * The option to keep the card. Offered to a shopper who is signed in on a gateway whose
+     * operator turned it on, and to nobody else — the three tests below are the three ways that
+     * sentence can fail.
+     */
+    public function testASignedInShopperIsOfferedTheOptionUnticked(): void
+    {
+        $user = $this->newShopUser($this->anEmail());
+        $this->client->loginUser($user, 'shop');
+
+        $paymentRequest = $this->newPaymentRequest(storeCards: true, customer: $user->getCustomer());
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        $checkbox = $crawler->filter('#nmi-store-card');
+        self::assertCount(1, $checkbox, 'A signed-in shopper must be offered the option.');
+        self::assertNull($checkbox->attr('checked'), 'Nothing is kept unless the shopper asks for it.');
+
+        $this->manager->refresh($paymentRequest);
+        self::assertTrue($paymentRequest->getResponseData()['can_store_card'] ?? false);
+    }
+
+    /**
+     * A guest checkout has a customer of its own in a real store, so this is not merely about the
+     * template: the answer comes from who is signed in, and nobody is.
+     */
+    public function testAGuestIsNotOfferedTheOption(): void
+    {
+        $paymentRequest = $this->newPaymentRequest(storeCards: true);
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        self::assertCount(0, $crawler->filter('#nmi-store-card'), 'A guest must not be offered the option.');
+
+        $this->manager->refresh($paymentRequest);
+        self::assertArrayNotHasKey(
+            'can_store_card',
+            $paymentRequest->getResponseData(),
+            'And the API answer must not mention it either.',
+        );
+    }
+
+    /**
+     * The *Card saving left disabled* scenario. A signed-in shopper on a gateway whose operator
+     * never turned it on sees the page exactly as it was before this feature existed.
+     */
+    public function testNothingIsOfferedWhileTheSettingIsOff(): void
+    {
+        $user = $this->newShopUser($this->anEmail());
+        $this->client->loginUser($user, 'shop');
+
+        $paymentRequest = $this->newPaymentRequest(customer: $user->getCustomer());
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        self::assertCount(0, $crawler->filter('#nmi-store-card'));
+
+        $this->manager->refresh($paymentRequest);
+        self::assertArrayNotHasKey('can_store_card', $paymentRequest->getResponseData());
+    }
+
+    /** Unique per test: the fixtures roll back, but two users inside one test would collide. */
+    private function anEmail(): string
+    {
+        return sprintf('ada-%s@example.com', bin2hex(random_bytes(6)));
+    }
+
     protected function paymentRequestManager(): EntityManagerInterface
     {
         return $this->manager;

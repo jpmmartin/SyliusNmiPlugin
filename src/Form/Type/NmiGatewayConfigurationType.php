@@ -59,6 +59,14 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'help' => 'jpm_martin_sylius_nmi.form.gateway_config.use_authorize_help',
                 'required' => false,
             ])
+            // Off is the feature absent, not merely dormant: nothing is offered, nothing is
+            // listed and nothing is stored. That is what lets a store install this plugin and
+            // see exactly what it saw before.
+            ->add(NmiGatewayFactory::CONFIG_STORE_CARDS, CheckboxType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.store_cards',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.store_cards_help',
+                'required' => false,
+            ])
         ;
     }
 
