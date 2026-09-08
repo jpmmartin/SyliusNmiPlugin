@@ -1,6 +1,12 @@
 jpm_martin_sylius_nmi:
     gateway_factory:
         nmi: NMI
+    ui:
+        saved_cards: Tarjetas guardadas
+        no_saved_cards: Todavía no tienes ninguna tarjeta guardada.
+        expires: Caduca
+        expired: Caducada
+        default_card: Predeterminada
     admin:
         void: Anular
         refund_plugin_notice: >-

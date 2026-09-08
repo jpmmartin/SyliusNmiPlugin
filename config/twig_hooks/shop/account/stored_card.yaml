@@ -1,0 +1,22 @@
+# The saved-cards page. Only the parts this page owns are declared: the sidebar, the breadcrumbs
+# container and the grid come from `sylius_shop.account.common`, which the account layout appends
+# to the prefixes this page sets.
+sylius_twig_hooks:
+    hooks:
+        'jpm_martin_sylius_nmi.shop.account.stored_card.index.content':
+            menu:
+                template: '@SyliusShop/account/common/content/menu.html.twig'
+                priority: 100
+            main:
+                template: '@SyliusShop/account/common/content/main.html.twig'
+                priority: 0
+
+        'jpm_martin_sylius_nmi.shop.account.stored_card.index.content.main':
+            cards:
+                template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/index/content/main/cards.html.twig'
+                priority: 0
+
+        'jpm_martin_sylius_nmi.shop.account.stored_card.index.content.main.header':
+            title:
+                template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/index/content/main/header/title.html.twig'
+                priority: 100

@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepository;
+use Sylius\Bundle\ResourceBundle\Controller\ResourceController;
 use Sylius\Bundle\ResourceBundle\SyliusResourceBundle;
 use Sylius\Resource\Factory\Factory;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
@@ -67,6 +68,9 @@ final class Configuration implements ConfigurationInterface
                                         ->scalarNode('model')->defaultValue(NmiStoredCard::class)->cannotBeEmpty()->end()
                                         ->scalarNode('repository')->defaultValue(NmiStoredCardRepository::class)->cannotBeEmpty()->end()
                                         ->scalarNode('factory')->defaultValue(Factory::class)->end()
+                                        // The account pages are the platform's own resource controller, which is
+                                        // what lets a route express the ownership query instead of a check.
+                                        ->scalarNode('controller')->defaultValue(ResourceController::class)->end()
                                     ->end()
                                 ->end()
                             ->end()

@@ -11,3 +11,12 @@ jpm_martin_sylius_nmi_shop:
 jpm_martin_sylius_nmi_refund_plugin:
     resource: refund_plugin_routes.php
     type: php
+
+# Under the locale *and* /account: Sylius's access_control rule is
+# `^/(?!admin|api…)[^/]++/account`, so that first segment is the locale. Mounted without it these
+# pages would sit inside the shop firewall but outside the rule that requires ROLE_USER.
+jpm_martin_sylius_nmi_shop_account:
+    resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop_account.yaml"
+    prefix: /{_locale}/account
+    requirements:
+        _locale: ^[A-Za-z]{2,4}(_([A-Za-z]{4}|[0-9]{3}))?(_([A-Za-z]{2}|[0-9]{3}))?$

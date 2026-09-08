@@ -1,0 +1,38 @@
+{% import '@SyliusShop/shared/messages.html.twig' as messages %}
+
+{% set cards = hookable_metadata.context.cards|default([]) %}
+
+{% if cards is empty %}
+    {{ messages.info('jpm_martin_sylius_nmi.ui.no_saved_cards'|trans) }}
+{% else %}
+    {% for card in cards %}
+        {#
+            The card is described, never reproduced: brand, last four digits and expiry are what a
+            receipt already prints. The store has no card number to show even if it wanted to.
+        #}
+        <div class="card border-0 bg-body-tertiary mb-3" {{ sylius_test_html_attribute('nmi-stored-card', card.id) }}>
+            <div class="card-body d-flex align-items-center justify-content-between">
+                <div>
+                    <strong {{ sylius_test_html_attribute('nmi-stored-card-brand') }}>{{ card.brand }}</strong>
+                    <span class="text-body-secondary">
+                        •••• {{ card.lastFour }}
+                    </span>
+                    <div class="text-body-secondary small" {{ sylius_test_html_attribute('nmi-stored-card-expiry') }}>
+                        {{ 'jpm_martin_sylius_nmi.ui.expires'|trans }}
+                        {{ '%02d'|format(card.expiryMonth) }}/{{ card.expiryYear }}
+                        {% if card.isExpired() %}
+                            <span class="badge text-bg-warning ms-1" {{ sylius_test_html_attribute('nmi-stored-card-expired') }}>
+                                {{ 'jpm_martin_sylius_nmi.ui.expired'|trans }}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if card.isDefault() %}
+                    <span class="badge text-bg-secondary" {{ sylius_test_html_attribute('nmi-stored-card-default') }}>
+                        {{ 'jpm_martin_sylius_nmi.ui.default_card'|trans }}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}

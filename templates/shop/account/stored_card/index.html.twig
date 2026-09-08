@@ -1,0 +1,11 @@
+{#
+    Extending the account layout is what gives this page the sidebar, the breadcrumbs and the
+    grid for free: that template appends `sylius_shop.account.common` to the prefixes below, so
+    every hook resolves against both this page's name and the shared one.
+#}
+{% extends '@SyliusShop/account/common/index.html.twig' %}
+
+{% set prefixes = ['jpm_martin_sylius_nmi.shop.account.stored_card'] %}
+{% set attrs = { cards: resources } %}
+
+{% block title %}{{ 'jpm_martin_sylius_nmi.ui.saved_cards'|trans }} | {{ parent() }}{% endblock %}

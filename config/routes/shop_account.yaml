@@ -1,0 +1,22 @@
+# The shopper's own saved cards.
+#
+# Mounted by the application under the locale *and* /account — both matter. The locale segment is
+# what Sylius's access_control rule matches on (`^/(?!admin|api…)[^/]++/account`), so a route
+# mounted without it sits inside the shop firewall but outside the rule that requires ROLE_USER.
+#
+# Ownership is expressed by the query, not checked afterwards: the customer comes from the customer
+# context and never from the request, so there is no identifier to tamper with and a foreign one
+# yields 404 by construction.
+jpm_martin_sylius_nmi_shop_account_stored_card_index:
+    path: /saved-cards
+    methods: [GET]
+    defaults:
+        _controller: jpm_martin_sylius_nmi.controller.nmi_stored_card::indexAction
+        _sylius:
+            section: shop_account
+            template: '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/index.html.twig'
+            paginate: false
+            repository:
+                method: findByCustomer
+                arguments:
+                    - "expr:service('sylius.context.customer').getCustomer()"
