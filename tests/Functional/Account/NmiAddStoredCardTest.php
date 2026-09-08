@@ -90,7 +90,8 @@ final class NmiAddStoredCardTest extends WebTestCase
         $customer = $this->signIn();
 
         $this->client->request('GET', self::ADD_PATH);
-        $this->client->request('POST', self::ADD_PATH, ['payment_token' => self::TOKEN]);
+        // The brand travels with the token, because the gateway's vault call does not report one.
+        $this->client->request('POST', self::ADD_PATH, ['payment_token' => self::TOKEN, 'card_brand' => 'visa']);
 
         self::assertTrue($this->client->getResponse()->isRedirect(self::LIST_PATH));
         self::assertSame(['create_vault_record'], $this->gateway->operations, 'The gateway must be asked to keep the card, and nothing else.');
@@ -98,8 +99,50 @@ final class NmiAddStoredCardTest extends WebTestCase
         $cards = $this->cardsOf($customer);
         self::assertCount(1, $cards);
         self::assertSame('1111', $cards[0]->getLastFour());
+        self::assertSame('visa', $cards[0]->getBrand(), 'The only field the browser is trusted for here.');
+        self::assertSame(10, $cards[0]->getExpiryMonth(), "And the expiry is still the gateway's.");
+        self::assertSame(2030, $cards[0]->getExpiryYear());
         self::assertNull($cards[0]->getVaultingTransactionId(), 'Nothing was charged, so there is no transaction to cite.');
         self::assertTrue($cards[0]->isDefault(), 'A first card is the default however it was added.');
+    }
+
+    /**
+     * **The gateway names no brand on this endpoint, and that is not a guess.** Creating a vault
+     * record answers with the masked number and the expiry and nothing else, while the charge that
+     * stores a card *does* return `card_type` — so a card added from the account area cannot be
+     * described unless the browser says what it is. Before this was established the fake answered
+     * with a brand nothing had sent, and this path passed a test it would have failed against the
+     * real gateway: the card unfilable, and the record left at the gateway with nothing pointing
+     * at it.
+     */
+    public function testWithoutTheBrandTheCardCannotBeDescribedAndIsNotFiled(): void
+    {
+        $this->aStoreThatSavesCards();
+        $customer = $this->signIn();
+
+        $this->client->request('GET', self::ADD_PATH);
+        $this->client->request('POST', self::ADD_PATH, ['payment_token' => self::TOKEN]);
+
+        self::assertCount(0, $this->cardsOf($customer));
+
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString(
+            'could not be filed',
+            $crawler->filter('[data-test-sylius-flash-message]')->text(),
+            'The shopper is told, because the record does exist at the gateway.',
+        );
+    }
+
+    /** A brand shaped like anything but a brand is not believed, and a card number least of all. */
+    public function testABrandThatIsNotOneIsIgnored(): void
+    {
+        $this->aStoreThatSavesCards();
+        $customer = $this->signIn();
+
+        $this->client->request('GET', self::ADD_PATH);
+        $this->client->request('POST', self::ADD_PATH, ['payment_token' => self::TOKEN, 'card_brand' => '4111111111111111']);
+
+        self::assertCount(0, $this->cardsOf($customer), 'Sixteen digits are not a brand, so nothing was described and nothing was filed.');
     }
 
     /** *Adding a card the gateway rejects.* The reason is shown and nothing is filed. */

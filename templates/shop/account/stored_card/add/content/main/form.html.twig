@@ -17,5 +17,11 @@
     data-nmi-last-name="{{ customer.lastName }}"
     data-nmi-email="{{ customer.email }}"
     data-nmi-error-message="{{ 'jpm_martin_sylius_nmi.shop.pay.card_unreadable'|trans }}"
+    {#
+        Ask the browser to name the brand. The vault call answers with the masked number and the
+        expiry and **no brand** — established against the gateway — so without this the card cannot
+        be described and the record would be left at the gateway with nothing pointing at it.
+    #}
+    data-nmi-describe-card
     {{ sylius_test_html_attribute('nmi-add-card') }}
 ></div>

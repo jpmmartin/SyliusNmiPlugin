@@ -26,8 +26,13 @@ final class NmiVaultRecord
     ) {
     }
 
-    /** @throws NmiGatewayException when the body is not a customer */
-    public static function fromBody(string $body): self
+    /**
+     * @param string|null $brandWhenTheGatewayIsSilent what the browser reported, because this
+     *                                                 endpoint answers with no brand of its own
+     *
+     * @throws NmiGatewayException when the body is not a customer
+     */
+    public static function fromBody(string $body, ?string $brandWhenTheGatewayIsSilent = null): self
     {
         $decoded = json_decode($body, true);
         if (!is_array($decoded)) {
@@ -56,7 +61,7 @@ final class NmiVaultRecord
         return new self(
             vaultId: (string) $vaultId,
             billingId: is_scalar($billingId) && '' !== (string) $billingId ? (string) $billingId : null,
-            card: is_array($paymentDetails) ? NmiCardDetails::fromPaymentDetails($paymentDetails) : null,
+            card: is_array($paymentDetails) ? NmiCardDetails::fromPaymentDetails($paymentDetails, $brandWhenTheGatewayIsSilent) : null,
             raw: $raw,
         );
     }

@@ -40,6 +40,20 @@ final class AddStoredCardAction
 {
     private const TEMPLATE = '@JpmMartinSyliusNmiPlugin/shop/account/stored_card/add.html.twig';
 
+    /**
+     * The shape a brand must have before it is believed.
+     *
+     * Letters, spaces and a little punctuation, and short — **no digits at all**. Every card
+     * network is a word: visa, mastercard, amex, discover, jcb, diners, unionpay, maestro. Allowing
+     * digits let sixteen of them through as a "brand" and into the column, which a test caught; it
+     * is the same hole 3.4 closed on the paying side, in a field added later.
+     *
+     * This is the only thing the browser is trusted for on this page, and it is trusted for it
+     * because the gateway does not answer with it — while the digits and the expiry, which are what
+     * a shopper recognises a card by, still come from the gateway's own reply.
+     */
+    private const BRAND_SHAPE = '/^[\p{L} .\-]{1,32}$/u';
+
     public function __construct(
         private readonly CustomerContextInterface $customerContext,
         private readonly ChannelContextInterface $channelContext,
@@ -89,7 +103,7 @@ final class AddStoredCardAction
         }
 
         try {
-            $record = $this->client->createVaultRecord($configuration, new VaultCard(trim($token)));
+            $record = $this->client->createVaultRecord($configuration, new VaultCard(trim($token), brand: $this->brandFrom($request)));
         } catch (NmiGatewayException $exception) {
             // The gateway's own sentence about the card, which is the only description some
             // refusals have — the same reasoning the charge path already follows.
@@ -111,6 +125,26 @@ final class AddStoredCardAction
                 : 'jpm_martin_sylius_nmi.stored_card.added',
             null === $card ? 'error' : 'success',
         );
+    }
+
+    /**
+     * The brand the browser reported, or null when it reported nothing this will believe.
+     *
+     * Null is not fatal on its own — it only becomes fatal if the gateway is silent too, which it
+     * is on this endpoint. That is why it is worth sending: without it the card cannot be
+     * described, and a card that cannot be described is a vault record with nothing pointing at it.
+     */
+    private function brandFrom(Request $request): ?string
+    {
+        $brand = $request->request->get('card_brand');
+
+        if (!is_string($brand)) {
+            return null;
+        }
+
+        $brand = trim($brand);
+
+        return 1 === preg_match(self::BRAND_SHAPE, $brand) ? $brand : null;
     }
 
     private function backToTheList(Request $request, string $message, string $type): RedirectResponse

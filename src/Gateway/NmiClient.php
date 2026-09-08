@@ -165,6 +165,8 @@ final class NmiClient implements NmiClientInterface
 
         return NmiVaultRecord::fromBody(
             $this->request($configuration, 'POST', self::CUSTOMERS_PATH, ['billing' => $billing]),
+            // This endpoint names no brand; only the browser knows it. See VaultCard::$brand.
+            $card->brand,
         );
     }
 

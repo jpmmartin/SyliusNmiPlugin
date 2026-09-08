@@ -34,15 +34,18 @@ final class NmiCardDetails
      * still succeeds and no card is stored, because a card nobody can recognise in a list is
      * worse than no card at all.
      *
-     * The account-area path in 4.4 reads a *billing record* rather than a charge, and has only
-     * been shown to return the number and the expiry. Whether it names the brand is unsettled;
-     * that path must establish it rather than assume this method covers it.
+     * **The account-area path gets no brand, and that was settled against the gateway.** Creating a
+     * vault record answers with `card_number` and `card_exp` and nothing else, while the charge
+     * that stores a card answers with `card_type` too — so the same shape cannot be assumed of
+     * both. `$brandWhenTheGatewayIsSilent` is what the browser reported about the card it just
+     * tokenised, used only when the gateway named no brand: the digits and the expiry stay the
+     * gateway's, which are the two a shopper recognises a card by.
      *
      * @param array<string, mixed> $paymentDetails
      */
-    public static function fromPaymentDetails(array $paymentDetails): ?self
+    public static function fromPaymentDetails(array $paymentDetails, ?string $brandWhenTheGatewayIsSilent = null): ?self
     {
-        $brand = self::text($paymentDetails['card_type'] ?? null);
+        $brand = self::text($paymentDetails['card_type'] ?? null) ?? self::text($brandWhenTheGatewayIsSilent);
         $number = self::text($paymentDetails['card_number'] ?? null);
         $expiry = self::text($paymentDetails['card_exp'] ?? null);
 

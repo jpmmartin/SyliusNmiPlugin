@@ -45,8 +45,16 @@ final class FakeNmiClient implements NmiClientInterface
 
     public ?VaultCard $lastVaultCard = null;
 
-    /** What the gateway answers when it keeps a card: a customer, not a transaction. */
-    private const VAULT_RECORD = '{"object":"customer","id":"1929110340","billing":[{"object":"billing","id":"349429273","payment_details":{"card_number":"411111******1111","card_exp":"1025","card_type":"Visa"}}]}';
+    /**
+     * What the gateway answers when it keeps a card: a customer, not a transaction.
+     *
+     * **Copied from a real reply, and the absence of `card_type` is the point.** This fixture used
+     * to name the brand, and nothing did: creating a vault record answers with `card_number` and
+     * `card_exp` and nothing else, while the charge that stores a card *does* return the brand. The
+     * invented key made the add-a-card path pass a test it would have failed against the gateway,
+     * where the card could not be described and the record was left stranded. Do not add it back.
+     */
+    private const VAULT_RECORD = '{"object":"customer","id":"1732163788","created":"2026-09-08T18:26:24+00:00","billing":[{"object":"billing","id":"1620589323","first_name":"Ada","last_name":"Lovelace","address1":"12 Marylebone Rd","city":"London","zip":"NW1 5JR","country":"GB","priority":1,"payment_details":{"card_number":"411111******1111","card_exp":"1030"}}],"shipping":[],"merchant_defined_fields":{}}';
 
     public function willApprove(string $transactionId = '12513506464', string $amount = '12.99'): void
     {
@@ -154,7 +162,9 @@ final class FakeNmiClient implements NmiClientInterface
             throw $this->failure;
         }
 
-        return $this->vaultRecord ?? NmiVaultRecord::fromBody(self::VAULT_RECORD);
+        // The brand travels from the caller, exactly as it does against the real gateway, because
+        // this endpoint does not report one.
+        return $this->vaultRecord ?? NmiVaultRecord::fromBody(self::VAULT_RECORD, $card->brand);
     }
 
     public function deleteVaultRecord(NmiGatewayConfiguration $configuration, string $vaultId): void

@@ -240,6 +240,10 @@ const mount = (container) => {
                 // Omitted when unticked: postToken drops empty values, so an unsaved card sends
                 // nothing at all rather than a falsy flag the server would have to interpret.
                 ...(storeCardRequested() ? { store_card: '1', ...describedCard(event) } : {}),
+                // The account's add-a-card page asks for this, and needs it: the gateway's vault
+                // call answers with the masked number and the expiry and no brand at all, so
+                // without it the card cannot be described and the record would be stranded there.
+                ...(container.dataset.nmiDescribeCard !== undefined ? { card_brand: event.lookupData?.card?.type } : {}),
                 ...fields,
             });
 

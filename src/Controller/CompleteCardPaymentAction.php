@@ -80,7 +80,9 @@ final class CompleteCardPaymentAction
     private const FIELD_SHAPES = [
         'stored_card' => '/^\d{1,19}$/',
         'store_card' => '/^[A-Za-z0-9]{1,8}$/',
-        'store_card_brand' => '/^[\p{L}\p{N} .\-]{1,32}$/u',
+        // No digits: every card network is a word, and allowing them let a card number pass as a
+        // brand. Found on the account-area path, closed on both.
+        'store_card_brand' => '/^[\p{L} .\-]{1,32}$/u',
         'store_card_last_four' => '/^\d{4}$/',
         'store_card_exp' => '/^\d{4}$/',
     ];
