@@ -28,7 +28,11 @@ interface NmiStoredCardRepositoryInterface extends RepositoryInterface
     public function findByCustomer(CustomerInterface $customer, ?PaymentMethodInterface $paymentMethod = null): array;
 
     /** One card, and only if it belongs to this customer. */
-    public function findOneByCustomer(int $id, CustomerInterface $customer): ?NmiStoredCardInterface;
+    /**
+     * The identifier arrives as a string: the resource controller passes the raw route parameter
+     * straight through, which is why Sylius's own address repository types it the same way.
+     */
+    public function findOneByCustomer(string $id, CustomerInterface $customer): ?NmiStoredCardInterface;
 
     /**
      * The card this customer already has, if any.

@@ -24,7 +24,7 @@ class NmiStoredCardRepository extends EntityRepository implements NmiStoredCardR
         return $cards;
     }
 
-    public function findOneByCustomer(int $id, CustomerInterface $customer): ?NmiStoredCardInterface
+    public function findOneByCustomer(string $id, CustomerInterface $customer): ?NmiStoredCardInterface
     {
         /** @var NmiStoredCardInterface|null $card */
         $card = $this->findOneBy(['id' => $id, 'customer' => $customer]);

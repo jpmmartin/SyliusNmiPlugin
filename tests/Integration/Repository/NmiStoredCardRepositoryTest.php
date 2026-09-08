@@ -84,9 +84,9 @@ final class NmiStoredCardRepositoryTest extends KernelTestCase
         $card = $this->aCard($ada, $method, '1111');
         $this->manager->flush();
 
-        self::assertNotNull($this->repository->findOneByCustomer((int) $card->getId(), $ada));
+        self::assertNotNull($this->repository->findOneByCustomer((string) $card->getId(), $ada));
         self::assertNull(
-            $this->repository->findOneByCustomer((int) $card->getId(), $grace),
+            $this->repository->findOneByCustomer((string) $card->getId(), $grace),
             "Reaching another customer's card must fail in the query, not in a check the caller might forget.",
         );
     }

@@ -7,7 +7,9 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Double;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiVaultRecord;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\VaultCard;
 
 /**
  * Stands in for the gateway in the automated suite.
@@ -35,6 +37,16 @@ final class FakeNmiClient implements NmiClientInterface
     public array $configurations = [];
 
     private ?NmiResponse $response = null;
+
+    private ?NmiVaultRecord $vaultRecord = null;
+
+    /** @var list<string> every vault id the caller asked to forget */
+    public array $deletedVaultIds = [];
+
+    public ?VaultCard $lastVaultCard = null;
+
+    /** What the gateway answers when it keeps a card: a customer, not a transaction. */
+    private const VAULT_RECORD = '{"object":"customer","id":"1929110340","billing":[{"object":"billing","id":"349429273","payment_details":{"card_number":"411111******1111","card_exp":"1025","card_type":"Visa"}}]}';
 
     public function willApprove(string $transactionId = '12513506464', string $amount = '12.99'): void
     {
@@ -125,6 +137,45 @@ final class FakeNmiClient implements NmiClientInterface
     public function retrieve(NmiGatewayConfiguration $configuration, string $transactionId): NmiResponse
     {
         return $this->answer('retrieve', null, $configuration);
+    }
+
+    public function createVaultRecord(NmiGatewayConfiguration $configuration, VaultCard $card): NmiVaultRecord
+    {
+        $this->lastOperation = 'create_vault_record';
+        $this->lastVaultCard = $card;
+        $this->operations[] = 'create_vault_record';
+        $this->configurations[] = $configuration;
+
+        if (isset($this->failuresByOperation['create_vault_record'])) {
+            throw $this->failuresByOperation['create_vault_record'];
+        }
+
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+
+        return $this->vaultRecord ?? NmiVaultRecord::fromBody(self::VAULT_RECORD);
+    }
+
+    public function deleteVaultRecord(NmiGatewayConfiguration $configuration, string $vaultId): void
+    {
+        $this->lastOperation = 'delete_vault_record';
+        $this->deletedVaultIds[] = $vaultId;
+        $this->operations[] = 'delete_vault_record';
+        $this->configurations[] = $configuration;
+
+        if (isset($this->failuresByOperation['delete_vault_record'])) {
+            throw $this->failuresByOperation['delete_vault_record'];
+        }
+
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+    }
+
+    public function willVault(NmiVaultRecord $record): void
+    {
+        $this->vaultRecord = $record;
     }
 
     private function answer(string $operation, ?Charge $charge, ?NmiGatewayConfiguration $configuration = null): NmiResponse

@@ -13,6 +13,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\BillingDetails;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\ThreeDSecureResult;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\VaultCard;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -389,6 +390,82 @@ final class NmiClientTest extends TestCase
         $this->expectException(NmiGatewayException::class);
 
         $this->client->sale($this->configuration, self::charge());
+    }
+
+    /**
+     * Storing a card is its own resource. The body shape below is the one the gateway accepts:
+     * the token nested inside `billing`, beside the address. The published example puts
+     * `payment_details`, `cit_mit` and `billing_address` at the top level and is refused.
+     */
+    public function testStoringACardPostsToItsOwnResource(): void
+    {
+        $this->answerWith(self::vaultRecord());
+
+        $record = $this->client->createVaultRecord($this->configuration, new VaultCard(
+            paymentToken: 'tok-once-abc',
+            billing: new BillingDetails(firstName: 'Ada', lastName: 'Lovelace', country: 'GB'),
+        ));
+
+        $request = $this->httpClient->lastRequest;
+        self::assertNotNull($request);
+        self::assertSame('POST', $request->getMethod());
+        self::assertSame('https://sandbox.nmi.com/api/v5/customers', (string) $request->getUri());
+
+        self::assertSame([
+            'billing' => [
+                'first_name' => 'Ada',
+                'last_name' => 'Lovelace',
+                'country' => 'GB',
+                'payment_details' => ['payment_token' => 'tok-once-abc'],
+            ],
+        ], $this->httpClient->lastBodyJson());
+
+        self::assertSame('1929110340', $record->vaultId);
+        self::assertSame('349429273', $record->billingId);
+        self::assertSame('1111', $record->card?->lastFour);
+    }
+
+    /** The answer is a customer, not a transaction — it carries no amount and no authorisation. */
+    public function testStoringACardReportsNothingThatCouldReachAStatement(): void
+    {
+        $this->answerWith(self::vaultRecord());
+
+        $record = $this->client->createVaultRecord($this->configuration, new VaultCard('tok-once-abc'));
+
+        self::assertArrayNotHasKey('amount', $record->raw);
+        self::assertArrayNotHasKey('auth_code', $record->raw);
+        self::assertArrayNotHasKey('response', $record->raw);
+    }
+
+    /**
+     * A successful delete answers 204 with an empty body. Read as a transaction that is a
+     * malformed response, which is why the transport was split from the meaning.
+     */
+    public function testForgettingACardAcceptsAnEmptyAnswer(): void
+    {
+        $this->httpClient->willAnswer(204, '');
+
+        $this->client->deleteVaultRecord($this->configuration, '1929110340');
+
+        $request = $this->httpClient->lastRequest;
+        self::assertNotNull($request);
+        self::assertSame('DELETE', $request->getMethod());
+        self::assertSame('https://sandbox.nmi.com/api/v5/customers/1929110340', (string) $request->getUri());
+    }
+
+    /** Deleting one the gateway no longer has is a refusal here; the caller decides it is success. */
+    public function testForgettingACardTheGatewayNoLongerHasIsARefusal(): void
+    {
+        $this->httpClient->willAnswer(404, '{"type":"inputError","error_code":"E_RESOURCE_NOT_FOUND","message":"Customer Vault not found"}');
+
+        $this->expectException(NmiGatewayException::class);
+
+        $this->client->deleteVaultRecord($this->configuration, '1929110340');
+    }
+
+    private static function vaultRecord(): string
+    {
+        return '{"object":"customer","id":"1929110340","billing":[{"object":"billing","id":"349429273","payment_details":{"card_number":"411111******1111","card_exp":"1025","card_type":"Visa"}}]}';
     }
 
     private function answerWith(string $body): void
