@@ -1,0 +1,122 @@
+{% set nmi = hookable_metadata.context.nmi %}
+{% set payment_request = hookable_metadata.context.payment_request %}
+{% set cards = nmi.stored_cards|default([]) %}
+
+{#
+    Only rendered when this shopper actually has cards on this payment method. The server decides
+    that — signed in, the order theirs, the setting on, and the cards narrowed to the NMI account
+    this payment method uses — so there is nothing to check here beyond whether the list is empty.
+
+    **The gateway's own reference for a card is not here and must not be.** What identifies a card
+    in this markup is its row in this store, which buys an attacker nothing: the charge looks the
+    vault reference up server-side, from the same list that decided what to offer.
+#}
+{% if cards is not empty %}
+    {#
+        The default, when it can still be paid with. An expired default cannot be preselected —
+        it cannot be selected at all — so the choice falls to the next card the shopper could
+        actually use, and to the new-card form when there is none. `|filter` yields a generator
+        rather than a list, so these are read with `first` rather than by index.
+    #}
+    {% set preferred = cards|filter(card => not card.is_expired and card.is_default)|first %}
+    {% set selectable = cards|filter(card => not card.is_expired)|first %}
+    {% set preselected = preferred ? preferred.id : (selectable ? selectable.id : null) %}
+
+    <div
+        id="nmi-stored-cards"
+        data-nmi-action-url="{{ path('jpm_martin_sylius_nmi_shop_complete_card_payment', { hash: payment_request.id }) }}"
+        data-nmi-csrf-token="{{ csrf_token('jpm_martin_sylius_nmi_pay_' ~ payment_request.id) }}"
+        {#
+            Where the browser asks for what it needs to authenticate a saved card, and whether it
+            should ask at all. **The vault reference is not here**: it is fetched at the moment the
+            shopper presses Pay, from a route that hands it only to the card's owner.
+        #}
+        data-nmi-authenticate-url="{{ path('jpm_martin_sylius_nmi_shop_stored_card_authentication', { hash: payment_request.id }) }}"
+        {% if nmi.authenticate_stored_cards|default(false) %}data-nmi-authenticate="1"{% endif %}
+        {{ sylius_test_html_attribute('nmi-stored-cards') }}
+    >
+        <h2 class="h5">{{ 'jpm_martin_sylius_nmi.shop.pay.use_saved_card'|trans }}</h2>
+
+        {% for card in cards %}
+            <div class="form-check" {{ sylius_test_html_attribute('nmi-stored-card', card.id) }}>
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="nmi_payment_source"
+                    id="nmi-stored-card-{{ card.id }}"
+                    value="{{ card.id }}"
+                    {# Shown so the shopper can see why the card they were looking for is not an
+                       option, and refused by the server too — the page is not the boundary. #}
+                    {% if card.is_expired %}disabled{% endif %}
+                    {% if card.id == preselected %}checked{% endif %}
+                >
+                <label class="form-check-label" for="nmi-stored-card-{{ card.id }}">
+                    <strong>{{ card.brand }}</strong>
+                    <span class="text-body-secondary">•••• {{ card.last_four }}</span>
+                    <span class="text-body-secondary small">
+                        {{ 'jpm_martin_sylius_nmi.ui.expires'|trans }}
+                        {{ '%02d'|format(card.expiry_month) }}/{{ card.expiry_year }}
+                    </span>
+                    {% if card.is_expired %}
+                        <span class="badge text-bg-warning" {{ sylius_test_html_attribute('nmi-stored-card-expired') }}>
+                            {{ 'jpm_martin_sylius_nmi.ui.expired'|trans }}
+                        </span>
+                    {% endif %}
+                    {% if card.is_default %}
+                        <span class="badge text-bg-secondary" {{ sylius_test_html_attribute('nmi-stored-card-default') }}>
+                            {{ 'jpm_martin_sylius_nmi.ui.default_card'|trans }}
+                        </span>
+                    {% endif %}
+                </label>
+            </div>
+        {% endfor %}
+
+        {#
+            Always offered, and preselected when nothing else can be: a shopper whose only saved
+            card has expired still has to be able to pay.
+        #}
+        <div class="form-check">
+            <input
+                class="form-check-input"
+                type="radio"
+                name="nmi_payment_source"
+                id="nmi-payment-source-new"
+                value="new"
+                {% if preselected is null %}checked{% endif %}
+                {{ sylius_test_html_attribute('nmi-payment-source-new') }}
+            >
+            <label class="form-check-label" for="nmi-payment-source-new">
+                {{ 'jpm_martin_sylius_nmi.shop.pay.new_card'|trans }}
+            </label>
+        </div>
+
+        {#
+            The saved-card path has no card fields to fill in, so it needs a button of its own —
+            the component's own Pay button tokenises a card, which is the one thing this path does
+            not do. Hidden until a saved card is the choice, and by JavaScript rather than here,
+            because without JavaScript neither button can work anyway.
+        #}
+        {#
+            Where a failed authentication is said out loud. The card form has the component's own
+            error area for this; the saved-card path has no component, so without this a shopper
+            whose authentication failed would watch the button re-enable and learn nothing.
+        #}
+        <p
+            id="nmi-stored-card-error"
+            class="text-danger mt-2"
+            role="alert"
+            hidden
+            {{ sylius_test_html_attribute('nmi-stored-card-error') }}
+        ></p>
+
+        <button
+            type="button"
+            id="nmi-stored-card-pay"
+            class="btn btn-primary mt-3"
+            hidden
+            {{ sylius_test_html_attribute('nmi-stored-card-pay') }}
+        >
+            {{ 'jpm_martin_sylius_nmi.shop.pay.pay_now'|trans }}
+        </button>
+    </div>
+{% endif %}

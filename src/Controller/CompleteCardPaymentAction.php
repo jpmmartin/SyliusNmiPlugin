@@ -45,6 +45,10 @@ final class CompleteCardPaymentAction
      */
     private const ACCEPTED_FIELDS = [
         'payment_token',
+        // Which saved card was chosen, named by its row in this store and by nothing the gateway
+        // would recognise. Whether it may be charged is decided on the server, from the same
+        // service that decided what to offer — this is only which of them was pointed at.
+        'stored_card',
         // A request, not a permission: whether it is honoured is decided on the server, against
         // the session rather than against anything the browser said.
         'store_card',
@@ -74,6 +78,7 @@ final class CompleteCardPaymentAction
      * taken as posted, as it always was.
      */
     private const FIELD_SHAPES = [
+        'stored_card' => '/^\d{1,19}$/',
         'store_card' => '/^[A-Za-z0-9]{1,8}$/',
         'store_card_brand' => '/^[\p{L}\p{N} .\-]{1,32}$/u',
         'store_card_last_four' => '/^\d{4}$/',
@@ -107,8 +112,10 @@ final class CompleteCardPaymentAction
             throw new NotFoundHttpException('That payment request is not waiting for a card.');
         }
 
-        if ('' === trim((string) $request->request->get('payment_token'))) {
-            throw new BadRequestHttpException('A payment token is required.');
+        // A card the shopper just typed arrives as a token; one they saved arrives as its row.
+        // Neither means the form posted nothing, which is a bad request rather than a payment.
+        if ('' === trim((string) $request->request->get('payment_token')) && '' === trim((string) $request->request->get('stored_card'))) {
+            throw new BadRequestHttpException('A payment token or a saved card is required.');
         }
 
         if (!$this->csrfTokenManager->isTokenValid(new CsrfToken(self::CSRF_TOKEN_ID_PREFIX . $hash, (string) $request->request->get('_csrf_token')))) {

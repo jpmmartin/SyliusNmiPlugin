@@ -5,3 +5,12 @@ jpm_martin_sylius_nmi_shop_complete_card_payment:
     methods: [POST]
     defaults:
         _controller: JpmMartin\SyliusNmiPlugin\Controller\CompleteCardPaymentAction
+
+# What the browser needs in order to authenticate a card the gateway already holds. It exists so
+# the vault reference never has to be rendered into the page: it is handed to the card's owner, at
+# the moment they press Pay, and only when the payment method asks for authentication at all.
+jpm_martin_sylius_nmi_shop_stored_card_authentication:
+    path: /nmi/pay/{hash}/authenticate
+    methods: [POST]
+    defaults:
+        _controller: JpmMartin\SyliusNmiPlugin\Controller\StoredCardAuthenticationAction

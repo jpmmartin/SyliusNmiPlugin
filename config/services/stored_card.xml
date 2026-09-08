@@ -16,6 +16,17 @@
         <service id="JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface" alias="jpm_martin_sylius_nmi.provider.card_saving_customer" />
 
         <!--
+            Which stored cards a payment may be paid with, and which one was chosen. One service
+            answers both, so the page cannot offer a card the charge would refuse — nor the other
+            way round, which is the direction that matters.
+        -->
+        <service id="jpm_martin_sylius_nmi.provider.stored_card_offer" class="JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOffer">
+            <argument type="service" id="jpm_martin_sylius_nmi.provider.card_saving_customer" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOfferInterface" alias="jpm_martin_sylius_nmi.provider.stored_card_offer" />
+
+        <!--
             The platform's encryption, registered rather than reimplemented: its generic Doctrine
             listener, pointed at this entity, driven by an encrypter that only names which fields
             are credentials. `sylius.encrypter` is the platform's own and does the cryptography.

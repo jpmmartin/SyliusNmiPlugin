@@ -37,6 +37,7 @@ trait BuildsAnNmiPaymentRequest
         bool $storeCards = false,
         ?CustomerInterface $customer = null,
         ?PaymentMethodInterface $paymentMethod = null,
+        bool $authenticateStoredCards = true,
     ): PaymentRequest {
         $manager = $this->paymentRequestManager();
 
@@ -82,6 +83,9 @@ trait BuildsAnNmiPaymentRequest
             NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => $useAuthorize,
             NmiGatewayFactory::CONFIG_STORE_CARDS => $storeCards,
+            // On unless a test says otherwise, which is the default a store gets: silence about
+            // this question is not a decision to skip authentication.
+            NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS => $authenticateStoredCards,
         ]);
 
         // What the admin form sets for any factory Payum does not know, and this one it does

@@ -12,6 +12,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiClient;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\BillingDetails;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\StoredCard;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\ThreeDSecureResult;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\VaultCard;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -461,6 +462,115 @@ final class NmiClientTest extends TestCase
         $this->expectException(NmiGatewayException::class);
 
         $this->client->deleteVaultRecord($this->configuration, '1929110340');
+    }
+
+    /**
+     * Charging a card the gateway already holds.
+     *
+     * **Every key here was established by submitting it.** The published example charges through
+     * `payment_details.customer_vault_id`, and the gateway answers *"Unexpected extra parameters
+     * found: 'payment_details.customer_vault_id'"* — so the vault reference belongs at the top
+     * level and nothing goes in `payment_details` at all.
+     */
+    public function testAStoredCardIsChargedThroughTheVaultAndNotThroughPaymentDetails(): void
+    {
+        $this->answerWith(self::approved());
+
+        $this->client->sale($this->configuration, new Charge(
+            paymentToken: null,
+            amount: 1299,
+            currencyCode: 'USD',
+            storedCard: new StoredCard(vaultId: '1730549219', billingId: '349429273', initialTransactionId: '12513506464'),
+        ));
+
+        $body = $this->httpClient->lastBodyJson();
+
+        self::assertSame(['id' => '1730549219', 'billing_id' => '349429273'], $body['customer_vault']);
+        self::assertArrayNotHasKey('payment_details', $body, 'A stored card is named nowhere else, and the gateway refuses it there.');
+        self::assertSame('12.99', $body['amount']);
+    }
+
+    /**
+     * The stored-credential indicator, whose three values the gateway names in its own refusals:
+     * `stored` or `used`, and `customer` or `merchant`. The shopper is at the checkout, so this is
+     * a charge they initiated — the gateway's own example says `merchant` because it illustrates a
+     * recurring charge, which this is not.
+     */
+    public function testAReusedCardCitesTheTransactionThatStoredIt(): void
+    {
+        $this->answerWith(self::approved());
+
+        $this->client->sale($this->configuration, new Charge(
+            paymentToken: null,
+            amount: 1299,
+            currencyCode: 'USD',
+            storedCard: new StoredCard(vaultId: '1730549219', initialTransactionId: '12513506464'),
+        ));
+
+        self::assertSame([
+            'stored_credential_indicator' => 'used',
+            'initiated_by' => 'customer',
+            'initial_transaction_id' => '12513506464',
+        ], $this->httpClient->lastBodyJson()['cit_mit']);
+    }
+
+    /**
+     * A card added from the account area was never charged, so it has no transaction to cite. The
+     * indicator is left out entirely rather than sent empty, and the gateway takes the sale — which
+     * is the only reason such a card is chargeable at all.
+     */
+    public function testACardWithNothingToCiteIsChargedWithoutTheIndicator(): void
+    {
+        $this->answerWith(self::approved());
+
+        $this->client->sale($this->configuration, new Charge(
+            paymentToken: null,
+            amount: 1299,
+            currencyCode: 'USD',
+            storedCard: new StoredCard(vaultId: '1730549219'),
+        ));
+
+        $body = $this->httpClient->lastBodyJson();
+
+        self::assertSame(['id' => '1730549219'], $body['customer_vault'], 'A billing record nobody named is not named as null.');
+        self::assertArrayNotHasKey('cit_mit', $body);
+    }
+
+    /** A charge is paid for by one thing. Naming both, or neither, is a bug rather than a request. */
+    public function testAChargeMustNameExactlyOneSourceOfMoney(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Charge(
+            paymentToken: 'tok-once-abc',
+            amount: 1299,
+            currencyCode: 'USD',
+            storedCard: new StoredCard(vaultId: '1730549219'),
+        );
+    }
+
+    public function testAChargeWithNoSourceOfMoneyIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Charge(paymentToken: null, amount: 1299, currencyCode: 'USD');
+    }
+
+    /**
+     * The gateway deduplicates nothing, so asking it to store a card it already stores is not a
+     * redundant flag — it is a second vault record with nothing pointing at it.
+     */
+    public function testAStoredCardCannotBeAskedToBeStoredAgain(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Charge(
+            paymentToken: null,
+            amount: 1299,
+            currencyCode: 'USD',
+            storeCard: true,
+            storedCard: new StoredCard(vaultId: '1730549219'),
+        );
     }
 
     private static function vaultRecord(): string

@@ -81,8 +81,7 @@ final class NmiClient implements NmiClientInterface
         $body = [
             'amount' => $this->amountFormatter->format($charge->amount, $charge->currencyCode),
             'currency' => strtoupper($charge->currencyCode),
-            'payment_details' => ['payment_token' => $charge->paymentToken],
-        ];
+        ] + $this->fundsFrom($charge);
 
         $orderDetails = array_filter([
             'id' => $charge->orderId,
@@ -108,6 +107,49 @@ final class NmiClient implements NmiClientInterface
         // refused as an unexpected parameter. Established against the gateway, not read.
         if ($charge->storeCard) {
             $body['customer_vault'] = ['add_to_vault' => true];
+        }
+
+        return $body;
+    }
+
+    /**
+     * Where the money comes from — a card the shopper just typed, or one the gateway already holds.
+     *
+     * The published example charges a stored card through `payment_details.customer_vault_id`, and
+     * the gateway refuses that key outright: *"Unexpected extra parameters found:
+     * 'payment_details.customer_vault_id'"*. The vault reference belongs at the top level, in its
+     * own object, and nothing goes in `payment_details` at all.
+     *
+     * @return array<string, mixed>
+     */
+    private function fundsFrom(Charge $charge): array
+    {
+        $storedCard = $charge->storedCard;
+
+        if (null === $storedCard) {
+            return ['payment_details' => ['payment_token' => $charge->paymentToken]];
+        }
+
+        $body = [
+            'customer_vault' => array_filter([
+                'id' => $storedCard->vaultId,
+                'billing_id' => $storedCard->billingId,
+            ], static fn (?string $value): bool => null !== $value),
+        ];
+
+        // Optional, and left out rather than faked when there is nothing to cite. A card added
+        // from the account area has no initial transaction, and the gateway takes the charge
+        // without one — which is the only reason such a card is chargeable at all.
+        if (null !== $storedCard->initialTransactionId) {
+            $body['cit_mit'] = [
+                // The gateway accepts `stored` or `used` and names both in its refusal; this is a
+                // charge against a credential already on file, so it is a use of one.
+                'stored_credential_indicator' => 'used',
+                // The shopper is standing at the checkout. The gateway's own vaulted-sale example
+                // says `merchant` because it illustrates a recurring charge, which this is not.
+                'initiated_by' => 'customer',
+                'initial_transaction_id' => $storedCard->initialTransactionId,
+            ];
         }
 
         return $body;

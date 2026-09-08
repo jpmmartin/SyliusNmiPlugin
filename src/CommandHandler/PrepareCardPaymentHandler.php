@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiAmountFormatter;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
+use JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOfferInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -30,6 +32,7 @@ final class PrepareCardPaymentHandler
         private readonly StateMachineInterface $stateMachine,
         private readonly NmiAmountFormatter $amountFormatter,
         private readonly NmiCardSavingCustomerProviderInterface $cardSavingCustomerProvider,
+        private readonly NmiStoredCardOfferInterface $storedCardOffer,
     ) {
     }
 
@@ -58,7 +61,7 @@ final class PrepareCardPaymentHandler
             // Which of the two ways this payment is taken was decided upstream from the payment
             // method's configuration; the browser is told so it can label its own button.
             'action' => $paymentRequest->getAction(),
-        ] + $this->cardholderFrom($payment) + $this->cardSavingFrom($payment, $configuration));
+        ] + $this->cardholderFrom($payment) + $this->cardSavingFrom($payment, $configuration) + $this->storedCardsFrom($payment, $configuration));
 
         $this->stateMachine->apply(
             $paymentRequest,
@@ -83,6 +86,47 @@ final class PrepareCardPaymentHandler
         return null === $this->cardSavingCustomerProvider->forPayment($payment, $configuration)
             ? []
             : ['can_store_card' => true];
+    }
+
+    /**
+     * The cards this shopper may pay with, in the order they should be shown: the default first,
+     * then the rest, newest before oldest.
+     *
+     * Absent rather than empty when there are none, for the same reason `can_store_card` is: a
+     * store that never turned card storage on sees the response it has always seen, and so does
+     * the README's captured example.
+     *
+     * **No vault reference travels.** What identifies a card here is its row, which is meaningless
+     * anywhere but this store — the gateway's own reference stays on the server, where the charge
+     * reads it back out of the row.
+     *
+     * @return array<string, bool|list<array<string, bool|int|string|null>>>
+     */
+    private function storedCardsFrom(mixed $payment, NmiGatewayConfiguration $configuration): array
+    {
+        if (!$payment instanceof PaymentInterface) {
+            return [];
+        }
+
+        $cards = array_map(static fn (NmiStoredCardInterface $card): array => [
+            'id' => $card->getId(),
+            'brand' => $card->getBrand(),
+            'last_four' => $card->getLastFour(),
+            'expiry_month' => $card->getExpiryMonth(),
+            'expiry_year' => $card->getExpiryYear(),
+            'is_default' => $card->isDefault(),
+            // Listed and marked rather than hidden: a shopper looking for a card they know they
+            // saved has to be told why it is not among the choices.
+            'is_expired' => $card->isExpired(),
+        ], $this->storedCardOffer->offeredFor($payment, $configuration));
+
+        return [] === $cards ? [] : [
+            'stored_cards' => $cards,
+            // Whether paying with one of them authenticates again. It travels beside the cards
+            // rather than on its own so that a store with none of them still sees the response it
+            // has always seen.
+            'authenticate_stored_cards' => $configuration->authenticateStoredCards,
+        ];
     }
 
     /**

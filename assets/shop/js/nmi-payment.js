@@ -13,6 +13,14 @@ import { mountNmiPayments, mountNmiThreeDSecure } from '@nmipayments/nmi-pay';
 const MOUNT_SELECTOR = '#nmi-payment';
 const THREE_D_SECURE_SELECTOR = '#nmi-three-d-secure';
 const STORE_CARD_SELECTOR = '#nmi-store-card';
+const STORED_CARDS_SELECTOR = '#nmi-stored-cards';
+const STORED_CARD_PAY_SELECTOR = '#nmi-stored-card-pay';
+const STORED_CARD_ERROR_SELECTOR = '#nmi-stored-card-error';
+const PAYMENT_SOURCE_SELECTOR = 'input[name="nmi_payment_source"]';
+const NEW_CARD_ONLY_SELECTOR = '[data-nmi-new-card-only]';
+
+/* The new-card form is the choice when there is nothing saved to choose instead. */
+const NEW_CARD = 'new';
 
 /*
  * Whether the shopper asked for the card to be kept.
@@ -109,70 +117,100 @@ const DECISION_DEADLINE_MS = 45000;
 
 const CHALLENGE_DEADLINE_MS = 600000;
 
+/*
+ * The 3-D Secure widget, built once and shared by both ways of paying.
+ *
+ * There is one authentication widget on the page and two things that may need it: a card the
+ * shopper just typed, which authenticates its token, and a card the gateway already holds, which
+ * authenticates its vault reference. Building it twice would mean two mount points fighting over
+ * the same element.
+ *
+ * Null when the store removed either hookable. That is a store deciding to pay without
+ * authentication, and the alternative — refusing to charge at all — would be worse.
+ */
+let authenticator;
+
+const sharedAuthenticator = () => {
+    if (authenticator !== undefined) {
+        return authenticator;
+    }
+
+    const target = document.querySelector(THREE_D_SECURE_SELECTOR);
+    const source = document.querySelector(MOUNT_SELECTOR);
+
+    if (!target || !source) {
+        authenticator = null;
+
+        return authenticator;
+    }
+
+    // The template renders this translated, so the literal is only reached by a store that
+    // overrode the template and dropped the attribute. Saying nothing at all would be worse than
+    // saying it in one language.
+    const notAuthenticated = () => source.dataset.nmiAuthFailedMessage || 'The card could not be authenticated.';
+
+    let settle = null;
+    let extendDeadline = null;
+
+    const widget = mountNmiThreeDSecure(target, {
+        tokenizationKey: source.dataset.nmiTokenizationKey,
+        onChallenge: () => extendDeadline?.(CHALLENGE_DEADLINE_MS),
+        onComplete: (event) => settle?.(
+            // A completion carrying no cryptogram is not an authentication. It happens, and
+            // treating it as success would charge a card nobody vouched for — the one thing
+            // the specification forbids. A card the issuer merely does not support still
+            // comes back with one, so this rejects nothing that genuinely authenticated.
+            event && event.cavv
+                ? { authenticated: true, fields: authenticationFields(event) }
+                : { authenticated: false, message: notAuthenticated() },
+        ),
+        onFailure: (event) => settle?.({ authenticated: false, message: event?.message }),
+    });
+
+    authenticator = {
+        notAuthenticated,
+        /* `paymentInfo` names the card either by its token or by its vault reference. */
+        authenticate: (paymentInfo) =>
+            new Promise((resolve) => {
+                let done = false;
+                let deadline = null;
+
+                const finish = (outcome) => {
+                    if (done) {
+                        return;
+                    }
+                    done = true;
+                    clearTimeout(deadline);
+                    settle = null;
+                    extendDeadline = null;
+                    resolve(outcome);
+                };
+
+                extendDeadline = (ms) => {
+                    clearTimeout(deadline);
+                    deadline = setTimeout(() => finish({ authenticated: false, message: notAuthenticated() }), ms);
+                };
+
+                settle = finish;
+                extendDeadline(DECISION_DEADLINE_MS);
+
+                widget.startThreeDSecure(paymentInfo);
+            }),
+    };
+
+    return authenticator;
+};
+
 const mount = (container) => {
     if (container.dataset.nmiMounted === 'true') {
         return;
     }
     container.dataset.nmiMounted = 'true';
 
-    const tokenizationKey = container.dataset.nmiTokenizationKey;
-    const target = document.querySelector(THREE_D_SECURE_SELECTOR);
-    // The template renders both of these translated, so the literals are only reached by a
-    // store that overrode the template and dropped the attribute. Saying nothing at all
-    // would be worse than saying it in one language.
-    const notAuthenticated = () => container.dataset.nmiAuthFailedMessage || 'The card could not be authenticated.';
-
-    let settle = null;
-    let extendDeadline = null;
-
-    // A store that removed the authentication hookable has decided to pay without it. That is its
-    // decision to make, and the alternative — refusing to charge at all — would be worse.
-    const threeDSecure = target
-        ? mountNmiThreeDSecure(target, {
-              tokenizationKey,
-              onChallenge: () => extendDeadline?.(CHALLENGE_DEADLINE_MS),
-              onComplete: (event) => settle?.(
-                  // A completion carrying no cryptogram is not an authentication. It happens, and
-                  // treating it as success would charge a card nobody vouched for — the one thing
-                  // the specification forbids. A card the issuer merely does not support still
-                  // comes back with one, so this rejects nothing that genuinely authenticated.
-                  event && event.cavv
-                      ? { authenticated: true, fields: authenticationFields(event) }
-                      : { authenticated: false, message: notAuthenticated() },
-              ),
-              onFailure: (event) => settle?.({ authenticated: false, message: event?.message }),
-          })
-        : null;
-
-    const authenticate = (token) =>
-        new Promise((resolve) => {
-            let done = false;
-            let deadline = null;
-
-            const finish = (outcome) => {
-                if (done) {
-                    return;
-                }
-                done = true;
-                clearTimeout(deadline);
-                settle = null;
-                extendDeadline = null;
-                resolve(outcome);
-            };
-
-            extendDeadline = (ms) => {
-                clearTimeout(deadline);
-                deadline = setTimeout(() => finish({ authenticated: false, message: notAuthenticated() }), ms);
-            };
-
-            settle = finish;
-            extendDeadline(DECISION_DEADLINE_MS);
-
-            threeDSecure.startThreeDSecure(paymentInformation(container, token));
-        });
+    const threeDSecure = sharedAuthenticator();
 
     mountNmiPayments(container, {
-        tokenizationKey,
+        tokenizationKey: container.dataset.nmiTokenizationKey,
         layout: 'multiLine',
         // Cards only. Wallets and bank debits are out of this plugin's scope, and offering a
         // method the store cannot charge would be worse than not offering it.
@@ -185,12 +223,12 @@ const mount = (container) => {
             let fields = {};
 
             if (threeDSecure !== null) {
-                const outcome = await authenticate(event.token);
+                const outcome = await threeDSecure.authenticate(paymentInformation(container, event.token));
 
                 // A shopper who fails, abandons, or is blocked is not charged: returning the
                 // message leaves them on the page with the form intact.
                 if (!outcome.authenticated) {
-                    return outcome.message || notAuthenticated();
+                    return outcome.message || threeDSecure.notAuthenticated();
                 }
 
                 fields = outcome.fields;
@@ -211,7 +249,138 @@ const mount = (container) => {
     });
 };
 
-const mountAll = () => document.querySelectorAll(MOUNT_SELECTOR).forEach(mount);
+/*
+ * Which of the two ways to pay the shopper picked. Absent radios mean there is nothing saved, so
+ * the new-card form is the only path and the answer never changes.
+ */
+const chosenSource = () => document.querySelector(`${PAYMENT_SOURCE_SELECTOR}:checked`)?.value ?? NEW_CARD;
+
+/*
+ * What the store will tell us about a saved card, and only when asked.
+ *
+ * **The vault reference is deliberately not on the page.** It is fetched here, at the moment the
+ * shopper presses Pay, from a route that hands it to the card's owner and to nobody else — so it
+ * never appears in the page source, a cached copy or a screenshot. Null when the store refuses,
+ * which is what an expired, foreign or deleted card looks like from here.
+ */
+const authenticationDetails = async (container, storedCard) => {
+    const body = new FormData();
+    body.append('stored_card', storedCard);
+    body.append('_csrf_token', container.dataset.nmiCsrfToken);
+
+    try {
+        const response = await fetch(container.dataset.nmiAuthenticateUrl, {
+            method: 'POST',
+            body,
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+
+        return response.ok ? await response.json() : null;
+    } catch {
+        return null;
+    }
+};
+
+/*
+ * Swaps between the two ways to pay.
+ *
+ * The card fields are put away rather than unmounted: the component owns iframes it would have to
+ * rebuild, and a shopper toggling back and forth would watch them flicker for nothing.
+ */
+const mountStoredCards = (container) => {
+    if (container.dataset.nmiMounted === 'true') {
+        return;
+    }
+    container.dataset.nmiMounted = 'true';
+
+    const payButton = container.querySelector(STORED_CARD_PAY_SELECTOR);
+    const errorMessage = container.querySelector(STORED_CARD_ERROR_SELECTOR);
+
+    const say = (message) => {
+        if (!errorMessage) {
+            return;
+        }
+
+        errorMessage.textContent = message;
+        errorMessage.hidden = message === '';
+    };
+
+    const show = () => {
+        const savedCard = chosenSource() !== NEW_CARD;
+
+        document.querySelectorAll(NEW_CARD_ONLY_SELECTOR).forEach((element) => {
+            element.hidden = savedCard;
+        });
+
+        if (payButton) {
+            payButton.hidden = !savedCard;
+        }
+    };
+
+    document
+        .querySelectorAll(PAYMENT_SOURCE_SELECTOR)
+        .forEach((radio) => radio.addEventListener('change', show));
+
+    payButton?.addEventListener('click', async () => {
+        const storedCard = chosenSource();
+        if (storedCard === NEW_CARD) {
+            return;
+        }
+
+        payButton.disabled = true;
+        say('');
+
+        const threeDSecure = container.dataset.nmiAuthenticate === '1' ? sharedAuthenticator() : null;
+
+        if (threeDSecure !== null) {
+            const details = await authenticationDetails(container, storedCard);
+
+            // The store would not say which card this is, which is the same answer the charge
+            // would give. Let it fail there, where the shopper gets a sentence about it.
+            if (details === null) {
+                postToken(container, { stored_card: storedCard, _csrf_token: container.dataset.nmiCsrfToken });
+
+                return;
+            }
+
+            const outcome = await threeDSecure.authenticate({
+                // NMI's vault integration authenticates the reference rather than a token, and
+                // asks for nothing else. Its prose calls this `customerVaultToken` and its own
+                // example calls it `customerVaultId`; the example is what integrators run.
+                customerVaultId: details.customer_vault_id,
+                currency: details.currency,
+                amount: details.amount,
+            });
+
+            if (!outcome.authenticated) {
+                say(outcome.message || threeDSecure.notAuthenticated());
+                payButton.disabled = false;
+
+                return;
+            }
+
+            postToken(container, {
+                stored_card: storedCard,
+                _csrf_token: container.dataset.nmiCsrfToken,
+                ...outcome.fields,
+            });
+
+            return;
+        }
+
+        // Nothing is tokenised and nothing is authenticated: the card is already at the gateway,
+        // and the store reads its reference out of its own row rather than from this page.
+        postToken(container, { stored_card: storedCard, _csrf_token: container.dataset.nmiCsrfToken });
+    });
+
+    show();
+};
+
+const mountAll = () => {
+    document.querySelectorAll(STORED_CARDS_SELECTOR).forEach(mountStoredCards);
+    document.querySelectorAll(MOUNT_SELECTOR).forEach(mount);
+};
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountAll);

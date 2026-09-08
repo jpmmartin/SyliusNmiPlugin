@@ -51,3 +51,6 @@ jpm_martin_sylius_nmi:
             card_unreadable: No se han podido leer los datos de la tarjeta. Revísalos e inténtalo de nuevo.
             not_authenticated: No se ha podido autenticar la tarjeta, así que no se ha cobrado nada. Inténtalo de nuevo o usa otra tarjeta.
             save_card: Guardar esta tarjeta para la próxima vez
+            use_saved_card: Pagar con una tarjeta guardada
+            new_card: Usar una tarjeta nueva
+            pay_now: Pagar

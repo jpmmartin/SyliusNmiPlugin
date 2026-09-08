@@ -17,5 +17,18 @@
             <argument type="service" id="sylius_shop.provider.order_pay.after_pay_url" />
             <argument type="service" id="translator" />
         </service>
+
+        <!--
+            Hands the browser the vault reference it needs to authenticate a stored card, and
+            nothing else. Its whole reason for existing is that the reference is then never
+            rendered into the page.
+        -->
+        <service id="JpmMartin\SyliusNmiPlugin\Controller\StoredCardAuthenticationAction" public="true">
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="security.csrf.token_manager" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.provider.stored_card_offer" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
+        </service>
     </services>
 </container>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
@@ -15,8 +16,10 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\StoredCard;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\ThreeDSecureResult;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
+use JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOfferInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiStoredCardRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface;
@@ -46,6 +49,9 @@ use Sylius\Component\Payment\PaymentTransitions;
  */
 final class CompleteCardPaymentHandler
 {
+    /** A saved card that cannot be charged: gone, expired, or never this shopper's to begin with. */
+    public const CARD_UNAVAILABLE_MESSAGE_KEY = 'jpm_martin_sylius_nmi.payment.card_unavailable';
+
     public function __construct(
         private readonly PaymentRequestProviderInterface $paymentRequestProvider,
         private readonly NmiGatewayConfigurationProviderInterface $configurationProvider,
@@ -55,6 +61,7 @@ final class CompleteCardPaymentHandler
         private readonly NmiCardSavingCustomerProviderInterface $cardSavingCustomerProvider,
         private readonly NmiStoredCardRecorderInterface $storedCardRecorder,
         private readonly NmiStoredCardRepositoryInterface $storedCardRepository,
+        private readonly NmiStoredCardOfferInterface $storedCardOffer,
     ) {
     }
 
@@ -72,8 +79,10 @@ final class CompleteCardPaymentHandler
         /** @var array<string, mixed> $payload */
         $payload = is_array($paymentRequest->getPayload()) ? $paymentRequest->getPayload() : [];
 
-        $token = $payload['payment_token'] ?? null;
-        if (!is_string($token) || '' === $token) {
+        $token = $this->stringOrNull($payload['payment_token'] ?? null);
+        $storedCardId = $this->stringOrNull($payload['stored_card'] ?? null);
+
+        if (null === $token && null === $storedCardId) {
             // Not a submission: the pay page announces this command on *every* view once the
             // request is in progress, so a shopper who simply reloads arrives here with nothing.
             // Leaving the request untouched lets the page render the form again. Failing it would
@@ -82,21 +91,42 @@ final class CompleteCardPaymentHandler
         }
 
         $authorizing = PaymentRequestInterface::ACTION_AUTHORIZE === $paymentRequest->getAction();
+        $savingFor = null;
+        $alreadySaved = false;
 
         try {
             $configuration = $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod());
 
-            // Asked once, here, and used twice: it decides whether the charge asks the gateway to
-            // keep the card and, if it does, who the card ends up filed against. Inside the try
-            // because it needs the configuration, and resolving that can fail like anything else.
-            $savingFor = $this->customerSavingTheCard($payment, $payload, $configuration);
+            if (null !== $storedCardId) {
+                $storedCard = $this->storedCardOffer->chosenFor($payment, $configuration, $storedCardId);
 
-            // **Before the charge, which is the only moment it can be.** Once the sale has run
-            // with `add_to_vault` the gateway has already made a second vault record — it
-            // deduplicates nothing — and there would be no undoing it from here.
-            $alreadySaved = null !== $savingFor && $this->alreadyOnFile($savingFor, $paymentRequest->getMethod(), $payload);
+                if (null === $storedCard) {
+                    // The card cannot be charged and the gateway was never asked. Deleted between
+                    // the page and the post, expired, somebody else's, or a bare identifier
+                    // somebody typed — all of them mean the same thing to the shopper, and
+                    // distinguishing them out loud would only tell an attacker which one it was.
+                    $this->fail($paymentRequest, self::CARD_UNAVAILABLE_MESSAGE_KEY, sprintf('Stored card "%s" is not chargeable on this payment.', $storedCardId));
 
-            $charge = $this->chargeFrom($payment, $token, $payload, null !== $savingFor && !$alreadySaved);
+                    return;
+                }
+
+                $charge = $this->chargeFromStoredCard($payment, $storedCard, $payload);
+            } else {
+                // Asked once, here, and used twice: it decides whether the charge asks the gateway
+                // to keep the card and, if it does, who the card ends up filed against. Inside the
+                // try because it needs the configuration, and resolving that can fail like
+                // anything else.
+                $savingFor = $this->customerSavingTheCard($payment, $payload, $configuration);
+
+                // **Before the charge, which is the only moment it can be.** Once the sale has run
+                // with `add_to_vault` the gateway has already made a second vault record — it
+                // deduplicates nothing — and there would be no undoing it from here.
+                $alreadySaved = null !== $savingFor && $this->alreadyOnFile($savingFor, $paymentRequest->getMethod(), $payload);
+
+                // Non-null here by the guard above: the request was refused when neither a token
+                // nor a saved card arrived, and a saved card is what this branch does not have.
+                $charge = $this->chargeFrom($payment, (string) $token, $payload, null !== $savingFor && !$alreadySaved);
+            }
 
             $response = $authorizing
                 ? $this->client->authorize($configuration, $charge)
@@ -161,6 +191,36 @@ final class CompleteCardPaymentHandler
             ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
             threeDSecure: $this->threeDSecureFrom($payload),
             storeCard: $storeCard,
+        );
+    }
+
+    /**
+     * The same charge, paid for by a card the gateway already holds.
+     *
+     * Everything about the amount, the order and the authentication is identical — which is the
+     * whole of *a stored card charges like a fresh one*. What differs is where the money comes
+     * from, and that is one object further down.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function chargeFromStoredCard(PaymentInterface $payment, NmiStoredCardInterface $card, array $payload): Charge
+    {
+        $order = $payment->getOrder();
+
+        return new Charge(
+            paymentToken: null,
+            amount: (int) $payment->getAmount(),
+            currencyCode: (string) $payment->getCurrencyCode(),
+            orderId: $order?->getTokenValue(),
+            ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
+            threeDSecure: $this->threeDSecureFrom($payload),
+            storedCard: new StoredCard(
+                vaultId: (string) $card->getVaultId(),
+                billingId: $card->getBillingId(),
+                // Cited when the card has one to cite. A card added from the account area was
+                // never charged, so it has none, and the gateway takes the sale regardless.
+                initialTransactionId: $card->getVaultingTransactionId(),
+            ),
         );
     }
 

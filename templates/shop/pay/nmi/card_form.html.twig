@@ -15,8 +15,15 @@
     is public by design — it identifies the merchant and cannot charge anything. The amount stays
     in minor units here because that is what the component is given, not what a shopper reads.
 #}
+{#
+    Marked as belonging to the new-card path so that choosing a saved card can put it away. The
+    attribute rather than the id, so a store that overrode this template keeps the behaviour by
+    keeping the attribute — and so the save-this-card option, which is a separate hookable, can
+    carry the same mark.
+#}
 <div
     id="nmi-payment"
+    data-nmi-new-card-only
     data-nmi-tokenization-key="{{ nmi.tokenization_key }}"
     data-nmi-amount="{{ nmi.amount }}"
     data-nmi-currency="{{ nmi.currency_code }}"

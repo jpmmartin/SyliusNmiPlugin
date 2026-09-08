@@ -9,7 +9,7 @@
     the name is for the person reading the markup; what the browser reads is the id.
 #}
 {% if nmi.can_store_card|default(false) %}
-    <p>
+    <p data-nmi-new-card-only>
         <label for="nmi-store-card">
             <input
                 type="checkbox"
