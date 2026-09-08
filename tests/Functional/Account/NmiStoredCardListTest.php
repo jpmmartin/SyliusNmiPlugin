@@ -9,13 +9,13 @@ use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
-use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
+use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
 
 /**
  * The saved-cards page in the shopper's account.
@@ -25,6 +25,8 @@ use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
  */
 final class NmiStoredCardListTest extends WebTestCase
 {
+    use CreatesAShopChannel;
+
     private const PATH = '/en_US/account/saved-cards';
 
     private KernelBrowser $client;
@@ -95,6 +97,9 @@ final class NmiStoredCardListTest extends WebTestCase
     /** An empty account says so rather than rendering an empty page. */
     public function testAnAccountWithNoCardsSaysSo(): void
     {
+        // A channel with no payment method on it: the page is about having no cards, and a shop
+        // page with no channel behind it does not render at all.
+        $this->aShopChannel();
         $this->aSignedInCustomer();
         $this->manager->flush();
 
@@ -253,6 +258,11 @@ final class NmiStoredCardListTest extends WebTestCase
         );
     }
 
+    protected function shopChannelManager(): EntityManagerInterface
+    {
+        return $this->manager;
+    }
+
     private function aCardOfMyOwn(): NmiStoredCardInterface
     {
         $customer = $this->aSignedInCustomer();
@@ -306,12 +316,12 @@ final class NmiStoredCardListTest extends WebTestCase
     {
         $container = self::getContainer();
 
-        /** @var ChannelInterface $channel */
-        $channel = $container->get('sylius.repository.channel')->findOneBy([]);
-
-        // The account menu asks whether *this channel* saves cards, so the test has to own the
-        // channel's NMI methods rather than inherit whatever else ran against this database —
-        // Behat leaves its last scenario's rows behind by design.
+        // Built rather than found: continuous integration has no fixtures, so a test that took
+        // whichever channel existed found none and every shop page answered "Channel could not be
+        // found!". The account menu also asks whether *this channel* saves cards, so the test has
+        // to own the channel's NMI methods rather than inherit whatever else ran against this
+        // database — Behat leaves its last scenario's rows behind by design.
+        $channel = $this->aShopChannel();
         /** @var PaymentMethodInterface $existing */
         foreach ($container->get('sylius.repository.payment_method')->findAll() as $existing) {
             if (NmiGatewayFactory::NAME === $existing->getGatewayConfig()?->getFactoryName() && $existing->hasChannel($channel)) {

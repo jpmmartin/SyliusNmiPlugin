@@ -17,6 +17,7 @@ use Sylius\Component\Payment\Encryption\EncrypterInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpClient\Psr18Client;
+use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
 
 /**
  * The four questions this change's security review has to answer, each answered by making the
@@ -29,6 +30,8 @@ use Symfony\Component\HttpClient\Psr18Client;
  */
 final class NmiStoredCardSecurityReviewTest extends WebTestCase
 {
+    use CreatesAShopChannel;
+
     private const VAULT_ID = 'vault-secret-1730549219';
 
     private KernelBrowser $client;
@@ -134,6 +137,10 @@ final class NmiStoredCardSecurityReviewTest extends WebTestCase
         foreach (['/en_US/account/saved-cards', '/en_US/account/saved-cards/add'] as $path) {
             $this->client->request('GET', $path);
 
+            // Without this the absence below would pass on an error page, which is the shape a
+            // shop page takes when the test forgot to give it a channel.
+            self::assertResponseIsSuccessful(sprintf('%s did not render, so the assertion below means nothing.', $path));
+
             self::assertStringNotContainsString(
                 self::VAULT_ID,
                 (string) $this->client->getResponse()->getContent(),
@@ -227,9 +234,16 @@ final class NmiStoredCardSecurityReviewTest extends WebTestCase
         $this->client->loginUser($user, 'shop');
     }
 
+    protected function shopChannelManager(): EntityManagerInterface
+    {
+        return $this->manager;
+    }
+
     private function aPaymentMethod(): PaymentMethodInterface
     {
         $container = self::getContainer();
+
+        $channel = $this->aShopChannel();
 
         $gatewayConfig = $container->get('sylius.factory.gateway_config')->createNew();
         $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
@@ -250,6 +264,8 @@ final class NmiStoredCardSecurityReviewTest extends WebTestCase
         $paymentMethod->setFallbackLocale('en_US');
         $paymentMethod->setName('Card');
         $paymentMethod->setGatewayConfig($gatewayConfig);
+        $paymentMethod->setEnabled(true);
+        $paymentMethod->addChannel($channel);
         $this->manager->persist($paymentMethod);
 
         return $paymentMethod;

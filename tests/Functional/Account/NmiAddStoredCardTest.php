@@ -15,6 +15,7 @@ use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
+use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
 
 /**
  * Adding a card from the account area, with nothing bought.
@@ -25,6 +26,8 @@ use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
  */
 final class NmiAddStoredCardTest extends WebTestCase
 {
+    use CreatesAShopChannel;
+
     private const LIST_PATH = '/en_US/account/saved-cards';
 
     private const ADD_PATH = '/en_US/account/saved-cards/add';
@@ -138,6 +141,11 @@ final class NmiAddStoredCardTest extends WebTestCase
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
     }
 
+    protected function shopChannelManager(): EntityManagerInterface
+    {
+        return $this->manager;
+    }
+
     /** @return list<\JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface> */
     private function cardsOf(CustomerInterface $customer): array
     {
@@ -151,8 +159,9 @@ final class NmiAddStoredCardTest extends WebTestCase
     {
         $container = self::getContainer();
 
-        /** @var ChannelInterface $channel */
-        $channel = $container->get('sylius.repository.channel')->findOneBy([]);
+        // Built rather than found: continuous integration migrates an empty database, so there is
+        // no channel to take and every shop page would answer "Channel could not be found!".
+        $channel = $this->aShopChannel();
 
         // **What this test asserts is about the channel's NMI methods, so it has to own them.**
         // The page answers only when the channel has exactly one NMI method that saves cards, and

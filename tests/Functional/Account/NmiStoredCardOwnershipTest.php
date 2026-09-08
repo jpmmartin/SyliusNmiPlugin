@@ -13,6 +13,7 @@ use Sylius\Component\Core\Model\ShopUserInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
+use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
 
 /**
  * One customer reaching for another's card.
@@ -27,6 +28,8 @@ use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
  */
 final class NmiStoredCardOwnershipTest extends WebTestCase
 {
+    use CreatesAShopChannel;
+
     private const PATH = '/en_US/account/saved-cards';
 
     private KernelBrowser $client;
@@ -172,9 +175,18 @@ final class NmiStoredCardOwnershipTest extends WebTestCase
         $this->client->loginUser($user, 'shop');
     }
 
+    protected function shopChannelManager(): EntityManagerInterface
+    {
+        return $this->manager;
+    }
+
     private function aPaymentMethod(): PaymentMethodInterface
     {
         $container = self::getContainer();
+
+        // Built rather than found: continuous integration migrates an empty database, so a shop
+        // page with no channel behind it answers 500 rather than the 404 this file is about.
+        $this->aShopChannel();
 
         $gatewayConfig = $container->get('sylius.factory.gateway_config')->createNew();
         $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
