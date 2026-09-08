@@ -58,6 +58,9 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             // Absent means off, which is what a store that installed this plugin before the
             // setting existed has stored.
             storeCards: (bool) ($config[NmiGatewayFactory::CONFIG_STORE_CARDS] ?? false),
+            // Absent means yes. A store that has not answered has not chosen to skip
+            // authentication, and reading silence as "no" would make that choice for it.
+            authenticateStoredCards: (bool) ($config[NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS] ?? true),
         );
     }
 

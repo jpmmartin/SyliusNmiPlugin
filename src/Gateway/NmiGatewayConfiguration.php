@@ -18,6 +18,13 @@ final class NmiGatewayConfiguration
         public readonly string $apiBaseUrl,
         /** Last and defaulted only because PHP will not take an optional argument before a required one. */
         public readonly bool $storeCards = false,
+        /**
+         * Whether paying with a stored card runs 3-D Secure again.
+         *
+         * Defaults to true, and the default matters: a store that never answered the question gets
+         * the authenticated payment rather than the one nobody checked.
+         */
+        public readonly bool $authenticateStoredCards = true,
     ) {
     }
 }

@@ -47,6 +47,26 @@ final class NmiGatewayConfigurationProviderTest extends TestCase
         );
     }
 
+    /**
+     * Silence is yes. A store that never answered the authentication question has not chosen to
+     * skip it, and reading an absent key as false would make that choice on its behalf.
+     */
+    public function testStoredCardAuthenticationIsOnUnlessTurnedOff(): void
+    {
+        $provider = new NmiGatewayConfigurationProvider(null);
+
+        self::assertTrue(
+            $provider->fromPaymentMethod($this->nmiPaymentMethod([]))->authenticateStoredCards,
+            'A store that never answered has not chosen to skip authentication.',
+        );
+        self::assertTrue($provider->fromPaymentMethod($this->nmiPaymentMethod([
+            NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS => true,
+        ]))->authenticateStoredCards);
+        self::assertFalse($provider->fromPaymentMethod($this->nmiPaymentMethod([
+            NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS => false,
+        ]))->authenticateStoredCards);
+    }
+
     public function testTheAuthorizeFlagIsRead(): void
     {
         $configuration = (new NmiGatewayConfigurationProvider(null))

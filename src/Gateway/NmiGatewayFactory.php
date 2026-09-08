@@ -36,6 +36,14 @@ final class NmiGatewayFactory
      */
     public const CONFIG_STORE_CARDS = 'store_cards';
 
+    /**
+     * Whether paying with a stored card runs 3-D Secure again.
+     *
+     * On by default, and deliberately so: the alternative is a payment nobody authenticated, and a
+     * store that wants that should have to say so rather than inherit it.
+     */
+    public const CONFIG_AUTHENTICATE_STORED_CARDS = 'authenticate_stored_cards';
+
     public const ENVIRONMENT_PRODUCTION = 'production';
 
     public const ENVIRONMENT_SANDBOX = 'sandbox';

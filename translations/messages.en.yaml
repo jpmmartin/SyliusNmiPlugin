@@ -35,6 +35,15 @@ jpm_martin_sylius_nmi:
                 next time. Nobody saves anything unless they ask to, guests are never offered it,
                 and the store never holds a card number — only the reference NMI gives back. Leave
                 it off and nothing about this gateway changes.
+            authenticate_stored_cards: Authenticate saved cards with 3-D Secure
+            authenticate_stored_cards_help: >-
+                Leave this on and a returning shopper authenticates again before each payment.
+                Turn it off and paying with a saved card is one click.
+                <strong>For cardholders in the EU and the UK that choice has consequences:</strong>
+                the issuer may decline a payment that carries no authentication, and liability for
+                a chargeback stays with you rather than moving to the issuer. Selling into North
+                America that pressure does not apply the same way, and the one-click payment is the
+                more common trade.
     shop:
         pay:
             heading: Pay by card

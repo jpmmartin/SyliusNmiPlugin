@@ -67,6 +67,14 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'help' => 'jpm_martin_sylius_nmi.form.gateway_config.store_cards_help',
                 'required' => false,
             ])
+            // Only meaningful once cards are stored at all, which is why it reads as a follow-up
+            // question rather than a fifth independent switch.
+            ->add(NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS, CheckboxType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.authenticate_stored_cards',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.authenticate_stored_cards_help',
+                'help_html' => true,
+                'required' => false,
+            ])
         ;
     }
 
