@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
+use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
 use Sylius\Bundle\CoreBundle\DependencyInjection\PrependDoctrineMigrationsTrait;
 use Sylius\Bundle\ResourceBundle\DependencyInjection\Extension\AbstractResourceExtension;
 use Symfony\Component\Config\FileLocator;
@@ -39,6 +40,23 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
     public function prepend(ContainerBuilder $container): void
     {
         $this->prependDoctrineMigrations($container);
+
+        // Forgetting a card at the gateway must not be able to make deleting a customer fail, and
+        // must not be lost when the gateway is down — so it is queued rather than performed in the
+        // request. `main` is the platform's own asynchronous transport, the one Sylius routes its
+        // own deferred work to, with a failure transport already attached: a purge is retried and,
+        // if the retries run out, parked there rather than dropped.
+        //
+        // Prepended rather than left in `config/config.yaml`, which a store imports by hand. A
+        // store that forgot the import would otherwise get this message handled synchronously and
+        // silently lose the retries the requirement is about.
+        $container->prependExtensionConfig('framework', [
+            'messenger' => [
+                'routing' => [
+                    PurgeStoredCard::class => 'main',
+                ],
+            ],
+        ]);
 
         if (!self::hasRefundPlugin($container)) {
             return;

@@ -35,6 +35,36 @@
             <argument type="service" id="sylius.encrypter" />
         </service>
 
+        <!--
+            Deleting a customer removes their cards by a database cascade, so nothing about the
+            cards themselves ever reaches Doctrine. This reads the identifiers while they still
+            exist and hands them to the queue once the deletion has actually committed.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.purge_stored_cards_on_customer_deletion" class="JpmMartin\SyliusNmiPlugin\EventListener\PurgeStoredCardsOnCustomerDeletionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
+            <!--
+                The event bus, deliberately: `postFlush` runs inside a flush, and the command bus
+                carries `doctrine_transaction`, so dispatching there would flush inside a flush.
+                Which bus carries the message does not change where it is routed.
+            -->
+            <argument type="service" id="sylius.event_bus" />
+            <tag name="doctrine.event_listener" event="preRemove" />
+            <tag name="doctrine.event_listener" event="postFlush" />
+        </service>
+
+        <!--
+            Forgets one vault record the store has already forgotten. It throws on anything but a
+            record the gateway no longer has, because a purge that gave up quietly would leave a
+            card at the gateway that nothing can point at again.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_handler.purge_stored_card" class="JpmMartin\SyliusNmiPlugin\CommandHandler\PurgeStoredCardHandler">
+            <argument type="service" id="sylius.repository.payment_method" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="logger" />
+            <tag name="messenger.message_handler" bus="sylius.event_bus" />
+        </service>
+
         <service id="jpm_martin_sylius_nmi.listener.stored_card_encryption" class="Sylius\Bundle\PaymentBundle\Listener\EntityEncryptionListener">
             <argument type="service" id="jpm_martin_sylius_nmi.encryption.stored_card" />
             <argument>%jpm_martin_sylius_nmi.model.nmi_stored_card.class%</argument>

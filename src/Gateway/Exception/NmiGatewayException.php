@@ -75,6 +75,19 @@ final class NmiGatewayException extends \RuntimeException implements NmiExceptio
     }
 
     /**
+     * Whether the gateway says it has no such record.
+     *
+     * A 404 on a delete is the state being asked for rather than a failure: deleting a vault
+     * record twice answers 204 and then 404 with `E_RESOURCE_NOT_FOUND`, established against the
+     * gateway. Everything that removes a vault record reads this, so the two callers cannot come
+     * to different conclusions about the same status.
+     */
+    public function isAlreadyGone(): bool
+    {
+        return 404 === $this->getHttpStatus();
+    }
+
+    /**
      * The gateway's own wording for a refusal, or null when there is none. Suitable for
      * showing to an operator; never to a shopper, because it can name merchant configuration.
      */

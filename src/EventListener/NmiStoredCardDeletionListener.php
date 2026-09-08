@@ -62,7 +62,7 @@ final readonly class NmiStoredCardDeletionListener
             $this->client->deleteVaultRecord($configuration, $vaultId);
         } catch (NmiGatewayException $exception) {
             // 404 is the gateway saying it has no such record, which is the state being asked for.
-            if (!$this->alreadyGone($exception)) {
+            if (!$exception->isAlreadyGone()) {
                 $event->stop('jpm_martin_sylius_nmi.stored_card.not_forgotten');
 
                 return;
@@ -78,10 +78,5 @@ final readonly class NmiStoredCardDeletionListener
         // Asked before the row goes, and told which one is leaving, so the survivors elect a new
         // default in the same transaction rather than a moment later.
         $this->defaultCard->electIfNoneRemains($customer, $paymentMethod, $card);
-    }
-
-    private function alreadyGone(NmiGatewayException $exception): bool
-    {
-        return 404 === $exception->getHttpStatus();
     }
 }
