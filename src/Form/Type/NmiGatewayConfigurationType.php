@@ -8,14 +8,14 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
 use Sylius\Bundle\PaymentBundle\Attribute\AsGatewayConfigurationType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Regex;
+use Symfony\Component\Validator\Constraints\Url;
 
 /**
  * Embedded by Sylius under `gatewayConfig.config` of the payment method form. The data is the
@@ -43,17 +43,19 @@ final class NmiGatewayConfigurationType extends AbstractType
                     new NotBlank(message: 'jpm_martin_sylius_nmi.gateway_config.security_key.not_blank', groups: ['sylius']),
                 ],
             ])
-            ->add(NmiGatewayFactory::CONFIG_ENVIRONMENT, ChoiceType::class, [
-                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.environment',
-                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.environment_help',
-                'placeholder' => 'jpm_martin_sylius_nmi.form.gateway_config.environments.placeholder',
-                'choices' => [
-                    'jpm_martin_sylius_nmi.form.gateway_config.environments.production' => NmiGatewayFactory::ENVIRONMENT_PRODUCTION,
-                    'jpm_martin_sylius_nmi.form.gateway_config.environments.sandbox' => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
-                ],
+            // The third thing an operator reads off their merchant portal, and the one that used to
+            // live in the store's YAML while the two keys lived here. Empty by default on purpose:
+            // a value that points at the live gateway is the kind of default that charges where it
+            // should not, and NMI's own hosts are one line of help text away.
+            ->add(NmiGatewayFactory::CONFIG_API_BASE_URL, TextType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.api_base_url',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.api_base_url_help',
                 'constraints' => [
-                    new NotBlank(message: 'jpm_martin_sylius_nmi.gateway_config.environment.not_blank', groups: ['sylius']),
-                    new Choice(choices: NmiGatewayFactory::ENVIRONMENTS, message: 'jpm_martin_sylius_nmi.gateway_config.environment.invalid', groups: ['sylius']),
+                    new NotBlank(message: 'jpm_martin_sylius_nmi.gateway_config.api_base_url.not_blank', groups: ['sylius']),
+                    new Url(protocols: ['https'], requireTld: true, message: 'jpm_martin_sylius_nmi.gateway_config.api_base_url.invalid', groups: ['sylius']),
+                    // `Url` accepts `https://host/anything`; the client appends the API path
+                    // itself, so anything after the host would be joined into nonsense.
+                    new Regex(pattern: '#^https://[^/?\#\s]+/?$#', message: 'jpm_martin_sylius_nmi.gateway_config.api_base_url.host_only', groups: ['sylius']),
                 ],
             ])
             ->add(NmiGatewayFactory::CONFIG_USE_AUTHORIZE, CheckboxType::class, [

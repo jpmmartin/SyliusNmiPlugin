@@ -16,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * The saved-cards page in the shopper's account.
@@ -338,7 +339,7 @@ final class NmiStoredCardListTest extends WebTestCase
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-account',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-account',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => false,
             NmiGatewayFactory::CONFIG_STORE_CARDS => $storeCards,
         ]);

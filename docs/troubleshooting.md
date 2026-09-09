@@ -97,6 +97,24 @@ render, so it sends the shopper onward.
 **Note this is not Sylius's default** — Sylius ships `sync://` and it is correct. Something in your
 application changed it.
 
+## Every charge fails with the generic message, and the log says the key was refused
+
+**What you see:** the card fields render, the card tokenises and passes authentication, and then
+the shopper gets *The payment could not be completed. Please try again or use another card* and the
+order stays unpaid. In the log, a warning: *The gateway refused the security key of payment method
+`nmi`: HTTP 401 from `https://sandbox.nmi.com`…* — naming the host it tried.
+
+**What was missed:** the **Gateway host** on the payment method is not the one that serves this
+account. The usual case is an account opened through a reseller with NMI's own host in the field:
+NMI's hosts do not know that account's key, so they refuse it. The host is the address you log into
+the merchant portal with — enter that, and nothing else changes.
+
+Two rarer causes give the same warning: a key pasted from a different account, or the *query*
+security key where the API one belongs.
+
+**How to confirm:** the warning names the host. If it is `secure.nmi.com` or `sandbox.nmi.com` and
+your portal is somewhere else, that is the whole diagnosis.
+
 ## Webhooks are rejected — everything answers 401
 
 **What you see:** in NMI's portal the deliveries are failing. In your log, repeated

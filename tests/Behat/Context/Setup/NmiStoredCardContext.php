@@ -14,6 +14,7 @@ use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Payment\Model\GatewayConfigInterface;
 use Sylius\Component\Resource\Factory\FactoryInterface;
 use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * The store a saved-cards scenario needs: an NMI payment method that stores cards, and cards on it.
@@ -54,7 +55,7 @@ final class NmiStoredCardContext implements Context
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-public-0123',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-private-4567',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_STORE_CARDS => true,
         ]);
 

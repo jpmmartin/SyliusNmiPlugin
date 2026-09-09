@@ -20,14 +20,14 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "production" environment
+        And I set the gateway host to "https://secure.nmi.com"
         And I add it
         Then I should be notified that it has been successfully created
         And the payment method "Card" should appear in the registry
         When I want to modify the "Card" payment method
         Then its gateway configuration "Tokenization key" should be "tok-public-0123"
         And its gateway configuration "Security key" should be "sec-private-4567"
-        And its gateway configuration "Environment" should be "production"
+        And its gateway configuration "Gateway host" should be "https://secure.nmi.com"
 
     @ui
     Scenario: Trying to add an NMI payment method without a tokenization key
@@ -35,7 +35,7 @@ Feature: Configuring an NMI payment method
         And I name it "Card" in "English (United States)"
         And I specify its code as "nmi_card"
         And I set its security key as "sec-private-4567"
-        And I choose the "production" environment
+        And I set the gateway host to "https://secure.nmi.com"
         And I try to add it
         Then I should be notified that the NMI tokenization key is required
         And the payment method with name "Card" should not be added
@@ -46,20 +46,20 @@ Feature: Configuring an NMI payment method
         And I name it "Card" in "English (United States)"
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
-        And I choose the "production" environment
+        And I set the gateway host to "https://secure.nmi.com"
         And I try to add it
         Then I should be notified that the NMI security key is required
         And the payment method with name "Card" should not be added
 
     @ui
-    Scenario: Trying to add an NMI payment method without choosing an environment
+    Scenario: Trying to add an NMI payment method without a gateway host
         When I want to create a new payment method with "NMI" gateway factory
         And I name it "Card" in "English (United States)"
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
         And I try to add it
-        Then I should be notified that the NMI environment is required
+        Then I should be notified that the NMI gateway host is required
         And the payment method with name "Card" should not be added
 
     @ui
@@ -69,7 +69,7 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "production" environment
+        And I set the gateway host to "https://secure.nmi.com"
         And I add it
         Then I should be notified that it has been successfully created
         And this payment method should charge cards immediately
@@ -81,7 +81,7 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "sandbox" environment
+        And I set the gateway host to "https://sandbox.nmi.com"
         And I enable authorize-then-capture
         And I add it
         Then I should be notified that it has been successfully created
@@ -94,7 +94,7 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "production" environment
+        And I set the gateway host to "https://secure.nmi.com"
         And I add it
         Then I should be notified that it has been successfully created
         And the security key "sec-private-4567" of the "Card" payment method should not be readable in the database
@@ -112,7 +112,7 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "sandbox" environment
+        And I set the gateway host to "https://sandbox.nmi.com"
         And I let shoppers save their card
         And I add it
         Then I should be notified that it has been successfully created
@@ -126,7 +126,7 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "sandbox" environment
+        And I set the gateway host to "https://sandbox.nmi.com"
         And I let shoppers save their card
         And I turn off authenticating saved cards
         And I add it
@@ -141,7 +141,7 @@ Feature: Configuring an NMI payment method
         And I specify its code as "nmi_card"
         And I set its tokenization key as "tok-public-0123"
         And I set its security key as "sec-private-4567"
-        And I choose the "sandbox" environment
+        And I set the gateway host to "https://sandbox.nmi.com"
         And I add it
         Then I should be notified that it has been successfully created
         And this payment method should not let shoppers save their card

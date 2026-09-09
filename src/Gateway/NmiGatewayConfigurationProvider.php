@@ -9,23 +9,6 @@ use Sylius\Component\Payment\Model\PaymentMethodInterface;
 
 final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationProviderInterface
 {
-    public const PRODUCTION_BASE_URL = 'https://secure.nmi.com';
-
-    public const SANDBOX_BASE_URL = 'https://sandbox.nmi.com';
-
-    private readonly ?string $apiBaseUrlOverride;
-
-    /**
-     * @param string|null $apiBaseUrlOverride A reseller (white-label) gateway host that replaces
-     *                                        the environment-derived one for every NMI payment method
-     */
-    public function __construct(?string $apiBaseUrlOverride)
-    {
-        $normalized = null === $apiBaseUrlOverride ? '' : rtrim(trim($apiBaseUrlOverride), '/');
-
-        $this->apiBaseUrlOverride = '' === $normalized ? null : $normalized;
-    }
-
     public function fromPaymentMethod(PaymentMethodInterface $paymentMethod): NmiGatewayConfiguration
     {
         $gatewayConfig = $paymentMethod->getGatewayConfig();
@@ -40,21 +23,15 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
         $config = $gatewayConfig->getConfig();
         $code = (string) $paymentMethod->getCode();
 
-        $environment = $this->requiredString($config, NmiGatewayFactory::CONFIG_ENVIRONMENT, $code);
-        if (!in_array($environment, NmiGatewayFactory::ENVIRONMENTS, true)) {
-            throw NmiGatewayException::configuration(sprintf(
-                'Payment method "%s" has an unknown NMI environment "%s".',
-                $code,
-                $environment,
-            ));
-        }
-
         return new NmiGatewayConfiguration(
+            paymentMethodCode: $code,
             tokenizationKey: $this->requiredString($config, NmiGatewayFactory::CONFIG_TOKENIZATION_KEY, $code),
             securityKey: $this->requiredString($config, NmiGatewayFactory::CONFIG_SECURITY_KEY, $code),
-            environment: $environment,
             useAuthorize: (bool) ($config[NmiGatewayFactory::CONFIG_USE_AUTHORIZE] ?? false),
-            apiBaseUrl: $this->apiBaseUrlOverride ?? $this->baseUrlFor($environment),
+            // Required like the keys, and for the same reason: a method saved before this field
+            // existed has no host, and guessing one would send this account's key to a gateway
+            // that may not be its own. The form validated the shape; only the slash is tidied here.
+            apiBaseUrl: rtrim($this->requiredString($config, NmiGatewayFactory::CONFIG_API_BASE_URL, $code), '/'),
             // Absent means off, which is what a store that installed this plugin before the
             // setting existed has stored.
             storeCards: (bool) ($config[NmiGatewayFactory::CONFIG_STORE_CARDS] ?? false),
@@ -69,11 +46,6 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             // Absent means off, and on a shared account that default is what keeps the page usable.
             notifyUnknownTransactions: (bool) ($config[NmiGatewayFactory::CONFIG_NOTIFY_UNKNOWN_TRANSACTIONS] ?? false),
         );
-    }
-
-    private function baseUrlFor(string $environment): string
-    {
-        return NmiGatewayFactory::ENVIRONMENT_SANDBOX === $environment ? self::SANDBOX_BASE_URL : self::PRODUCTION_BASE_URL;
     }
 
     /** @param array<string, mixed> $config */

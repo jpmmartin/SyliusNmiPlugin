@@ -19,7 +19,7 @@ final class ManagingNmiPaymentMethodsContext implements Context
     private const REQUIRED_FIELDS = [
         'tokenization key' => ['element' => 'tokenization_key', 'message' => 'Please enter the tokenization key.'],
         'security key' => ['element' => 'security_key', 'message' => 'Please enter the security key.'],
-        'environment' => ['element' => 'environment', 'message' => 'Please choose an environment.'],
+        'gateway host' => ['element' => 'api_base_url', 'message' => 'Please enter the gateway host.'],
     ];
 
     public function __construct(
@@ -47,11 +47,11 @@ final class ManagingNmiPaymentMethodsContext implements Context
     }
 
     /**
-     * @When I choose the :environment environment
+     * @When I set the gateway host to :host
      */
-    public function iChooseTheEnvironment(string $environment): void
+    public function iSetTheGatewayHostTo(string $host): void
     {
-        $this->createPage->chooseEnvironment($environment);
+        $this->createPage->setGatewayHost($host);
     }
 
     /**
@@ -89,7 +89,7 @@ final class ManagingNmiPaymentMethodsContext implements Context
     /**
      * Turnip placeholders stop at whitespace, so multi-word field names need a regex.
      *
-     * @Then /^I should be notified that the NMI (tokenization key|security key|environment) is required$/
+     * @Then /^I should be notified that the NMI (tokenization key|security key|gateway host) is required$/
      */
     public function iShouldBeNotifiedThatTheFieldIsRequired(string $field): void
     {

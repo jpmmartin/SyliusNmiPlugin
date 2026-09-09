@@ -14,6 +14,7 @@ use Sylius\Component\Payment\Model\GatewayConfigInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\RecordingLogger;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * The public endpoint, exercised as the gateway exercises it.
@@ -295,7 +296,7 @@ final class NmiWebhookEndpointTest extends WebTestCase
         $config = [
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-hook',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-hook',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
         ];
 
         if (null !== $signingKey) {

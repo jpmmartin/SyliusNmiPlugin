@@ -22,8 +22,17 @@ final class NmiGatewayFactory
     /** Private API security key; only ever sent to the gateway. */
     public const CONFIG_SECURITY_KEY = 'security_key';
 
-    /** One of the ENVIRONMENT_* values. */
-    public const CONFIG_ENVIRONMENT = 'environment';
+    /**
+     * The gateway host this account is served from: an `https` URL with nothing after the host.
+     *
+     * NMI's own accounts live at `https://secure.nmi.com` (live) and `https://sandbox.nmi.com`
+     * (sandbox); an account opened through a reseller lives at the reseller's host, which is the
+     * one its merchant portal answers on. It is part of the account exactly like the keys, so it is
+     * configured on the method beside them and read from nowhere else — not from the bundle's
+     * configuration, not from the environment. Only the server-side calls go there: the browser
+     * component tokenises and authenticates against NMI's own hosts whatever this says.
+     */
+    public const CONFIG_API_BASE_URL = 'api_base_url';
 
     /** Read by Sylius's own DefaultActionProvider: truthy selects the authorize action. */
     public const CONFIG_USE_AUTHORIZE = 'use_authorize';
@@ -77,12 +86,11 @@ final class NmiGatewayFactory
      */
     public const CONFIG_WEBHOOK_SIGNING_KEY = 'webhook_signing_key';
 
-    public const ENVIRONMENT_PRODUCTION = 'production';
+    /** NMI's own live host, for help text and fixtures; an operator types it, the plugin never assumes it. */
+    public const NMI_PRODUCTION_HOST = 'https://secure.nmi.com';
 
-    public const ENVIRONMENT_SANDBOX = 'sandbox';
-
-    /** @var list<string> */
-    public const ENVIRONMENTS = [self::ENVIRONMENT_PRODUCTION, self::ENVIRONMENT_SANDBOX];
+    /** NMI's own sandbox host, likewise. */
+    public const NMI_SANDBOX_HOST = 'https://sandbox.nmi.com';
 
     private function __construct()
     {

@@ -223,12 +223,15 @@ cannot be changed, including on a reseller account.
 |---|---|
 | **Tokenization key** | The public key. It reaches the shopper's browser by design and cannot charge anything |
 | **Security key** | The private API key. It never leaves your server, and is stored encrypted |
-| **Environment** | *Sandbox* or *Production*. This selects the gateway host; NMI runs a separate sandbox server |
+| **Gateway host** | The address of the gateway that serves this account: `https://secure.nmi.com` for an NMI live account, `https://sandbox.nmi.com` for an NMI sandbox account, or your reseller's host. Stored encrypted with the keys |
 | **Authorize first, capture later** | Off: checkout charges the card. On: checkout only reserves the money |
 | **Let shoppers save their card** | Off by default. See *Saved cards* below |
 | **Authenticate saved cards with 3-D Secure** | On by default, and only meaningful once the setting above is on |
 
-Both keys come from the NMI merchant portal, under *Settings → Security Keys*.
+Both keys come from the NMI merchant portal, under *Settings → Security Keys*. The gateway host is
+the address in your browser's bar while you are there: `secure.nmi.com` for an account NMI hosts,
+your reseller's own name otherwise. Card details are tokenised in the browser against NMI's hosts
+whatever you enter here; the host is where *your store's* calls go.
 
 Credentials belong to the payment method, so a store with several channels can give each one its
 own NMI account.
@@ -429,26 +432,25 @@ at all, and the plugin's own suite is run in both configurations for exactly tha
 
 ## Reseller and white-label gateways
 
-NMI licenses its gateway to resellers who run it under their own host name. If yours does, set that
-host once for the whole store — in the file you already created in step 3, **alongside the import
-and not instead of it**:
+NMI licenses its gateway to resellers who run it under their own host name. If yours does, the
+**Gateway host** on the payment method is that name — the address you log into the merchant
+portal with — and nothing else changes. There is no store-wide setting and nothing to put in a
+configuration file: the host belongs to the account exactly like the keys, so a store with two
+accounts on two resellers gives each payment method its own.
 
-```yaml
-# config/packages/jpm_martin_sylius_nmi.yaml
-imports:
-    - { resource: "@JpmMartinSyliusNmiPlugin/config/config.yaml" }
+Get it wrong and the symptom is precise: cards tokenise and authenticate, every charge fails with
+the generic message, and the log carries a warning that the gateway refused the security key at
+the host you entered. See *Troubleshooting*.
 
-jpm_martin_sylius_nmi:
-    api_base_url: 'https://gateway.example.com'
-```
-
-Leave it unset and each payment method's *Environment* selects NMI's own host.
-
-Note that **the browser component always tokenises against NMI's hosts**, whatever this is set to.
+Note that **the browser component always tokenises against NMI's hosts**, whatever the field says.
 Your tokenization key identifies your merchant account to them, so this works — but it is the
 gateway's behaviour, not something the plugin chooses.
 
 ## Testing against the sandbox
+
+An NMI sandbox account is served from `https://sandbox.nmi.com`, which is what its payment
+method's gateway host must say. A reseller account has no separate sandbox host: it is the same
+host as always, and *Test Mode* in the merchant portal is the switch.
 
 Put the account into Test Mode in the merchant portal, then use NMI's published test cards. Their
 3-D Secure test cards are the set documented under *Testing Values for Payer Authentication* —

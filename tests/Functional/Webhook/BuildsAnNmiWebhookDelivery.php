@@ -19,6 +19,7 @@ use Sylius\Component\Currency\Model\Currency;
 use Sylius\Component\Locale\Model\Locale;
 use Sylius\Component\Payment\Model\GatewayConfigInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * A store that can be delivered to, built rather than found.
@@ -182,7 +183,7 @@ trait BuildsAnNmiWebhookDelivery
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-evt',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-evt',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY => self::SIGNING_KEY,
             NmiGatewayFactory::CONFIG_EMAIL_CARDHOLDER => $emailCardholder,
             NmiGatewayFactory::CONFIG_NOTIFY_UNKNOWN_TRANSACTIONS => $notifyUnknownTransactions,

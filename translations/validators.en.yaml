@@ -4,6 +4,7 @@ jpm_martin_sylius_nmi:
             not_blank: Please enter the tokenization key.
         security_key:
             not_blank: Please enter the security key.
-        environment:
-            not_blank: Please choose an environment.
-            invalid: The chosen environment is not valid.
+        api_base_url:
+            not_blank: Please enter the gateway host.
+            invalid: The gateway host must be an https address.
+            host_only: The gateway host must end at the host name — no path, query string or fragment.

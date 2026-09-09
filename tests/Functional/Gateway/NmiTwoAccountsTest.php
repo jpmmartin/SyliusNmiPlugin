@@ -20,6 +20,7 @@ use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * Two NMI accounts, one per channel.
@@ -67,21 +68,22 @@ final class NmiTwoAccountsTest extends KernelTestCase
     {
         $this->gateway->willApprove();
 
-        $boutique = $this->aChannelPayingWith('boutique', 'tok-boutique', 'sec-boutique');
-        $outlet = $this->aChannelPayingWith('outlet', 'tok-outlet', 'sec-outlet');
+        // Two accounts, and not only two keys: one on NMI itself, one behind a reseller's host.
+        $boutique = $this->aChannelPayingWith('boutique', 'tok-boutique', 'sec-boutique', 'https://boutique.transactiongateway.com');
+        $outlet = $this->aChannelPayingWith('outlet', 'tok-outlet', 'sec-outlet', NmiGatewayFactory::NMI_SANDBOX_HOST);
 
         $this->pay($boutique);
         $this->pay($outlet);
 
         $used = array_map(
-            static fn (\JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration $c): array => [$c->tokenizationKey, $c->securityKey],
+            static fn (\JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration $c): array => [$c->tokenizationKey, $c->securityKey, $c->apiBaseUrl],
             $this->gateway->configurations,
         );
 
         self::assertSame([
-            ['tok-boutique', 'sec-boutique'],
-            ['tok-outlet', 'sec-outlet'],
-        ], $used, 'Each order must reach the account its own channel was configured with.');
+            ['tok-boutique', 'sec-boutique', 'https://boutique.transactiongateway.com'],
+            ['tok-outlet', 'sec-outlet', NmiGatewayFactory::NMI_SANDBOX_HOST],
+        ], $used, 'Each order must reach the account its own channel was configured with, at that account\'s own host.');
     }
 
     /** And the public half of it, which the shopper's browser is handed. */
@@ -105,7 +107,7 @@ final class NmiTwoAccountsTest extends KernelTestCase
         $this->manager->flush();
     }
 
-    private function aChannelPayingWith(string $name, string $tokenizationKey, string $securityKey): PaymentRequestInterface
+    private function aChannelPayingWith(string $name, string $tokenizationKey, string $securityKey, ?string $apiBaseUrl = null): PaymentRequestInterface
     {
         $suffix = $name . '_' . bin2hex(random_bytes(3));
 
@@ -136,7 +138,7 @@ final class NmiTwoAccountsTest extends KernelTestCase
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => $tokenizationKey,
             NmiGatewayFactory::CONFIG_SECURITY_KEY => $securityKey,
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => $apiBaseUrl ?? NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => false,
         ]);
 

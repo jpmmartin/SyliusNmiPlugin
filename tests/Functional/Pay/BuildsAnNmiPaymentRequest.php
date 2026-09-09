@@ -23,6 +23,7 @@ use Sylius\Component\Payment\Model\GatewayConfigInterface;
 use Sylius\Component\Payment\Model\PaymentInterface;
 use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * The smallest store in which a payment request can exist: a channel with a currency and a
@@ -80,7 +81,7 @@ trait BuildsAnNmiPaymentRequest
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => self::TOKENIZATION_KEY,
             NmiGatewayFactory::CONFIG_SECURITY_KEY => self::SECURITY_KEY,
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => $useAuthorize,
             NmiGatewayFactory::CONFIG_STORE_CARDS => $storeCards,
             // On unless a test says otherwise, which is the default a store gets: silence about

@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpClient\Psr18Client;
 use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * The four questions this change's security review has to answer, each answered by making the
@@ -252,7 +253,7 @@ final class NmiStoredCardSecurityReviewTest extends WebTestCase
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-review',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-review',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_STORE_CARDS => true,
         ]);
         $this->manager->persist($gatewayConfig);

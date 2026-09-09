@@ -4,6 +4,7 @@ jpm_martin_sylius_nmi:
             not_blank: Introduce la clave de tokenización.
         security_key:
             not_blank: Introduce la clave de seguridad.
-        environment:
-            not_blank: Elige un entorno.
-            invalid: El entorno elegido no es válido.
+        api_base_url:
+            not_blank: Introduce el host de la pasarela.
+            invalid: El host de la pasarela debe ser una dirección https.
+            host_only: El host de la pasarela termina en el nombre del host, sin ruta, parámetros ni fragmento.

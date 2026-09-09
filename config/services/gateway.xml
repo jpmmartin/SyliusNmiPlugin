@@ -8,9 +8,7 @@
     <services>
         <defaults public="false" />
 
-        <service id="jpm_martin_sylius_nmi.gateway.configuration_provider" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProvider">
-            <argument>%jpm_martin_sylius_nmi.api_base_url%</argument>
-        </service>
+        <service id="jpm_martin_sylius_nmi.gateway.configuration_provider" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProvider" />
         <service id="JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface" alias="jpm_martin_sylius_nmi.gateway.configuration_provider" />
 
         <service id="jpm_martin_sylius_nmi.gateway.amount_formatter" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiAmountFormatter" />
@@ -24,6 +22,7 @@
             <argument type="service" id="Psr\Http\Message\RequestFactoryInterface" />
             <argument type="service" id="Psr\Http\Message\StreamFactoryInterface" />
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
+            <argument type="service" id="logger" />
         </service>
         <service id="JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface" alias="jpm_martin_sylius_nmi.gateway.client" />
     </services>

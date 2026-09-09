@@ -20,9 +20,9 @@ trait NmiGatewayConfigurationElements
         $this->getElement('security_key')->setValue($key);
     }
 
-    public function chooseEnvironment(string $environment): void
+    public function setGatewayHost(string $host): void
     {
-        $this->getElement('environment')->selectOption($environment);
+        $this->getElement('api_base_url')->setValue($host);
     }
 
     public function enableAuthorizeThenCapture(): void
@@ -80,7 +80,9 @@ trait NmiGatewayConfigurationElements
         return array_merge(parent::getDefinedElements(), [
             'tokenization_key' => '[data-test-nmi-tokenization-key]',
             'security_key' => '[data-test-nmi-security-key]',
-            'environment' => '[data-test-nmi-environment]',
+            'api_base_url' => '[data-test-nmi-api-base-url]',
+            // Sylius's own "its gateway configuration ... should be" step lower-cases the label it is given.
+            'gateway_host' => '[data-test-nmi-api-base-url]',
             'use_authorize' => '[data-test-nmi-use-authorize]',
             'store_cards' => '[data-test-nmi-store-cards]',
             'authenticate_stored_cards' => '[data-test-nmi-authenticate-stored-cards]',

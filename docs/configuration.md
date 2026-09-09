@@ -7,8 +7,8 @@ steps have to be done first, or NMI does not appear in the list of gateways at a
 
 ## The short version
 
-If you want to change as little as possible: **fill in the three credentials, choose the
-environment, and leave every switch alone.** Those defaults give you an immediate card charge,
+If you want to change as little as possible: **fill in the two keys and the gateway host, and
+leave every switch alone.** Those defaults give you an immediate card charge,
 no saved cards, and no webhooks — which is the behaviour a store that has never heard of this
 plugin already has.
 
@@ -44,18 +44,29 @@ permissions, not the tokenization one.
 `SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH`, which step 6 of the README warns you is probably still the
 one your store's skeleton shipped. Fix that before you paste this.
 
-### Environment — required
+### Gateway host — required
 
-**What it is:** which NMI gateway the store talks to. *Sandbox* for testing, *Production* for real
-money.
+**What it is:** the address of the gateway that serves this account — an `https` address with
+nothing after the host name. The store sends its charges, captures, voids and refunds there.
 
-There is no third state and no "test mode" switch elsewhere: this field is the whole of it. A
-payment method pointed at Sandbox cannot take a real payment, and one pointed at Production will
-take real money from the first shopper who reaches it.
+**Where to get it:** it is the address in your browser's bar when you are logged into the merchant
+portal.
 
-**If you use a reseller or white-label gateway**, neither value is right on its own — see
-*Reseller and white-label gateways* in the README, which overrides the host for every NMI payment
-method.
+| Your account | Gateway host |
+|---|---|
+| Opened with NMI, live | `https://secure.nmi.com` |
+| Opened with NMI, sandbox | `https://sandbox.nmi.com` |
+| Opened through a reseller or white-label provider | The reseller's own host, e.g. `https://example.transactiongateway.com` |
+
+There is no separate "test mode" field: an NMI sandbox account is a different host, and a reseller
+account's test mode is a switch in the merchant portal, which the plugin cannot see.
+
+**What the browser does is not affected.** Card details are tokenised and authenticated against
+NMI's own hosts whatever you enter here; the host is where *your store's* calls go.
+
+**Get it wrong and every charge fails** with the generic message to the shopper, after the card has
+tokenised and authenticated normally — and the log carries a warning that the gateway refused the
+security key at the host you entered. Stored encrypted with the keys.
 
 ### Webhook signing key — optional
 

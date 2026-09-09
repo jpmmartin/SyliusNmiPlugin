@@ -39,12 +39,67 @@ final class NmiClientTest extends TestCase
         $this->httpClient = new RecordingHttpClient($psr17);
         $this->client = new NmiClient($this->httpClient, $psr17, $psr17, new NmiAmountFormatter());
         $this->configuration = new NmiGatewayConfiguration(
+            paymentMethodCode: 'nmi_card',
             tokenizationKey: 'tok-public-0123',
             securityKey: self::SECURITY_KEY,
-            environment: 'sandbox',
             useAuthorize: false,
             apiBaseUrl: 'https://sandbox.nmi.com/',
         );
+    }
+
+    /**
+     * The *refused credentials are diagnosable* scenario. A key the host does not accept is the
+     * one failure an operator can do nothing about from the shopper's message, so it is written
+     * where they will look — and written without the key, which is the one thing a log must
+     * never hold.
+     *
+     * @dataProvider refusedStatuses
+     */
+    public function testARefusedKeyIsLoggedAgainstTheMethodAndTheHostAndNeverAsItself(int $status): void
+    {
+        $log = new RecordingLogger();
+        $psr17 = new Psr17Factory();
+        $client = new NmiClient($this->httpClient, $psr17, $psr17, new NmiAmountFormatter(), $log);
+        $this->httpClient->willAnswer($status, '');
+
+        try {
+            $client->sale($this->configuration, self::charge());
+            self::fail('A refused key must not read as a charge.');
+        } catch (NmiGatewayException) {
+        }
+
+        self::assertCount(1, $log->records);
+        [$level, $message, $context] = $log->records[0];
+        self::assertSame('warning', $level);
+        $rendered = strtr($message, ['{method}' => (string) $context['method'], '{status}' => (string) $context['status'], '{host}' => (string) $context['host']]);
+        self::assertStringContainsString('nmi_card', $rendered);
+        self::assertStringContainsString((string) $status, $rendered);
+        self::assertStringContainsString('https://sandbox.nmi.com', $rendered);
+        self::assertStringContainsString('gateway host', $rendered, 'The line must say what to check.');
+        self::assertStringNotContainsString(self::SECURITY_KEY, $rendered . json_encode($context));
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function refusedStatuses(): iterable
+    {
+        yield 'unauthorised' => [401];
+        yield 'forbidden' => [403];
+    }
+
+    /** A decline or a 4xx that is not about the key writes nothing: those are not the operator's problem. */
+    public function testOtherRefusalsAreNotLoggedAsAKeyProblem(): void
+    {
+        $log = new RecordingLogger();
+        $psr17 = new Psr17Factory();
+        $client = new NmiClient($this->httpClient, $psr17, $psr17, new NmiAmountFormatter(), $log);
+        $this->httpClient->willAnswer(400, '{"error":{"code":"E_INVALID_TRANS_SPECIFIED","message":"Invalid transaction"}}');
+
+        try {
+            $client->sale($this->configuration, self::charge());
+        } catch (NmiGatewayException) {
+        }
+
+        self::assertSame([], $log->records);
     }
 
     public function testAnApprovedSaleIsPostedAsJsonAndParsed(): void
@@ -632,5 +687,17 @@ final class NmiClientTest extends TestCase
             'response_text' => $text,
             'response_code' => $code,
         ], \JSON_THROW_ON_ERROR);
+    }
+}
+
+/** Keeps what was logged, so a test can read the line back. */
+final class RecordingLogger extends \Psr\Log\AbstractLogger
+{
+    /** @var list<array{string, string, array<string, mixed>}> */
+    public array $records = [];
+
+    public function log($level, string|\Stringable $message, array $context = []): void
+    {
+        $this->records[] = [(string) $level, (string) $message, $context];
     }
 }

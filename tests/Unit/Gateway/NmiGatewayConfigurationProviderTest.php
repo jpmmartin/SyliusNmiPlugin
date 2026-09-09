@@ -13,38 +13,41 @@ use Sylius\Component\Payment\Model\GatewayConfig;
 
 final class NmiGatewayConfigurationProviderTest extends TestCase
 {
-    public function testProductionResolvesToTheLiveHostAndSandboxToTheSandboxOne(): void
+    /** The host is whatever the method says it is: NMI's own, or a reseller's. */
+    public function testTheHostComesFromTheMethod(): void
     {
-        $provider = new NmiGatewayConfigurationProvider(null);
+        $provider = new NmiGatewayConfigurationProvider();
 
-        $production = $provider->fromPaymentMethod($this->nmiPaymentMethod(['environment' => 'production']));
-        $sandbox = $provider->fromPaymentMethod($this->nmiPaymentMethod(['environment' => 'sandbox']));
+        $live = $provider->fromPaymentMethod($this->nmiPaymentMethod([NmiGatewayFactory::CONFIG_API_BASE_URL => NmiGatewayFactory::NMI_PRODUCTION_HOST]));
+        $reseller = $provider->fromPaymentMethod($this->nmiPaymentMethod([NmiGatewayFactory::CONFIG_API_BASE_URL => 'https://example.transactiongateway.com']));
 
-        self::assertSame(NmiGatewayConfigurationProvider::PRODUCTION_BASE_URL, $production->apiBaseUrl);
-        self::assertSame(NmiGatewayConfigurationProvider::SANDBOX_BASE_URL, $sandbox->apiBaseUrl);
-        self::assertSame('tok-public-0123', $production->tokenizationKey);
-        self::assertSame('sec-private-4567', $production->securityKey);
-        self::assertFalse($production->useAuthorize);
+        self::assertSame(NmiGatewayFactory::NMI_PRODUCTION_HOST, $live->apiBaseUrl);
+        self::assertSame('https://example.transactiongateway.com', $reseller->apiBaseUrl);
+        self::assertSame('nmi_card', $live->paymentMethodCode);
+        self::assertSame('tok-public-0123', $live->tokenizationKey);
+        self::assertSame('sec-private-4567', $live->securityKey);
+        self::assertFalse($live->useAuthorize);
     }
 
-    public function testAResellerHostOverridesTheEnvironmentForEveryMethod(): void
+    /** Whitespace and a trailing slash are tidied, so that the path joins cleanly. */
+    public function testTheHostIsNormalised(): void
     {
-        $provider = new NmiGatewayConfigurationProvider(' https://example.transactiongateway.com/ ');
+        $configuration = (new NmiGatewayConfigurationProvider())
+            ->fromPaymentMethod($this->nmiPaymentMethod([NmiGatewayFactory::CONFIG_API_BASE_URL => ' https://example.transactiongateway.com/ ']));
 
-        self::assertSame(
-            'https://example.transactiongateway.com',
-            $provider->fromPaymentMethod($this->nmiPaymentMethod(['environment' => 'sandbox']))->apiBaseUrl,
-        );
+        self::assertSame('https://example.transactiongateway.com', $configuration->apiBaseUrl);
     }
 
-    public function testAnEmptyOverrideIsNoOverride(): void
+    /**
+     * The *method saved before the host existed* scenario: no host, no request, and a message
+     * that names the method and the field an operator has to fill in.
+     */
+    public function testAMethodWithoutAHostIsAConfigurationErrorNamingTheField(): void
     {
-        $provider = new NmiGatewayConfigurationProvider('');
+        $this->expectException(NmiGatewayException::class);
+        $this->expectExceptionMessage('Payment method "nmi_card" has no "api_base_url"');
 
-        self::assertSame(
-            NmiGatewayConfigurationProvider::SANDBOX_BASE_URL,
-            $provider->fromPaymentMethod($this->nmiPaymentMethod(['environment' => 'sandbox']))->apiBaseUrl,
-        );
+        (new NmiGatewayConfigurationProvider())->fromPaymentMethod($this->nmiPaymentMethod([NmiGatewayFactory::CONFIG_API_BASE_URL => null]));
     }
 
     /**
@@ -53,7 +56,7 @@ final class NmiGatewayConfigurationProviderTest extends TestCase
      */
     public function testStoredCardAuthenticationIsOnUnlessTurnedOff(): void
     {
-        $provider = new NmiGatewayConfigurationProvider(null);
+        $provider = new NmiGatewayConfigurationProvider();
 
         self::assertTrue(
             $provider->fromPaymentMethod($this->nmiPaymentMethod([]))->authenticateStoredCards,
@@ -69,7 +72,7 @@ final class NmiGatewayConfigurationProviderTest extends TestCase
 
     public function testTheAuthorizeFlagIsRead(): void
     {
-        $configuration = (new NmiGatewayConfigurationProvider(null))
+        $configuration = (new NmiGatewayConfigurationProvider())
             ->fromPaymentMethod($this->nmiPaymentMethod(['use_authorize' => true]));
 
         self::assertTrue($configuration->useAuthorize);
@@ -80,15 +83,7 @@ final class NmiGatewayConfigurationProviderTest extends TestCase
         $this->expectException(NmiGatewayException::class);
         $this->expectExceptionMessage('has no "security_key"');
 
-        (new NmiGatewayConfigurationProvider(null))->fromPaymentMethod($this->nmiPaymentMethod(['security_key' => '  ']));
-    }
-
-    public function testAnUnknownEnvironmentIsAConfigurationError(): void
-    {
-        $this->expectException(NmiGatewayException::class);
-        $this->expectExceptionMessage('unknown NMI environment');
-
-        (new NmiGatewayConfigurationProvider(null))->fromPaymentMethod($this->nmiPaymentMethod(['environment' => 'staging']));
+        (new NmiGatewayConfigurationProvider())->fromPaymentMethod($this->nmiPaymentMethod(['security_key' => '  ']));
     }
 
     public function testAnotherGatewaysPaymentMethodIsRefused(): void
@@ -98,7 +93,7 @@ final class NmiGatewayConfigurationProviderTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
 
-        (new NmiGatewayConfigurationProvider(null))->fromPaymentMethod($paymentMethod);
+        (new NmiGatewayConfigurationProvider())->fromPaymentMethod($paymentMethod);
     }
 
     /** @param array<string, mixed> $overrides */
@@ -110,7 +105,7 @@ final class NmiGatewayConfigurationProviderTest extends TestCase
         $gatewayConfig->setConfig(array_merge([
             'tokenization_key' => 'tok-public-0123',
             'security_key' => 'sec-private-4567',
-            'environment' => 'production',
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiGatewayFactory::NMI_SANDBOX_HOST,
         ], $overrides));
 
         $paymentMethod = new PaymentMethod();

@@ -18,6 +18,7 @@ use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * Deleting a customer, and what it owes the gateway.
@@ -255,7 +256,7 @@ final class NmiCustomerDeletionPurgeTest extends KernelTestCase
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-account',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-account',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
         ]);
         $this->manager->persist($gatewayConfig);
 

@@ -121,11 +121,11 @@ final class NmiCardSavingCustomerProviderTest extends TestCase
     private static function configuration(bool $storeCards = true): NmiGatewayConfiguration
     {
         return new NmiGatewayConfiguration(
+            paymentMethodCode: 'nmi_card',
             tokenizationKey: 'tok-public-0123',
             securityKey: 'sec-private-4567',
-            environment: NmiGatewayFactory::ENVIRONMENT_SANDBOX,
             useAuthorize: false,
-            apiBaseUrl: 'https://sandbox.nmi.com',
+            apiBaseUrl: NmiGatewayFactory::NMI_SANDBOX_HOST,
             storeCards: $storeCards,
         );
     }

@@ -10,7 +10,7 @@ interface NmiGatewayConfigurationPageInterface
 
     public function setSecurityKey(string $key): void;
 
-    public function chooseEnvironment(string $environment): void;
+    public function setGatewayHost(string $host): void;
 
     public function enableAuthorizeThenCapture(): void;
 

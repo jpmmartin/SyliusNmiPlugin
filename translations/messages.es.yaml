@@ -54,12 +54,8 @@ jpm_martin_sylius_nmi:
             tokenization_key_help: La clave pública con el permiso Tokenization. El navegador la usa para tokenizar los datos de la tarjeta, así que es visible para los compradores.
             security_key: Clave de seguridad
             security_key_help: La clave privada de la API. La tienda la usa para cobrar, capturar, anular y reembolsar; se guarda cifrada y nunca se envía al navegador.
-            environment: Entorno
-            environment_help: Sandbox envía las transacciones a la pasarela de pruebas de NMI; Producción las envía a la pasarela real.
-            environments:
-                placeholder: Elige un entorno
-                production: Producción
-                sandbox: Sandbox
+            api_base_url: Host de la pasarela
+            api_base_url_help: La dirección de la pasarela que sirve esta cuenta, con https y nada detrás del host. Las cuentas propias de NMI usan https://secure.nmi.com en producción y https://sandbox.nmi.com para una cuenta sandbox. Una cuenta abierta a través de un revendedor usa el host del revendedor, que es la dirección con la que entras en el portal de comerciante. Sólo las llamadas de la tienda van ahí; los datos de la tarjeta se tokenizan siempre contra los hosts de NMI.
             use_authorize: Autorizar primero, capturar después
             use_authorize_help: Si se activa, el checkout sólo autoriza la tarjeta. El importe se captura cuando el pedido se envía o a mano desde la página del pedido.
             store_cards: Permitir que los compradores guarden su tarjeta

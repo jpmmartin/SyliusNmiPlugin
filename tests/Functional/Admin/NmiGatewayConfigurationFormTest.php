@@ -41,11 +41,9 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
             'The public key with the Tokenization permission.',
             'Security key',
             'The private API key.',
-            'Environment',
-            'Sandbox sends transactions to NMI&#039;s sandbox gateway',
-            'Choose an environment',
-            'Production',
-            'Sandbox',
+            'Gateway host',
+            'https://secure.nmi.com for live and https://sandbox.nmi.com for a sandbox account',
+            'the address you log into the merchant portal with',
             'Authorize first, capture later',
             'checkout only authorizes the card',
             // *The setting explains itself.* The scenario names three claims the help text must
@@ -75,11 +73,9 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
             'La clave pública con el permiso Tokenization.',
             'Clave de seguridad',
             'La clave privada de la API.',
-            'Entorno',
-            'Sandbox envía las transacciones a la pasarela de pruebas de NMI',
-            'Elige un entorno',
-            'Producción',
-            'Sandbox',
+            'Host de la pasarela',
+            'https://secure.nmi.com en producción y https://sandbox.nmi.com para una cuenta sandbox',
+            'la dirección con la que entras en el portal de comerciante',
             'Autorizar primero, capturar después',
             'el checkout sólo autoriza la tarjeta',
             'Autenticar las tarjetas guardadas con 3-D Secure',
@@ -142,7 +138,7 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
         $fields = [
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY,
             NmiGatewayFactory::CONFIG_SECURITY_KEY,
-            NmiGatewayFactory::CONFIG_ENVIRONMENT,
+            NmiGatewayFactory::CONFIG_API_BASE_URL,
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE,
             NmiGatewayFactory::CONFIG_STORE_CARDS,
             NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS,
@@ -182,6 +178,92 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
                 sprintf('"%s" must start off.', $field),
             );
         }
+    }
+
+    /**
+     * The *incomplete credentials are rejected*, *a malformed host is rejected* and *credentials
+     * are unreadable at rest* scenarios, for the host: posted through the page an operator posts
+     * through, so the constraints tested are the ones Sylius actually applies to this form.
+     */
+    public function testTheHostIsValidatedOnThePageAndStoredEncrypted(): void
+    {
+        $this->client->loginUser($this->anAdministrator('en'), 'admin');
+
+        $refused = [
+            '' => 'Please enter the gateway host.',
+            'secure.nmi.com' => 'must be an https address',
+            'http://secure.nmi.com' => 'must be an https address',
+            'https://secure.nmi.com/api/v5' => 'no path, query string or fragment',
+            'https://secure.nmi.com?x=1' => 'no path, query string or fragment',
+        ];
+        foreach ($refused as $host => $message) {
+            $code = $this->submitTheCreateForm($host);
+
+            // Re-rendered with the errors: Sylius answers an invalid form with 422.
+            self::assertFalse($this->client->getResponse()->isRedirect(), sprintf('"%s" must be rejected, not saved.', $host));
+            self::assertContains($this->client->getResponse()->getStatusCode(), [200, 422]);
+            self::assertStringContainsString($message, (string) $this->client->getResponse()->getContent(), sprintf('"%s" must be refused for the right reason.', $host));
+            self::assertNull($this->paymentMethod($code), sprintf('Nothing may be persisted for "%s".', $host));
+        }
+
+        // Whitespace and the trailing slash are tolerated on the way in and tidied on the way out.
+        $code = $this->submitTheCreateForm('  https://example.transactiongateway.com/  ');
+        self::assertResponseRedirects();
+
+        $method = $this->paymentMethod($code);
+        self::assertNotNull($method, 'A valid host must save the method.');
+        self::assertSame('https://example.transactiongateway.com/', $method->getGatewayConfig()?->getConfig()[NmiGatewayFactory::CONFIG_API_BASE_URL] ?? null);
+        self::assertSame(
+            'https://example.transactiongateway.com',
+            self::getContainer()->get('jpm_martin_sylius_nmi.gateway.configuration_provider')->fromPaymentMethod($method)->apiBaseUrl,
+        );
+
+        $raw = (string) self::getContainer()->get('doctrine.orm.default_entity_manager')->getConnection()->fetchOne(
+            'SELECT config FROM sylius_gateway_config WHERE id = ?',
+            [$method->getGatewayConfig()?->getId()],
+        );
+        self::assertStringNotContainsString('transactiongateway', $raw, 'The host is stored with the keys, and the keys are stored encrypted.');
+
+        $crawler = $this->client->request('GET', sprintf('/admin/payment-methods/%d/edit', (int) $method->getId()));
+        self::assertSame(
+            'https://example.transactiongateway.com/',
+            $crawler->filter(sprintf('[name$="[%s]"]', NmiGatewayFactory::CONFIG_API_BASE_URL))->attr('value'),
+            'The host must round-trip into the reopened form.',
+        );
+    }
+
+    /** Posts the create form with everything valid but the host, and returns the code it used. */
+    private function submitTheCreateForm(string $host): string
+    {
+        $code = 'nmi_' . bin2hex(random_bytes(3));
+        $crawler = $this->client->request('GET', '/admin/payment-methods/new/' . NmiGatewayFactory::NAME);
+        $form = $crawler->selectButton('Create')->form();
+
+        foreach ([
+            'sylius_admin_payment_method[code]' => $code,
+            'sylius_admin_payment_method[translations][en_US][name]' => 'Card',
+            'sylius_admin_payment_method[gatewayConfig][config][' . NmiGatewayFactory::CONFIG_TOKENIZATION_KEY . ']' => 'tok-public-0123',
+            'sylius_admin_payment_method[gatewayConfig][config][' . NmiGatewayFactory::CONFIG_SECURITY_KEY . ']' => 'sec-private-4567',
+            'sylius_admin_payment_method[gatewayConfig][config][' . NmiGatewayFactory::CONFIG_API_BASE_URL . ']' => $host,
+        ] as $name => $value) {
+            self::assertTrue($form->has($name), sprintf('The page has no "%s" field; it has: %s', $name, implode(', ', array_keys($form->getValues()))));
+            $form[$name] = $value;
+        }
+
+        $this->client->submit($form);
+
+        return $code;
+    }
+
+    private function paymentMethod(string $code): ?\Sylius\Component\Core\Model\PaymentMethodInterface
+    {
+        $manager = self::getContainer()->get('doctrine.orm.default_entity_manager');
+        $manager->clear();
+
+        /** @var \Sylius\Component\Core\Model\PaymentMethodInterface|null $method */
+        $method = $manager->getRepository(\Sylius\Component\Core\Model\PaymentMethod::class)->findOneBy(['code' => $code]);
+
+        return $method;
     }
 
     private function renderTheAdminPage(string $locale): string

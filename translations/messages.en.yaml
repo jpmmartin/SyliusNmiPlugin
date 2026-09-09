@@ -54,12 +54,8 @@ jpm_martin_sylius_nmi:
             tokenization_key_help: The public key with the Tokenization permission. The browser uses it to tokenize card details, so it is visible to shoppers.
             security_key: Security key
             security_key_help: The private API key. The store uses it to charge, capture, void and refund; it is stored encrypted and never sent to the browser.
-            environment: Environment
-            environment_help: Sandbox sends transactions to NMI's sandbox gateway; Production sends them to the live gateway.
-            environments:
-                placeholder: Choose an environment
-                production: Production
-                sandbox: Sandbox
+            api_base_url: Gateway host
+            api_base_url_help: The address of the gateway that serves this account — https, and nothing after the host. NMI's own accounts use https://secure.nmi.com for live and https://sandbox.nmi.com for a sandbox account. An account opened through a reseller uses the reseller's host, which is the address you log into the merchant portal with. Only the store's own calls go here; card details are always tokenised against NMI's hosts.
             use_authorize: Authorize first, capture later
             use_authorize_help: When enabled, checkout only authorizes the card. The amount is captured when the order ships or by hand from the order page.
             store_cards: Let shoppers save their card

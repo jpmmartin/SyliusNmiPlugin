@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
+use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
  * One customer reaching for another's card.
@@ -195,7 +196,7 @@ final class NmiStoredCardOwnershipTest extends WebTestCase
         $gatewayConfig->setConfig([
             NmiGatewayFactory::CONFIG_TOKENIZATION_KEY => 'tok-own',
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-own',
-            NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
+            NmiGatewayFactory::CONFIG_API_BASE_URL => NmiHost::forTests(),
             NmiGatewayFactory::CONFIG_USE_AUTHORIZE => false,
         ]);
         $this->manager->persist($gatewayConfig);

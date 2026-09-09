@@ -24,9 +24,6 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
     {
         $config = $this->processConfiguration(new Configuration(), $configs);
 
-        $apiBaseUrl = $config['api_base_url'];
-        $container->setParameter('jpm_martin_sylius_nmi.api_base_url', is_string($apiBaseUrl) && '' !== trim($apiBaseUrl) ? $apiBaseUrl : null);
-
         $this->registerResources('jpm_martin_sylius_nmi', $config['driver'], $config['resources'], $container);
 
         $loader = new XmlFileLoader($container, new FileLocator(__DIR__ . '/../../config'));

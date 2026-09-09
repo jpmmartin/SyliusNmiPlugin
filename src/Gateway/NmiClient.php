@@ -13,6 +13,8 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * The one code path to the gateway, over its REST API.
@@ -37,6 +39,7 @@ final class NmiClient implements NmiClientInterface
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
         private readonly NmiAmountFormatter $amountFormatter,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -232,6 +235,18 @@ final class NmiClient implements NmiClientInterface
             // and an unknown outcome must never be reported as a refusal.
             if ($status >= 500 || 429 === $status) {
                 throw NmiTransportException::fromInconclusiveStatus($status);
+            }
+
+            // The key was refused. Said here and nowhere else, because this is the only place
+            // that sees the status and the host together, and said at `warning` rather than
+            // `error`: a production log keeps a warning once the request errors, which this one
+            // is about to, and a mistyped key is not an incident. The key itself is never
+            // written, and neither is the body it was refused with.
+            if (401 === $status || 403 === $status) {
+                $this->logger->warning(
+                    'The gateway refused the security key of payment method {method}: HTTP {status} from {host}. A key the merchant portal accepts being refused usually means the host belongs to another account — check the gateway host on the payment method.',
+                    ['method' => $configuration->paymentMethodCode, 'status' => $status, 'host' => $configuration->apiBaseUrl],
+                );
             }
 
             $error = NmiErrorResponse::fromBody($status, $raw);

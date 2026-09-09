@@ -11,10 +11,15 @@ namespace JpmMartin\SyliusNmiPlugin\Gateway;
 final class NmiGatewayConfiguration
 {
     public function __construct(
+        /**
+         * The code of the payment method this was resolved from. Carried so that a refusal by the
+         * gateway can be logged against the method an operator would open, not against a host.
+         */
+        public readonly string $paymentMethodCode,
         public readonly string $tokenizationKey,
         public readonly string $securityKey,
-        public readonly string $environment,
         public readonly bool $useAuthorize,
+        /** Configured on the method, `https` and host only; the trailing slash is already gone. */
         public readonly string $apiBaseUrl,
         /** Last and defaulted only because PHP will not take an optional argument before a required one. */
         public readonly bool $storeCards = false,
