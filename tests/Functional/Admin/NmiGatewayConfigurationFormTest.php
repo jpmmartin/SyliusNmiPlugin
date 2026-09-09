@@ -235,6 +235,11 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
     /** Posts the create form with everything valid but the host, and returns the code it used. */
     private function submitTheCreateForm(string $host): string
     {
+        // The name is typed into the locale's own block of the form, and the block exists only
+        // for a locale the store has. Continuous integration migrates an empty database and
+        // loads no fixtures, so the locale is built here rather than found lying around.
+        $this->aLocale('en_US');
+
         $code = 'nmi_' . bin2hex(random_bytes(3));
         $crawler = $this->client->request('GET', '/admin/payment-methods/new/' . NmiGatewayFactory::NAME);
         $form = $crawler->selectButton('Create')->form();
@@ -253,6 +258,19 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
         $this->client->submit($form);
 
         return $code;
+    }
+
+    private function aLocale(string $code): void
+    {
+        $manager = self::getContainer()->get('doctrine.orm.default_entity_manager');
+        if (null !== $manager->getRepository(\Sylius\Component\Locale\Model\Locale::class)->findOneBy(['code' => $code])) {
+            return;
+        }
+
+        $locale = new \Sylius\Component\Locale\Model\Locale();
+        $locale->setCode($code);
+        $manager->persist($locale);
+        $manager->flush();
     }
 
     private function paymentMethod(string $code): ?\Sylius\Component\Core\Model\PaymentMethodInterface
