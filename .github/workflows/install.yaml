@@ -87,10 +87,17 @@ jobs:
             - name: Create a throwaway store
               run: composer create-project sylius/sylius-standard store --no-interaction --no-scripts
 
+            # Copied into vendor/, not symlinked, because a copy is what Packagist gives a reader.
+            # Composer symlinks a path repository by default; webpack resolves the link to its
+            # target and walks up from *there* looking for node_modules, so the plugin's own import
+            # of @nmipayments/nmi-pay went looking outside the store and `yarn build` failed. The
+            # local rehearsal passed only because the plugin checkout carries a node_modules of its
+            # own — precisely the pre-wired machine this job exists to get away from. Found by
+            # running the job, not by reading it.
             - name: Point it at the plugin under test
               working-directory: store
               run: |
-                  composer config repositories.plugin path ../plugin
+                  composer config repositories.plugin '{"type": "path", "url": "../plugin", "options": {"symlink": false}}'
                   composer config minimum-stability dev
 
             # The README does not say to do this, and should not: a reader is installing into a
