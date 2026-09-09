@@ -27,7 +27,7 @@ card details tokenised in the shopper's browser so the store never handles them.
 |---|---|
 | PHP | 8.2 or newer |
 | Sylius | 2.2 or newer |
-| Database | MySQL or PostgreSQL |
+| Database | MySQL or PostgreSQL. Migrations ship for both; continuous integration runs against PostgreSQL |
 
 Sylius 1.x is not supported and will not be: this plugin is built on the `PaymentRequest` model
 introduced in 2.x and does not use Payum.
@@ -40,6 +40,9 @@ introduced in 2.x and does not use Payum.
 composer require jpmmartin/sylius-nmi-plugin
 ```
 
+Nothing else works until this is done, and Composer will say so plainly. It is the only step in
+this list that fails loudly.
+
 ### 2. Register the bundle
 
 ```php
@@ -50,6 +53,11 @@ return [
     JpmMartin\SyliusNmiPlugin\JpmMartinSyliusNmiPlugin::class => ['all' => true],
 ];
 ```
+
+Skip this and the plugin is installed but not loaded: none of its services exist, the imports in
+the next step resolve to nothing, and **NMI never appears in the list of gateways** when you go to
+create a payment method. That last symptom is the one you will actually see, and it looks like the
+package failed to install.
 
 ### 3. Import its configuration and routes
 
@@ -85,6 +93,10 @@ The shop route receives the token the browser produces. The admin route adds the
 the payment row, which Sylius itself does not ship. The account route is the shopper's saved-cards
 page. The webhook route is where NMI delivers what it did outside your store.
 
+**Skip this step and the plugin is loaded but unreachable**: the pay page has nowhere to post the
+card token, the *Void* action is missing from the payment row, the saved-cards page 404s, and NMI
+has no endpoint to deliver to — so nothing it does outside your store ever reaches it.
+
 **Neither prefix is cosmetic.** Sylius's admin firewall is defined by the admin path, so importing
 the admin routes without it leaves the void action reachable by anyone who knows the URL. The
 account rule is `^/(?!admin|api…)[^/]++/account`, and that first segment is the **locale** — mount
@@ -93,15 +105,19 @@ requires a signed-in shopper.
 
 ### 4. Run the migration
 
-The plugin adds two tables: one recording every transaction it makes at the gateway, and one for
-the cards shoppers save. The second is created whether or not you turn saved cards on, and stays
-empty until you do.
+The plugin adds four tables: one recording every transaction it makes at the gateway, one for the
+cards shoppers save, one recording the webhook deliveries it has accepted, and one for what the
+gateway reports that nobody in your store caused. All four are created whether or not you turn
+saved cards or webhooks on, and stay empty until you do.
 
 ```bash
 bin/console doctrine:migrations:migrate
 ```
 
 Migrations ship for MySQL and for PostgreSQL; each skips itself on the other engine.
+
+Skip this and the store works right up until the first payment, which fails on a missing table —
+in the middle of checkout, with a shopper watching.
 
 ### 5. Build the front-end assets
 
@@ -126,6 +142,9 @@ Encore
 The script tag goes on the shop's `javascripts` hook. **Do not create
 `templates/bundles/SyliusShopBundle/_javascripts.html.twig`** — Sylius 2.x does not read it, so the
 page renders with no card fields and nothing to explain why.
+
+If your store already has this file with a `sylius_twig_hooks:` key, add the `hooks:` entry to it
+rather than pasting a second one — two of the same key at the top level and the file stops parsing.
 
 ```yaml
 # config/packages/twig_hooks.yaml
@@ -406,10 +425,14 @@ at all, and the plugin's own suite is run in both configurations for exactly tha
 ## Reseller and white-label gateways
 
 NMI licenses its gateway to resellers who run it under their own host name. If yours does, set that
-host once for the whole store:
+host once for the whole store — in the file you already created in step 3, **alongside the import
+and not instead of it**:
 
 ```yaml
 # config/packages/jpm_martin_sylius_nmi.yaml
+imports:
+    - { resource: "@JpmMartinSyliusNmiPlugin/config/config.yaml" }
+
 jpm_martin_sylius_nmi:
     api_base_url: 'https://gateway.example.com'
 ```
@@ -553,13 +576,27 @@ $gatewayConfig->setUsePayum(false);
 Leave it out and the security key is stored in plain text, with no error and nothing in the admin
 to show it — and the method is also classed as a Payum gateway, which is not what it is.
 
+## Further reading
+
+This README carries the whole happy path — you should never *need* the pages below to get a store
+taking payments. They are for depth.
+
+| | |
+|---|---|
+| [Configuration reference](docs/configuration.md) | Every field on the payment method form: what it is, where to get it, and what each switch costs |
+| [Troubleshooting](docs/troubleshooting.md) | Symptom to missed step. Almost nothing here fails loudly, so this is the page to reach for |
+| [Upgrading](docs/upgrading.md) | What a version number promises, what to do on each kind of release, and where to report a problem |
+
+The documentation is English only. The plugin's own interface is bilingual — different audiences,
+and prose drifts faster than string catalogues.
+
 ## Versioning and changes
 
 Released under [Semantic Versioning](https://semver.org/spec/v2.0.0.html): a caret constraint on
 this package is safe, and anything that would break an existing store arrives only in a major
 release with a written migration note. What changed in each release is in
-[CHANGELOG.md](CHANGELOG.md); how a release is cut, and what counts as breaking, in
-[RELEASING.md](RELEASING.md).
+[CHANGELOG.md](CHANGELOG.md); what to do about it, in [docs/upgrading.md](docs/upgrading.md); how a
+release is cut, and what counts as breaking, in [RELEASING.md](RELEASING.md).
 
 ## Licence
 

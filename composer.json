@@ -10,6 +10,10 @@
         "nmi"
     ],
     "license": "MIT",
+    "support": {
+        "issues": "https://github.com/jpmmartin/SyliusNmiPlugin/issues",
+        "source": "https://github.com/jpmmartin/SyliusNmiPlugin"
+    },
     "require": {
         "php": "^8.2",
         "psr/http-client": "^1.0",
