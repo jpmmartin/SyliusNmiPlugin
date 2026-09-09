@@ -1,0 +1,105 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Pulls the shell commands out of the README, in the order a reader meets them.
+ *
+ * **Why extract rather than copy.** A verification job carrying its own copy of the install
+ * commands proves that the *plugin* installs. It says nothing about whether the *documentation* is
+ * correct: somebody changes a step, updates the workflow, forgets the README, and the job stays
+ * green — which is the exact failure the job exists to prevent. Extracted, an untested command
+ * cannot survive a release, because the thing that runs is the thing that is published.
+ *
+ * **What this cannot extract, and why the job is a hybrid.** Several install steps are file *edits*
+ * shown as fragments on purpose — one line to add to `config/bundles.php` beside a `// ...`, an
+ * entry to add *inside* the shop block of `webpack.config.js`. There is no honest way to turn a
+ * fragment into a file, so the workflow applies those edits itself and they are **mirrored, not
+ * extracted**. That half is weaker and is labelled weaker wherever it appears: change one of those
+ * blocks and the workflow must change with it.
+ *
+ * Usage:
+ *   bin/extract-readme-commands [--readme=README.md] [--until="## Configuring a payment method"]
+ *
+ * Writes one command per line to stdout. Lines beginning `#` are comments and are dropped, since
+ * they are prose for the reader rather than something to run.
+ */
+
+$options = getopt('', ['readme::', 'until::', 'list-skipped']);
+$readmePath = $options['readme'] ?? 'README.md';
+$until = $options['until'] ?? null;
+
+if (!is_readable($readmePath)) {
+    fwrite(STDERR, sprintf("Cannot read %s\n", $readmePath));
+
+    exit(1);
+}
+
+$lines = explode("\n", (string) file_get_contents($readmePath));
+
+/** Only these run. `dotenv` is configuration a reader edits, not a command they type. */
+const RUNNABLE = ['bash', 'sh', 'shell'];
+
+$commands = [];
+$skipped = [];
+$inBlock = false;
+$language = '';
+$buffer = [];
+
+foreach ($lines as $line) {
+    // The README stops being an install guide at the heading given, if one was given. Everything
+    // after it is reference material whose commands are not part of installing.
+    if (null !== $until && str_starts_with($line, $until)) {
+        break;
+    }
+
+    if (!$inBlock && 1 === preg_match('/^```(\w*)\s*$/', $line, $matches)) {
+        $inBlock = true;
+        $language = strtolower($matches[1]);
+        $buffer = [];
+
+        continue;
+    }
+
+    if ($inBlock && '```' === trim($line)) {
+        $inBlock = false;
+
+        if (!in_array($language, RUNNABLE, true)) {
+            $skipped[] = $language === '' ? '(no language)' : $language;
+
+            continue;
+        }
+
+        foreach ($buffer as $command) {
+            $command = trim($command);
+
+            if ('' === $command || str_starts_with($command, '#')) {
+                continue;
+            }
+
+            $commands[] = $command;
+        }
+
+        continue;
+    }
+
+    if ($inBlock) {
+        $buffer[] = $line;
+    }
+}
+
+if (isset($options['list-skipped'])) {
+    // What the workflow has to mirror by hand, so a reader of the job can see the seam.
+    fwrite(STDOUT, implode("\n", $skipped) . "\n");
+
+    exit(0);
+}
+
+if ([] === $commands) {
+    fwrite(STDERR, "No runnable commands found. Either the README changed shape or the fences lost their language.\n");
+
+    exit(1);
+}
+
+fwrite(STDOUT, implode("\n", $commands) . "\n");

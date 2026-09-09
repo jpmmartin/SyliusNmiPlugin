@@ -1,0 +1,175 @@
+# Installs this plugin into a store that has never seen it, by running the commands the README
+# publishes — not a copy of them.
+name: Install
+
+on:
+    release:
+        types: [published]
+    pull_request:
+        # Only the things that can break an installation. A pull request touching handlers pays
+        # nothing for this job.
+        paths:
+            - 'README.md'
+            - 'docs/**'
+            - 'config/routes/**'
+            - 'config/config.yaml'
+            - 'assets/**'
+            - 'composer.json'
+            - 'package.json'
+            - 'bin/extract-readme-commands'
+            - '.github/workflows/install.yaml'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    install:
+        name: A store that has never seen this plugin
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_PASSWORD: postgres
+                ports: ['5432:5432']
+                options: >-
+                    --health-cmd "pg_isready -U postgres"
+                    --health-interval 5s
+                    --health-timeout 3s
+                    --health-retries 10
+
+        env:
+            APP_ENV: dev
+            DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/store
+
+        steps:
+            - name: Check out the plugin
+              uses: actions/checkout@v5
+              with:
+                  path: plugin
+
+            - name: Set up PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.2'
+                  extensions: intl, gd, opcache, pdo_pgsql, pgsql
+                  tools: composer:v2
+                  coverage: none
+
+            - name: Set up Node
+              uses: actions/setup-node@v5
+              with:
+                  node-version: '22.x'
+
+            # Without this there is no `yarn` on the runner, and step 5 of the README — the one
+            # that fails most silently for a reader — fails loudly here instead.
+            - name: Enable Yarn
+              run: corepack enable
+
+            - name: Cache Composer
+              uses: actions/cache@v5
+              with:
+                  path: ~/.cache/composer/files
+                  key: "${{ runner.os }}-install-composer-${{ hashFiles('plugin/composer.json') }}"
+                  restore-keys: "${{ runner.os }}-install-composer-"
+
+            # Everything below runs against this, and it is thrown away with the runner. It is not
+            # the plugin's own test application: that one arrives pre-wired, which is exactly what
+            # makes it unable to prove anything about installing.
+            - name: Create a throwaway store
+              run: composer create-project sylius/sylius-standard store --no-interaction --no-scripts
+
+            - name: Point it at the plugin under test
+              working-directory: store
+              run: |
+                  composer config repositories.plugin path ../plugin
+                  composer config minimum-stability dev
+
+            # The README does not say to do this, and should not: a reader is installing into a
+            # store that already has a database. A runner has an empty PostgreSQL and nothing else,
+            # so the job has to supply what a real store already had.
+            - name: Give the store a database
+              working-directory: store
+              run: bin/console doctrine:database:create --if-not-exists
+
+            # **The commands come out of the README.** A workflow carrying its own copy would prove
+            # the plugin installs and say nothing about whether the documentation is right —
+            # somebody changes a step, updates the workflow, forgets the README, and this stays
+            # green. That is the failure this job exists to prevent.
+            - name: Read the install commands out of the README
+              run: |
+                  php plugin/bin/extract-readme-commands \
+                      --readme=plugin/README.md \
+                      --until="## Configuring a payment method" \
+                      | tee commands.txt
+                  test -s commands.txt
+
+            # **The file edits are mirrored, not extracted, and that half is weaker.** Several
+            # steps are fragments on purpose — one line beside a `// ...`, an entry to add *inside*
+            # the shop block of webpack.config.js — and there is no honest way to turn a fragment
+            # into a file. Change one of those blocks in the README and this step must change with
+            # it. Nothing here can catch that; only a reader can.
+            - name: Apply the file edits the README shows
+              working-directory: store
+              run: |
+                  php ../plugin/bin/apply-readme-edits ../plugin/README.md .
+
+            - name: Run the README's own commands, in the order it gives them
+              working-directory: store
+              run: |
+                  set -euo pipefail
+                  # Each command gets /dev/null as its input. Without that, the first one that
+                  # reads stdin — composer and bin/console both do — swallows the rest of the
+                  # file, and the job passes having run two of six commands. Found by running
+                  # this against a real store rather than by reading it.
+                  while IFS= read -r command <&3; do
+                      echo "::group::$command"
+                      eval "$command" < /dev/null
+                      echo '::endgroup::'
+                  done 3< ../commands.txt
+
+            # These three are what a half-finished install actually costs, and every one of them
+            # fails silently: a missing bundle looks like a failed package, missing routes look
+            # like a broken page, and unbuilt assets look like a broken template.
+            - name: The bundle registered
+              working-directory: store
+              run: |
+                  bin/console debug:container --tag=sylius.gateway_configuration_type \
+                      | grep -q 'JpmMartin' \
+                      || { echo 'The NMI gateway is not registered. Step 2 — register the bundle.'; exit 1; }
+
+            - name: The routes were imported
+              working-directory: store
+              run: |
+                  bin/console debug:router | grep -q 'jpm_martin_sylius_nmi_shop_complete_card_payment' \
+                      || { echo 'The pay route is missing. Step 3 — import the routes.'; exit 1; }
+                  bin/console debug:router | grep -q '/nmi/webhooks/' \
+                      || { echo 'The webhook endpoint is missing. Step 3 — import the webhook routes.'; exit 1; }
+
+            - name: The migrations created the plugin's tables
+              working-directory: store
+              run: |
+                  # Counted exactly. `grep -q 4` would match a 4 anywhere in the table the console
+                  # draws — including in 14, in 40, or in a column width — and pass while three of
+                  # the four tables were missing.
+                  tables=$(bin/console dbal:run-sql \
+                      "SELECT count(*) AS n FROM information_schema.tables WHERE table_name LIKE 'jpm_martin%'" \
+                      | grep -oE '[0-9]+' | tail -1)
+                  test "$tables" = '4' \
+                      || { echo "Expected 4 plugin tables, found ${tables:-none}. Step 4 — run the migration."; exit 1; }
+
+            # The step that fails most silently of all: the pay page renders and simply has no card
+            # fields, with nothing in the log and nothing in the console to say why.
+            - name: The front-end entry was built and served
+              working-directory: store
+              run: |
+                  test -f public/build/app/shop/entrypoints.json \
+                      || { echo 'The shop assets were never built. Step 5.'; exit 1; }
+                  grep -q '"nmi-shop"' public/build/app/shop/entrypoints.json \
+                      || { echo 'The nmi-shop entry is missing from the shop manifest. Step 5 — the entry went in the wrong Encore block, or yarn build was never run.'; exit 1; }
+                  test -s public/build/app/shop/nmi-shop.js \
+                      || { echo 'nmi-shop.js was not produced. Step 5.'; exit 1; }
+                  grep -q 'data-nmi' public/build/app/shop/nmi-shop.js \
+                      || { echo 'The built bundle does not look like this plugin. Step 5 — the entry points at the wrong file.'; exit 1; }
