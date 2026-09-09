@@ -3,6 +3,8 @@
 <p align="center">Card payments through <a href="https://nmi.com">NMI</a> for Sylius 2.2, with the
 card details tokenised in the shopper's browser so the store never handles them.</p>
 
+<p align="center"><a href="https://github.com/jpmmartin/SyliusNmiPlugin/actions/workflows/build.yaml"><img src="https://github.com/jpmmartin/SyliusNmiPlugin/actions/workflows/build.yaml/badge.svg?branch=main" alt="Build — the test suite on main, in both supported configurations"></a></p>
+
 ---
 
 ## What it does
