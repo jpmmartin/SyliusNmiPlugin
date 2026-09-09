@@ -60,6 +60,9 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
             // The only field about the gateway talking to the store. Its help text has to say
             // where the value comes from and what blank means, because both are choices an
             // operator makes here and nowhere else.
+            'Email the shopper when a saved card is closed or flagged',
+            'if their bank closes a card they saved with you',
+            'only the email is skipped',
             'Webhook signing key',
             'Webhooks settings page shows this',
             'Leave it blank and no event is accepted',
@@ -83,6 +86,9 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
             'Norteamérica',
             'Permitir que los compradores guarden su tarjeta',
             'puede dejar una tarjeta guardada en NMI',
+            'Avisar por correo cuando una tarjeta guardada se cierre o se marque',
+            'cuando su banco da de baja una tarjeta',
+            'sólo se omite el correo',
             'Clave de firma de webhooks',
             'La muestra la página de Webhooks de NMI',
             'Déjala en blanco y no se acepta ningún evento',

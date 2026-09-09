@@ -9,6 +9,8 @@ jpm_martin_sylius_nmi:
         default_card: Predeterminada
         make_default: Hacer predeterminada
         add_card: Añadir una tarjeta
+        card_closed: Tu banco ha dado de baja esta tarjeta, así que ya no se puede usar. Añade otra cuando quieras.
+        card_needs_attention: Tu banco nos ha pedido que revisemos esta tarjeta contigo. De momento sigue funcionando.
     admin:
         void: Anular
         refund_plugin_notice: >-
@@ -26,6 +28,25 @@ jpm_martin_sylius_nmi:
             types:
                 settlement_failure: Liquidación fallida
                 chargeback: Contracargo
+    email:
+        stored_card_attention:
+            subject:
+                closed: Una tarjeta guardada ya no se puede usar
+                needs_attention: Revisa una tarjeta guardada
+            greeting: Hola:
+            body:
+                closed: >-
+                    Tu banco ha dado de baja la tarjeta %brand% terminada en %last_four% que tenías
+                    guardada con nosotros, así que ya no se puede usar. No se le ha cobrado nada y
+                    no tienes que hacer nada ahora mismo: la próxima vez que pidas, puedes añadir
+                    otra tarjeta.
+                needs_attention: >-
+                    Tu banco nos ha pedido que revisemos contigo la tarjeta %brand% terminada en
+                    %last_four% que tenías guardada con nosotros. De momento sigue funcionando, así
+                    que hoy no tienes que hacer nada; tu banco puede darte más detalles.
+            reassurance: >-
+                Nunca guardamos tu número de tarjeta. Sólo lo tienen tu banco y nuestro proveedor de
+                pagos, y nosotros no vemos más que los cuatro últimos dígitos.
     form:
         gateway_config:
             tokenization_key: Clave de tokenización
@@ -55,6 +76,11 @@ jpm_martin_sylius_nmi:
                 el emisor puede rechazar un pago que no lleve autenticación, y la responsabilidad
                 por un contracargo se queda en la tienda en vez de pasar al emisor. Vendiendo a
                 Norteamérica esa presión no aplica igual, y el pago de un solo clic es lo habitual.
+            email_cardholder: Avisar por correo cuando una tarjeta guardada se cierre o se marque
+            email_cardholder_help: >-
+                Si se activa, se envía un correo al comprador cuando su banco da de baja una
+                tarjeta que tenía guardada, o pide que se le contacte por ella. Déjalo desactivado
+                y la tarjeta se marca igual y deja de ofrecerse igual — sólo se omite el correo.
             webhook_signing_key: Clave de firma de webhooks
             webhook_signing_key_help: >-
                 La muestra la página de Webhooks de NMI. Pégala aquí y la tienda aceptará los

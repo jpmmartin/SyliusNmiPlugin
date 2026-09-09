@@ -77,6 +77,15 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'help_html' => true,
                 'required' => false,
             ])
+            // Only reachable once webhooks are wired, because nothing else tells the store that a
+            // card was closed. Rendered anyway rather than hidden behind the signing key: a
+            // setting that appears and disappears is harder to reason about than one that is
+            // simply off.
+            ->add(NmiGatewayFactory::CONFIG_EMAIL_CARDHOLDER, CheckboxType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.email_cardholder',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.email_cardholder_help',
+                'required' => false,
+            ])
             // Optional, and last because it is the only field that is about the gateway talking to
             // the store rather than the other way round. Leaving it blank is a complete answer: no
             // key, no events accepted.

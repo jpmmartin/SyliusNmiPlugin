@@ -26,6 +26,21 @@
                             </span>
                         {% endif %}
                     </div>
+                    {#
+                        What the issuer has said about the card, when it has said anything. The
+                        shopper is told rather than left to discover it at checkout: a closed card
+                        is not offered there at all, and one the issuer flagged would go through
+                        without explaining why it might not next time.
+                    #}
+                    {% if card.status == 'closed' %}
+                        <div class="small text-danger" {{ sylius_test_html_attribute('nmi-stored-card-closed') }}>
+                            {{ 'jpm_martin_sylius_nmi.ui.card_closed'|trans }}
+                        </div>
+                    {% elseif card.status == 'needs_attention' %}
+                        <div class="small text-warning-emphasis" {{ sylius_test_html_attribute('nmi-stored-card-needs-attention') }}>
+                            {{ 'jpm_martin_sylius_nmi.ui.card_needs_attention'|trans }}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     {% if card.isDefault() %}

@@ -45,6 +45,16 @@ final class NmiGatewayFactory
     public const CONFIG_AUTHENTICATE_STORED_CARDS = 'authenticate_stored_cards';
 
     /**
+     * Whether the shopper is emailed when the issuer closes or flags a card they saved.
+     *
+     * Off unless an operator says otherwise, because it is outbound mail sent on the store's
+     * behalf about something the store did not do. Everything else the card updater reports
+     * happens whether this is on or off: the card is marked, the account shows it, and the
+     * checkout stops offering it.
+     */
+    public const CONFIG_EMAIL_CARDHOLDER = 'email_cardholder';
+
+    /**
      * The key the gateway signs its webhook deliveries with, shown on its Webhooks settings page.
      *
      * Absent is the ordinary case and means this method receives no events: the endpoint has

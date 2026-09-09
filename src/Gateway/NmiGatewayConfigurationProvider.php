@@ -64,6 +64,8 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             // Optional, and blank is the same as absent: an operator who cleared the field has
             // stopped this method receiving events, which is a decision the endpoint honours.
             webhookSigningKey: $this->optionalString($config, NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY),
+            // Absent means off: mail nobody asked for is not something to inherit from silence.
+            emailCardholder: (bool) ($config[NmiGatewayFactory::CONFIG_EMAIL_CARDHOLDER] ?? false),
         );
     }
 

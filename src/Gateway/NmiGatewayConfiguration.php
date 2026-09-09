@@ -32,6 +32,13 @@ final class NmiGatewayConfiguration
          * so the endpoint refuses every one of them rather than trusting what it cannot check.
          */
         public readonly ?string $webhookSigningKey = null,
+        /**
+         * Whether a card the issuer closed or flagged earns the shopper an email.
+         *
+         * Defaults to off. Outbound mail about something the store did not do is a decision an
+         * operator makes, not one they inherit.
+         */
+        public readonly bool $emailCardholder = false,
     ) {
     }
 }

@@ -167,6 +167,20 @@
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 
+        <!--
+            Queued, never inline: this is raised while handling a webhook, and a mail server having
+            a bad day must not become a delivery the gateway retries for three days.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_handler.notify_cardholder" class="JpmMartin\SyliusNmiPlugin\CommandHandler\NotifyCardholderHandler">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
+            <argument type="service" id="sylius.email_sender" />
+            <argument type="service" id="translator" />
+            <argument type="service" id="logger" />
+            <tag name="messenger.message_handler" />
+        </service>
+
+        <service id="test.jpm_martin_sylius_nmi.command_handler.notify_cardholder" alias="jpm_martin_sylius_nmi.command_handler.notify_cardholder" public="true" />
+
         <!-- A void: the payment state machine has no void transition, so it travels as a cancel. -->
         <service id="jpm_martin_sylius_nmi.command_provider.cancel" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider">
             <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="cancel" />

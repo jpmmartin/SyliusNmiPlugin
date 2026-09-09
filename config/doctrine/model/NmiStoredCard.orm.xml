@@ -36,6 +36,8 @@
         <field name="expiryMonth" column="expiry_month" type="smallint" />
         <field name="expiryYear" column="expiry_year" type="smallint" />
 
+        <!-- Only the gateway changes this, and only by telling the store what the issuer did. -->
+        <field name="status" column="status" type="string" length="16" />
         <field name="default" column="is_default" type="boolean" />
         <field name="createdAt" column="created_at" type="datetime_immutable" />
         <field name="updatedAt" column="updated_at" type="datetime_immutable" nullable="true" />

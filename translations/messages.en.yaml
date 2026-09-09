@@ -9,6 +9,8 @@ jpm_martin_sylius_nmi:
         default_card: Default
         make_default: Make default
         add_card: Add a card
+        card_closed: Your bank has closed this card, so it can no longer be used. Add a new one when you are ready.
+        card_needs_attention: Your bank has asked us to check this card with you. It still works for now.
     admin:
         void: Void
         refund_plugin_notice: >-
@@ -26,6 +28,25 @@ jpm_martin_sylius_nmi:
             types:
                 settlement_failure: Settlement failed
                 chargeback: Chargeback
+    email:
+        stored_card_attention:
+            subject:
+                closed: A saved card can no longer be used
+                needs_attention: Please check a saved card
+            greeting: Hello,
+            body:
+                closed: >-
+                    Your bank has closed the %brand% card ending %last_four% that you had saved with
+                    us, so it can no longer be used. Nothing has been charged to it and there is
+                    nothing you need to do right now — next time you order, you can add another
+                    card.
+                needs_attention: >-
+                    Your bank has asked us to check with you about the %brand% card ending
+                    %last_four% that you had saved with us. It still works for now, so there is
+                    nothing you have to do today; your bank can tell you more.
+            reassurance: >-
+                We never store your card number. Only your bank and our payment provider hold it,
+                and we can see nothing more than the last four digits.
     form:
         gateway_config:
             tokenization_key: Tokenization key
@@ -55,6 +76,11 @@ jpm_martin_sylius_nmi:
                 a chargeback stays with you rather than moving to the issuer. Selling into North
                 America that pressure does not apply the same way, and the one-click payment is the
                 more common trade.
+            email_cardholder: Email the shopper when a saved card is closed or flagged
+            email_cardholder_help: >-
+                When enabled, a shopper is emailed if their bank closes a card they saved with
+                you, or asks that they be contacted about it. Leave it off and the card is still
+                marked and still stops being offered — only the email is skipped.
             webhook_signing_key: Webhook signing key
             webhook_signing_key_help: >-
                 NMI's Webhooks settings page shows this. Paste it here and the store will accept

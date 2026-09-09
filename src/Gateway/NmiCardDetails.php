@@ -86,9 +86,14 @@ final class NmiCardDetails
             return null;
         }
 
-        // Four digits, month then year, and nothing else. The gateway offers no century, and a
-        // card cannot have expired before the scheme existed, so 2000 is the only reading.
-        if (1 !== preg_match('/^(0[1-9]|1[0-2])(\d{2})$/', $expiry, $matches)) {
+        // Month then year, and nothing else. The gateway offers no century, and a card cannot have
+        // expired before the scheme existed, so 2000 is the only reading.
+        //
+        // **Two shapes, one meaning.** A charge and a vault record spell it `1030`; the card
+        // updater's summaries spell the same thing `10/30`. Nothing in the type says which is
+        // coming, so both are read here rather than in whichever caller happened to meet the
+        // second one first.
+        if (1 !== preg_match('#^(0[1-9]|1[0-2])/?(\d{2})$#', $expiry, $matches)) {
             return null;
         }
 

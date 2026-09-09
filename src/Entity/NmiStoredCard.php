@@ -29,6 +29,12 @@ class NmiStoredCard implements NmiStoredCardInterface
 
     protected ?int $expiryYear = null;
 
+    /**
+     * What the issuer has said about this card, which is only ever changed by the gateway telling
+     * the store — never by the shopper and never by an operator.
+     */
+    protected string $status = self::STATUS_ACTIVE;
+
     protected bool $default = false;
 
     protected \DateTimeImmutable $createdAt;
@@ -138,6 +144,21 @@ class NmiStoredCard implements NmiStoredCardInterface
     public function isDefault(): bool
     {
         return $this->default;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): void
+    {
+        $this->status = $status;
+    }
+
+    public function isUsable(): bool
+    {
+        return self::STATUS_CLOSED !== $this->status;
     }
 
     public function setDefault(bool $default): void

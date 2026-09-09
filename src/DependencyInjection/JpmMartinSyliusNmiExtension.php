@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
+use JpmMartin\SyliusNmiPlugin\Command\NotifyCardholder;
 use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
+use JpmMartin\SyliusNmiPlugin\Mailer\NmiEmails;
 use Sylius\Bundle\CoreBundle\DependencyInjection\PrependDoctrineMigrationsTrait;
 use Sylius\Bundle\ResourceBundle\DependencyInjection\Extension\AbstractResourceExtension;
 use Symfony\Component\Config\FileLocator;
@@ -56,6 +58,22 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
             'messenger' => [
                 'routing' => [
                     PurgeStoredCard::class => 'main',
+                    // A mail server that is slow or down must not turn a webhook delivery into a
+                    // failure the gateway then retries twenty times over three days.
+                    NotifyCardholder::class => 'main',
+                ],
+            ],
+        ]);
+
+        // The one email this plugin sends. Prepended rather than left to the store, because an
+        // email the store has to declare by hand is an email that silently does not exist.
+        $container->prependExtensionConfig('sylius_mailer', [
+            'emails' => [
+                NmiEmails::STORED_CARD_ATTENTION => [
+                    // The subject is chosen by the template, which knows whether the card was
+                    // closed or merely flagged; this key is the fallback the mailer needs.
+                    'subject' => 'jpm_martin_sylius_nmi.email.stored_card_attention.subject.closed',
+                    'template' => '@JpmMartinSyliusNmiPlugin/email/storedCardAttention.html.twig',
                 ],
             ],
         ]);

@@ -39,7 +39,15 @@ final class NmiStoredCardOffer implements NmiStoredCardOfferInterface
         // Narrowed to this payment method, which is where "cards do not cross gateway accounts"
         // is actually enforced: a vault reference is meaningless to any NMI account but the one
         // that issued it, so charging it elsewhere would fail at the gateway if it got that far.
-        return $this->repository->findByCustomer($customer, $method);
+        //
+        // A card whose account the issuer has closed is dropped here rather than shown greyed out
+        // like an expired one. An expired card can be renewed and the shopper knows which card it
+        // is; a closed one is gone, and offering it back would be offering something that cannot
+        // come back.
+        return array_values(array_filter(
+            $this->repository->findByCustomer($customer, $method),
+            static fn (NmiStoredCardInterface $card): bool => $card->isUsable(),
+        ));
     }
 
     public function chosenFor(PaymentInterface $payment, NmiGatewayConfiguration $configuration, string $id): ?NmiStoredCardInterface

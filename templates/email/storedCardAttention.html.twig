@@ -1,0 +1,24 @@
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+
+{#
+    Deliberately plain, and deliberately short. The shopper did nothing wrong, the store did
+    nothing wrong, and the only useful content is which card, what happened, and what to do about
+    it. The card is described the way it is described everywhere else — brand, last four digits —
+    because that is what a receipt already prints and the store holds nothing more.
+#}
+{% block subject %}
+    {{ ('jpm_martin_sylius_nmi.email.stored_card_attention.subject.' ~ status)|trans }}
+{% endblock %}
+
+{% block content %}
+    <p>{{ 'jpm_martin_sylius_nmi.email.stored_card_attention.greeting'|trans }}</p>
+
+    <p>
+        {{ ('jpm_martin_sylius_nmi.email.stored_card_attention.body.' ~ status)|trans({
+            '%brand%': card.brand,
+            '%last_four%': card.lastFour,
+        }) }}
+    </p>
+
+    <p>{{ 'jpm_martin_sylius_nmi.email.stored_card_attention.reassurance'|trans }}</p>
+{% endblock %}

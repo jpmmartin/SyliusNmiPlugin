@@ -49,12 +49,19 @@ final class NmiWebhookRouter implements NmiWebhookRouterInterface
         private readonly PaymentRequestRepositoryInterface $paymentRequestRepository,
         private readonly PaymentRequestAnnouncerInterface $announcer,
         private readonly NmiGatewayNoticeRecorderInterface $noticeRecorder,
+        private readonly NmiCardUpdateApplierInterface $cardUpdateApplier,
         private readonly LoggerInterface $logger,
     ) {
     }
 
     public function route(NmiWebhookEnvelope $envelope, PaymentMethodInterface $paymentMethod): void
     {
+        if ($this->cardUpdateApplier->supports($envelope->eventType)) {
+            $this->cardUpdateApplier->apply($envelope, $paymentMethod);
+
+            return;
+        }
+
         if (self::SETTLEMENT_COMPLETE === $envelope->eventType) {
             $this->recordSettlement($envelope);
 

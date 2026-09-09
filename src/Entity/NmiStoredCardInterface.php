@@ -20,6 +20,27 @@ use Sylius\Resource\Model\ResourceInterface;
  */
 interface NmiStoredCardInterface extends ResourceInterface, EncryptionAwareInterface
 {
+    /** Usable, as far as anyone has been told. */
+    public const STATUS_ACTIVE = 'active';
+
+    /** The issuer closed the account behind it. It is not offered and cannot be charged. */
+    public const STATUS_CLOSED = 'closed';
+
+    /**
+     * The issuer asked that the cardholder be contacted about it.
+     *
+     * Still offered, deliberately: the issuer said to talk to them, not that the card stopped
+     * working, and refusing a card the issuer has not refused would cost a sale on a guess.
+     */
+    public const STATUS_NEEDS_ATTENTION = 'needs_attention';
+
+    public function getStatus(): string;
+
+    public function setStatus(string $status): void;
+
+    /** Whether this card may still be offered and charged. */
+    public function isUsable(): bool;
+
     public function getCustomer(): ?CustomerInterface;
 
     public function setCustomer(?CustomerInterface $customer): void;

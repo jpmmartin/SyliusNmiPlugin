@@ -153,7 +153,7 @@ trait BuildsAnNmiWebhookDelivery
     }
 
     /** A payment in a given state, with the sale that produced it recorded against it. */
-    private function aPaymentIn(string $state): PaymentInterface
+    private function aPaymentIn(string $state, bool $emailCardholder = false): PaymentInterface
     {
         $currency = $this->manager->getRepository(Currency::class)->findOneBy(['code' => 'USD']) ?? new Currency();
         $currency->setCode('USD');
@@ -184,6 +184,7 @@ trait BuildsAnNmiWebhookDelivery
             NmiGatewayFactory::CONFIG_SECURITY_KEY => 'sec-evt',
             NmiGatewayFactory::CONFIG_ENVIRONMENT => NmiGatewayFactory::ENVIRONMENT_SANDBOX,
             NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY => self::SIGNING_KEY,
+            NmiGatewayFactory::CONFIG_EMAIL_CARDHOLDER => $emailCardholder,
         ]);
         $gatewayConfig->setUsePayum(false);
 

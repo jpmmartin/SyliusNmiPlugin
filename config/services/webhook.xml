@@ -19,6 +19,28 @@
         <service id="JpmMartin\SyliusNmiPlugin\Recorder\NmiGatewayNoticeRecorderInterface" alias="jpm_martin_sylius_nmi.recorder.gateway_notice" />
 
         <!--
+            Finds a card by a reference nothing can query, because it is encrypted with a
+            non-deterministic cipher. It brings back two columns and decrypts them rather than
+            hydrating the table.
+        -->
+        <service id="jpm_martin_sylius_nmi.webhook.stored_card_locator" class="JpmMartin\SyliusNmiPlugin\Webhook\NmiStoredCardLocator">
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument type="service" id="sylius.encrypter" />
+            <argument>%jpm_martin_sylius_nmi.model.nmi_stored_card.class%</argument>
+        </service>
+
+        <service id="JpmMartin\SyliusNmiPlugin\Webhook\NmiStoredCardLocatorInterface" alias="jpm_martin_sylius_nmi.webhook.stored_card_locator" />
+
+        <!-- What the card networks reported, applied entry by entry. -->
+        <service id="jpm_martin_sylius_nmi.webhook.card_update_applier" class="JpmMartin\SyliusNmiPlugin\Webhook\NmiCardUpdateApplier">
+            <argument type="service" id="jpm_martin_sylius_nmi.webhook.stored_card_locator" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="sylius.event_bus" />
+            <argument type="service" id="logger" />
+        </service>
+
+        <!--
             No condition on this one. A chargeback has no setting to hide it, so neither has the
             page that shows it — and the page is empty until the gateway reports something.
         -->
@@ -47,6 +69,7 @@
             <argument type="service" id="sylius.repository.payment_request" />
             <argument type="service" id="sylius.announcer.payment_request" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.gateway_notice" />
+            <argument type="service" id="jpm_martin_sylius_nmi.webhook.card_update_applier" />
             <argument type="service" id="logger" />
         </service>
 
