@@ -63,11 +63,12 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
             'Email the shopper when a saved card is closed or flagged',
             'if their bank closes a card they saved with you',
             'only the email is skipped',
-            'Tell me about transactions this store does not recognise',
+            'List transactions this store does not recognise',
             'when this NMI account belongs to this store alone',
             'Webhook signing key',
             'Webhooks settings page shows this',
             'Leave it blank and no event is accepted',
+            'must also import the plugin',
         ],
         'es' => [
             'Clave de tokenización',
@@ -91,11 +92,12 @@ final class NmiGatewayConfigurationFormTest extends WebTestCase
             'Avisar por correo cuando una tarjeta guardada se cierre o se marque',
             'cuando su banco da de baja una tarjeta',
             'sólo se omite el correo',
-            'Avisarme de transacciones que esta tienda no reconoce',
+            'Listar las transacciones que esta tienda no reconoce',
             'si esta cuenta de NMI es exclusivamente de esta tienda',
             'Clave de firma de webhooks',
             'La muestra la página de Webhooks de NMI',
             'Déjala en blanco y no se acepta ningún evento',
+            'tiene que importar además la ruta de webhooks',
         ],
     ];
 

@@ -82,7 +82,7 @@ jpm_martin_sylius_nmi:
                 Si se activa, se envía un correo al comprador cuando su banco da de baja una
                 tarjeta que tenía guardada, o pide que se le contacte por ella. Déjalo desactivado
                 y la tarjeta se marca igual y deja de ofrecerse igual — sólo se omite el correo.
-            notify_unknown_transactions: Avisarme de transacciones que esta tienda no reconoce
+            notify_unknown_transactions: Listar las transacciones que esta tienda no reconoce
             notify_unknown_transactions_help: >-
                 Sólo es útil si esta cuenta de NMI es exclusivamente de esta tienda. Si la
                 compartes con otra tienda u otro sistema, todas sus transacciones llegan aquí
@@ -93,7 +93,7 @@ jpm_martin_sylius_nmi:
                 La muestra la página de Webhooks de NMI. Pégala aquí y la tienda aceptará los
                 eventos que envíe esa cuenta: reembolsos y anulaciones hechos en el portal de NMI,
                 liquidaciones, contracargos y actualizaciones de tarjetas. Déjala en blanco y no
-                se acepta ningún evento. Se guarda cifrada y nunca se envía al navegador.
+                se acepta ningún evento. Se guarda cifrada y nunca se envía al navegador. Tu desarrollador tiene que importar además la ruta de webhooks del plugin, o no llega nada.
     shop:
         pay:
             heading: Pagar con tarjeta

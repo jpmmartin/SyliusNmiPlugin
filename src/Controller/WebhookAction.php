@@ -46,6 +46,29 @@ final class WebhookAction
      */
     private const REJECTED = Response::HTTP_UNAUTHORIZED;
 
+    /**
+     * The largest delivery this will read.
+     *
+     * **Deliberately generous, and the reason is not timidity.** A real transaction event was
+     * measured at 2.5 KB, but settlement, chargebacks and card updates arrive as batches with an
+     * entry per item, and refusing one that is genuine loses its contents *and* earns twenty
+     * retries over three days. Four megabytes is tens of thousands of entries.
+     *
+     * What it buys is a ceiling on work an unsigned request can cause: without it, anyone can make
+     * the store compute an HMAC over as much data as they care to send. The deployment's own
+     * `post_max_size` is the first line; this is the plugin refusing to depend on it.
+     */
+    private const LARGEST_ACCEPTED_BODY = 4 * 1024 * 1024;
+
+    /**
+     * How much of the payment method code reaches the log.
+     *
+     * The route already bounds it, so this is the second lock on the same door: the code is
+     * chosen by whoever made the request, and a log line whose length they control is a disk they
+     * can fill.
+     */
+    private const LOGGED_CODE_LENGTH = 64;
+
     /** @param PaymentMethodRepositoryInterface<PaymentMethodInterface> $paymentMethodRepository */
     public function __construct(
         private readonly PaymentMethodRepositoryInterface $paymentMethodRepository,
@@ -73,6 +96,18 @@ final class WebhookAction
         // or trusting a parsed form — changes the bytes the signature was computed over.
         $body = $request->getContent();
 
+        // Before the HMAC, which is the point: hashing is the work an unsigned request would
+        // otherwise get for free, and it is proportional to what the sender chose to send.
+        if (strlen($body) > self::LARGEST_ACCEPTED_BODY) {
+            $this->logger->error('Refused an oversized NMI webhook delivery.', [
+                'payment_method_code' => self::loggable($code),
+                'bytes' => strlen($body),
+                'limit' => self::LARGEST_ACCEPTED_BODY,
+            ]);
+
+            return new Response('', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        }
+
         if (!NmiWebhookSignature::isValid($request->headers->get(NmiWebhookSignature::HEADER), $body, $signingKey)) {
             return $this->reject($code, 'the signature did not match');
         }
@@ -83,7 +118,7 @@ final class WebhookAction
             // Malformed, so redelivering the same bytes cannot help and a retry would be twenty
             // pointless deliveries. Nothing is written.
             $this->logger->error('An NMI webhook delivery could not be read as an event envelope.', [
-                'payment_method_code' => $code,
+                'payment_method_code' => self::loggable($code),
             ]);
 
             return new Response('', Response::HTTP_BAD_REQUEST);
@@ -153,9 +188,15 @@ final class WebhookAction
     {
         $this->logger->error('Rejected an NMI webhook delivery: {reason}.', [
             'reason' => $reason,
-            'payment_method_code' => $code,
+            'payment_method_code' => self::loggable($code),
         ]);
 
         return new Response('', self::REJECTED);
+    }
+
+    /** As much of an attacker-chosen string as is worth writing down. */
+    private static function loggable(string $code): string
+    {
+        return substr($code, 0, self::LOGGED_CODE_LENGTH);
     }
 }

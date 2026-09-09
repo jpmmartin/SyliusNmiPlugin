@@ -82,7 +82,7 @@ jpm_martin_sylius_nmi:
                 When enabled, a shopper is emailed if their bank closes a card they saved with
                 you, or asks that they be contacted about it. Leave it off and the card is still
                 marked and still stops being offered — only the email is skipped.
-            notify_unknown_transactions: Tell me about transactions this store does not recognise
+            notify_unknown_transactions: List transactions this store does not recognise
             notify_unknown_transactions_help: >-
                 Only useful when this NMI account belongs to this store alone. If you share the
                 account with another shop or another system, every one of their transactions
@@ -93,7 +93,7 @@ jpm_martin_sylius_nmi:
                 NMI's Webhooks settings page shows this. Paste it here and the store will accept
                 the events that account sends — refunds and voids performed in NMI's own portal,
                 settlement, chargebacks and card updates. Leave it blank and no event is accepted.
-                It is stored encrypted and never sent to the browser.
+                It is stored encrypted and never sent to the browser. Your developer must also import the plugin's webhook route, or nothing reaches the store at all.
     shop:
         pay:
             heading: Pay by card

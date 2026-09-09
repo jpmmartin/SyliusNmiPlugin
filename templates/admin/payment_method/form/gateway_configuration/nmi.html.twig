@@ -10,6 +10,14 @@
     {{ form_row(config.environment, sylius_test_form_attribute('nmi-environment')) }}
 </div>
 {#
+    The fourth thing an operator pastes, and it belongs with the other three. It sat below the
+    switches until the form was read end to end as an operator reads it, where it broke the shape
+    the page otherwise has: things you paste, then decisions you make.
+#}
+<div class="col-12 col-md-6">
+    {{ form_row(config.webhook_signing_key, sylius_test_form_attribute('nmi-webhook-signing-key')) }}
+</div>
+{#
     Every field is laid out here by name, and nothing renders what this file leaves out: the
     embedded configuration form is never passed to `form_rest`, so a field missing from this
     template is a field an operator cannot set. Both card settings were missing exactly that way
@@ -27,14 +35,6 @@
 #}
 <div class="col-12">
     {{ form_row(config.authenticate_stored_cards, sylius_test_form_attribute('nmi-authenticate-stored-cards')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
-</div>
-
-{#
-    The one field about the gateway talking to the store rather than the store talking to the
-    gateway, which is why it sits apart from the three credentials above.
-#}
-<div class="col-12 col-md-6 mt-5">
-    {{ form_row(config.webhook_signing_key, sylius_test_form_attribute('nmi-webhook-signing-key')) }}
 </div>
 
 {#

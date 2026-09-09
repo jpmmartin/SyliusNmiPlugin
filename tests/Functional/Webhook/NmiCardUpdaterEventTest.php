@@ -248,14 +248,17 @@ final class NmiCardUpdaterEventTest extends WebTestCase
      * `jpm_martin_sylius_nmi.email...` and nothing fails — so the only way to know is to hand the
      * message to its handler and read what came out.
      *
+     * Both statuses in both languages, because there are two subjects and two bodies and a test
+     * that renders one of them proves nothing about the other three.
+     *
      * @dataProvider theLanguagesThisPluginSpeaks
      */
-    public function testTheEmailIsRenderedInTheLanguageTheMessageCarries(string $locale, string $subjectFragment, string $bodyFragment): void
+    public function testTheEmailIsRenderedInTheLanguageTheMessageCarries(string $locale, string $status, string $subjectFragment, string $bodyFragment): void
     {
         $card = $this->aStoredCard(emailCardholder: true);
 
         $handler = self::getContainer()->get('jpm_martin_sylius_nmi.command_handler.notify_cardholder');
-        $handler(new NotifyCardholder((int) $card->getId(), NmiStoredCardInterface::STATUS_CLOSED, $locale));
+        $handler(new NotifyCardholder((int) $card->getId(), $status, $locale));
 
         self::assertEmailCount(1);
         $email = self::getMailerMessage();
@@ -265,11 +268,13 @@ final class NmiCardUpdaterEventTest extends WebTestCase
         self::assertStringContainsString('1111', $email->getHtmlBody() ?? '', 'The shopper has to know which card.');
     }
 
-    /** @return iterable<string, array{string, string, string}> */
+    /** @return iterable<string, array{string, string, string, string}> */
     public static function theLanguagesThisPluginSpeaks(): iterable
     {
-        yield 'english' => ['en_US', 'no longer be used', 'Your bank has closed the'];
-        yield 'spanish' => ['es_ES', 'ya no se puede usar', 'Tu banco ha dado de baja'];
+        yield 'closed, in english' => ['en_US', NmiStoredCardInterface::STATUS_CLOSED, 'no longer be used', 'Your bank has closed the'];
+        yield 'closed, in spanish' => ['es_ES', NmiStoredCardInterface::STATUS_CLOSED, 'ya no se puede usar', 'Tu banco ha dado de baja'];
+        yield 'flagged, in english' => ['en_US', NmiStoredCardInterface::STATUS_NEEDS_ATTENTION, 'Please check a saved card', 'It still works for now'];
+        yield 'flagged, in spanish' => ['es_ES', NmiStoredCardInterface::STATUS_NEEDS_ATTENTION, 'Revisa una tarjeta guardada', 'De momento sigue funcionando'];
     }
 
     /**

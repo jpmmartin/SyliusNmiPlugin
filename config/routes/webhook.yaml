@@ -18,3 +18,9 @@ jpm_martin_sylius_nmi_webhook:
     methods: [POST]
     defaults:
         _controller: JpmMartin\SyliusNmiPlugin\Controller\WebhookAction
+    requirements:
+        # A payment method code is a `VARCHAR(255)`, so anything longer names nothing that could
+        # exist. Bounded here rather than in the controller because the point is that it never
+        # reaches the controller: the code comes from the URL, an attacker chooses it, and a
+        # rejection that logs it would let them choose how much disk the log uses.
+        code: '[^/]{1,255}'
