@@ -117,6 +117,49 @@ final class NmiRefundTest extends KernelTestCase
         self::assertSame(self::SALE, $refund->getParentTransactionId());
     }
 
+    /**
+     * The same outcome as the fallback above, reached without spending a request on it.
+     *
+     * A webhook told the store the batch settled, so there is nothing to discover: the void would
+     * be refused, and asking anyway is a round trip whose answer is already written down. This is
+     * what the settlement record buys, and the only thing it buys.
+     */
+    public function testASettlementTheStoreWasToldAboutSkipsTheVoidEntirely(): void
+    {
+        $payment = $this->completedPayment();
+
+        $sale = $this->transactions()->findOneByTransactionIdAndType(self::SALE, NmiTransactionInterface::TYPE_SALE);
+        self::assertNotNull($sale);
+        $sale->setSettledAt(new \DateTimeImmutable('-1 day'));
+        $this->manager->flush();
+
+        $this->gateway->willApprove('12513502460');
+
+        $this->refundFromTheOrderScreen($payment);
+
+        self::assertSame(['refund'], $this->gateway->operations, 'No void may be attempted: the store already knows it would be refused.');
+        self::assertSame(PaymentInterface::STATE_REFUNDED, $payment->getState());
+    }
+
+    /**
+     * And with no record, the previous path still runs — which is what lets a store that never
+     * wires webhooks keep working exactly as it did.
+     */
+    public function testWithNoSettlementRecordedTheGatewayIsStillAsked(): void
+    {
+        $payment = $this->completedPayment();
+
+        $sale = $this->transactions()->findOneByTransactionIdAndType(self::SALE, NmiTransactionInterface::TYPE_SALE);
+        self::assertNotNull($sale);
+        self::assertNull($sale->getSettledAt(), 'Nothing told this store anything, which is the ordinary state.');
+
+        $this->gateway->willApprove('12513502461');
+
+        $this->refundFromTheOrderScreen($payment);
+
+        self::assertSame(['void'], $this->gateway->operations, 'The void is tried, exactly as before.');
+    }
+
     /** The scenario: refused, and *without asking the gateway* — the store's own record answers it. */
     public function testRefundingTwiceIsRefusedWithoutAskingTheGateway(): void
     {

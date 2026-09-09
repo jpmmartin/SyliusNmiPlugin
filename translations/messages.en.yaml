@@ -15,6 +15,17 @@ jpm_martin_sylius_nmi:
             The refund plugin is installed but will not offer this gateway, because its list of
             supported gateways does not name it. Refunding from the order screen works either
             way; only the refund plugin's own screens need this entry.
+        gateway_notice:
+            menu: Gateway notices
+            heading: What NMI reported
+            occurred_at: Received
+            type: Kind
+            reference: Reference
+            payment_method: Payment method
+            reason: Reason
+            types:
+                settlement_failure: Settlement failed
+                chargeback: Chargeback
     form:
         gateway_config:
             tokenization_key: Tokenization key

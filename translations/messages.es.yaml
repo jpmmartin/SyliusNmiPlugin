@@ -15,6 +15,17 @@ jpm_martin_sylius_nmi:
             El plugin de reembolsos está instalado pero no ofrecerá esta pasarela, porque su lista
             de pasarelas admitidas no la nombra. Reembolsar desde la pantalla del pedido funciona
             igualmente; solo las pantallas del plugin de reembolsos necesitan esta entrada.
+        gateway_notice:
+            menu: Avisos de la pasarela
+            heading: Lo que informó NMI
+            occurred_at: Recibido
+            type: Tipo
+            reference: Referencia
+            payment_method: Método de pago
+            reason: Motivo
+            types:
+                settlement_failure: Liquidación fallida
+                chargeback: Contracargo
     form:
         gateway_config:
             tokenization_key: Clave de tokenización

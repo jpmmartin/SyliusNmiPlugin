@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
 use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use Sylius\Bundle\CoreBundle\DependencyInjection\PrependDoctrineMigrationsTrait;
 use Sylius\Bundle\ResourceBundle\DependencyInjection\Extension\AbstractResourceExtension;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
+use Symfony\Component\Yaml\Yaml;
 
 final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implements PrependExtensionInterface
 {
@@ -57,6 +59,24 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
                 ],
             ],
         ]);
+
+        // The admin list of what the gateway reported. Prepended for the same reason the messenger
+        // routing above is: a grid a store has to import by hand is a grid most stores will not
+        // have, and the requirement is that a chargeback is *always* visible.
+        //
+        // Read from YAML rather than written as an array here because it is a page's worth of
+        // configuration and it reads far better as one. `PARSE_CONSTANT` is what lets the filter
+        // name the entity's own constants instead of repeating their values.
+        // The parameter the grid names does not exist yet: resources are registered in `load()`,
+        // which runs after every `prepend()`. Declaring the default here is enough for the grid to
+        // validate, and `registerResources` overwrites it a moment later with whatever class the
+        // store actually configured — so a replaced model still reaches the grid.
+        $container->setParameter('jpm_martin_sylius_nmi.model.nmi_gateway_notice.class', NmiGatewayNotice::class);
+
+        $container->prependExtensionConfig(
+            'sylius_grid',
+            (array) (Yaml::parseFile(__DIR__ . '/../../config/grids/gateway_notice.yaml', Yaml::PARSE_CONSTANT)['sylius_grid'] ?? []),
+        );
 
         if (!self::hasRefundPlugin($container)) {
             return;

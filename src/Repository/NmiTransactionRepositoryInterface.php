@@ -37,6 +37,23 @@ interface NmiTransactionRepositoryInterface extends RepositoryInterface
      * either, and searching one column would resolve half the events and silently treat the rest
      * as belonging to another store.
      */
+    /**
+     * Marks every transaction the store knows from a settled batch, and answers how many that was.
+     *
+     * **A batch, because that is the only shape settlement arrives in.** The gateway reports it
+     * per batch and names every transaction the batch contained, most of which belong to other
+     * stores on a shared account — so the identifiers that match nothing are simply not matched,
+     * which is a normal outcome and not a failure to report.
+     *
+     * A bulk update rather than a load-and-set: a batch names as many transactions as the day had,
+     * and hydrating them to write one column each would be the slowest possible way to say so.
+     *
+     * @param list<string> $transactionIds
+     *
+     * @return int how many rows were marked
+     */
+    public function markSettled(array $transactionIds, \DateTimeImmutable $settledAt): int;
+
     public function findOneByAnyTransactionId(string $transactionId): ?NmiTransactionInterface;
 
     public function findOneByTransactionIdAndType(string $transactionId, string $type): ?NmiTransactionInterface;

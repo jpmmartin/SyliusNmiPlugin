@@ -1,0 +1,8 @@
+{#
+    The type as a word rather than a database value, and coloured by how much it costs: money
+    taken back is not the same news as a batch that has to be resent.
+#}
+{% set type = data.type %}
+<span class="badge {{ type == 'chargeback' ? 'bg-danger' : 'bg-warning' }}">
+    {{ ('jpm_martin_sylius_nmi.admin.gateway_notice.types.' ~ type)|trans }}
+</span>

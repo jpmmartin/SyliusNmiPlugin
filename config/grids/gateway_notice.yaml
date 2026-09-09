@@ -1,0 +1,44 @@
+# What the gateway reported that an operator has to act on.
+#
+# Read-only by construction: there is no create, no edit and no delete. These are things that
+# happened elsewhere, and a store cannot un-happen a chargeback by deleting a row.
+sylius_grid:
+    grids:
+        jpm_martin_sylius_nmi_admin_gateway_notice:
+            driver:
+                name: doctrine/orm
+                options:
+                    class: "%jpm_martin_sylius_nmi.model.nmi_gateway_notice.class%"
+            sorting:
+                occurredAt: desc
+            fields:
+                occurredAt:
+                    type: twig
+                    label: jpm_martin_sylius_nmi.admin.gateway_notice.occurred_at
+                    sortable: ~
+                    options:
+                        template: "@SyliusAdmin/shared/grid/field/date.html.twig"
+                type:
+                    type: twig
+                    label: jpm_martin_sylius_nmi.admin.gateway_notice.type
+                    sortable: ~
+                    path: .
+                    options:
+                        template: "@JpmMartinSyliusNmiPlugin/admin/gateway_notice/grid/field/type.html.twig"
+                reference:
+                    type: string
+                    label: jpm_martin_sylius_nmi.admin.gateway_notice.reference
+                paymentMethodCode:
+                    type: string
+                    label: jpm_martin_sylius_nmi.admin.gateway_notice.payment_method
+                reason:
+                    type: string
+                    label: jpm_martin_sylius_nmi.admin.gateway_notice.reason
+            filters:
+                type:
+                    type: select
+                    label: jpm_martin_sylius_nmi.admin.gateway_notice.type
+                    form_options:
+                        choices:
+                            jpm_martin_sylius_nmi.admin.gateway_notice.types.settlement_failure: !php/const JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNoticeInterface::TYPE_SETTLEMENT_FAILURE
+                            jpm_martin_sylius_nmi.admin.gateway_notice.types.chargeback: !php/const JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNoticeInterface::TYPE_CHARGEBACK

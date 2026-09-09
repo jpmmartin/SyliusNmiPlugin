@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
+use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiReceivedEvent;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiGatewayNoticeRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiReceivedEventRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepository;
@@ -57,6 +59,22 @@ final class Configuration implements ConfigurationInterface
                                         ->scalarNode('model')->defaultValue(NmiTransaction::class)->cannotBeEmpty()->end()
                                         ->scalarNode('repository')->defaultValue(NmiTransactionRepository::class)->cannotBeEmpty()->end()
                                         ->scalarNode('factory')->defaultValue(Factory::class)->end()
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('nmi_gateway_notice')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->arrayNode('classes')
+                                    ->addDefaultsIfNotSet()
+                                    ->children()
+                                        ->scalarNode('model')->defaultValue(NmiGatewayNotice::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('repository')->defaultValue(NmiGatewayNoticeRepository::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('factory')->defaultValue(Factory::class)->end()
+                                        // The admin list is the platform's own resource controller
+                                        // driving a grid; nothing here is written by hand.
+                                        ->scalarNode('controller')->defaultValue(ResourceController::class)->end()
                                     ->end()
                                 ->end()
                             ->end()

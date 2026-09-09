@@ -19,6 +19,27 @@ class NmiTransactionRepository extends EntityRepository implements NmiTransactio
         return $transactions;
     }
 
+    public function markSettled(array $transactionIds, \DateTimeImmutable $settledAt): int
+    {
+        if ([] === $transactionIds) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('t')
+            ->update()
+            ->set('t.settledAt', ':settledAt')
+            ->andWhere('t.transactionId IN (:transactionIds)')
+            // Already settled stays as it was. A redelivered batch must not move the moment a
+            // transaction settled, and the decision between voiding and refunding reads that
+            // moment rather than merely whether it is set.
+            ->andWhere('t.settledAt IS NULL')
+            ->setParameter('settledAt', $settledAt)
+            ->setParameter('transactionIds', $transactionIds)
+            ->getQuery()
+            ->execute()
+        ;
+    }
+
     public function findOneByAnyTransactionId(string $transactionId): ?NmiTransactionInterface
     {
         /** @var NmiTransactionInterface|null $transaction */

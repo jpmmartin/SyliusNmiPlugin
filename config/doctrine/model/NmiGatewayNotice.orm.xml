@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      http://doctrine-project.org/schemas/orm/doctrine-mapping.xsd"
+>
+    <mapped-superclass name="JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice" table="jpm_martin_sylius_nmi_gateway_notice">
+        <indexes>
+            <!-- What the admin grid orders and filters by. -->
+            <index name="idx_jpm_martin_sylius_nmi_notice_occurred_at" columns="occurred_at" />
+            <index name="idx_jpm_martin_sylius_nmi_notice_type" columns="type" />
+        </indexes>
+
+        <unique-constraints>
+            <!--
+                One notice per thing the gateway reported. A redelivered batch is already stopped by
+                the received-event index, but this is the guarantee that outlives it: the events are
+                pruned and these are not, so after a prune a redelivery would otherwise write a
+                second notice for the same chargeback.
+            -->
+            <unique-constraint name="uniq_jpm_martin_sylius_nmi_notice_type_reference" columns="type,reference" />
+        </unique-constraints>
+
+        <id name="id" column="id" type="integer">
+            <generator strategy="AUTO" />
+        </id>
+
+        <field name="type" column="type" type="string" length="32" />
+        <field name="reference" column="reference" type="string" length="64" nullable="true" />
+        <field name="paymentMethodCode" column="payment_method_code" type="string" length="255" />
+        <field name="amount" column="amount" type="integer" nullable="true" />
+        <field name="currencyCode" column="currency_code" type="string" length="3" nullable="true" />
+        <field name="reason" column="reason" type="text" nullable="true" />
+        <field name="occurredAt" column="occurred_at" type="datetime_immutable" />
+
+        <!-- Nullable: a failed settlement names no transaction, so it belongs to no order. -->
+        <many-to-one field="payment" target-entity="Sylius\Component\Core\Model\PaymentInterface">
+            <join-column name="payment_id" referenced-column-name="id" nullable="true" on-delete="SET NULL" />
+        </many-to-one>
+    </mapped-superclass>
+</doctrine-mapping>

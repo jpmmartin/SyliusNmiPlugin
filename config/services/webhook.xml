@@ -7,6 +7,26 @@
 >
     <services>
         <!--
+            Durable, unlike the received-event record beside it: a chargeback matters for months
+            and the replay guard is measured in days, so they cannot be the same row.
+        -->
+        <service id="jpm_martin_sylius_nmi.recorder.gateway_notice" class="JpmMartin\SyliusNmiPlugin\Recorder\NmiGatewayNoticeRecorder">
+            <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_gateway_notice" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_gateway_notice" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+        </service>
+
+        <service id="JpmMartin\SyliusNmiPlugin\Recorder\NmiGatewayNoticeRecorderInterface" alias="jpm_martin_sylius_nmi.recorder.gateway_notice" />
+
+        <!--
+            No condition on this one. A chargeback has no setting to hide it, so neither has the
+            page that shows it — and the page is empty until the gateway reports something.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.admin_main_menu" class="JpmMartin\SyliusNmiPlugin\Menu\AdminMainMenuListener">
+            <tag name="kernel.event_listener" event="sylius.menu.admin.main" method="addGatewayNotices" />
+        </service>
+
+        <!--
             Takes the model class rather than the table name, so a store that replaced the resource
             is written to through its own mapping instead of a name hardcoded in the ledger.
         -->
@@ -26,6 +46,7 @@
             <argument type="service" id="sylius.factory.payment_request" />
             <argument type="service" id="sylius.repository.payment_request" />
             <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.gateway_notice" />
             <argument type="service" id="logger" />
         </service>
 

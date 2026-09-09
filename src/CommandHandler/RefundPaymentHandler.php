@@ -25,13 +25,21 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
  * Gives the money back, by whichever of the two ways the gateway will still accept.
  *
  * The operator presses one button. Which operation runs is not something they should have to
- * decide, and not something this plugin can look up: the gateway exposes no settled marker and no
- * refundable balance, so there is nothing to read that would answer it.
+ * decide.
  *
- * So it asks. A void is tried first, because a void never appears on the cardholder's statement
- * while a refund does. If the transaction has settled the gateway refuses the void in words, and
- * a refund follows. The refusals are unambiguous in both directions — a voided transaction cannot
- * be refunded and a refunded one cannot be voided — so a lost answer cannot move money twice.
+ * **When the store has been told the transaction settled, it goes straight to the refund.** That
+ * record comes from a webhook, and it is the only way this plugin can know: the gateway exposes no
+ * settled marker on a transaction and no refundable balance, so there is nothing to read on demand
+ * that would answer the question.
+ *
+ * **Otherwise it asks, exactly as it did before.** A void is tried first, because a void never
+ * appears on the cardholder's statement while a refund does. If the transaction has settled the
+ * gateway refuses the void in words, and a refund follows. The refusals are unambiguous in both
+ * directions — a voided transaction cannot be refunded and a refunded one cannot be voided — so a
+ * lost answer cannot move money twice.
+ *
+ * That fallback is not a leftover. A store that never wires webhooks has no settlement record and
+ * must keep working exactly as it did, which is what the second path is for.
  */
 final class RefundPaymentHandler
 {
@@ -80,7 +88,7 @@ final class RefundPaymentHandler
 
         try {
             $configuration = $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod());
-            [$response, $type, $parent] = $this->giveBack($configuration, $payment, $transactionId);
+            [$response, $type, $parent] = $this->giveBack($configuration, $payment, $transactionId, null !== $transaction->getSettledAt());
         } catch (NmiTransportException) {
             // The void that went unanswered lands here. Whether the money moved is unknown, and
             // the operator is told that rather than told it was refused.
@@ -110,13 +118,25 @@ final class RefundPaymentHandler
 
     /**
      * Tries the cheaper reversal first and falls back to the other when the gateway says it is too
-     * late. A transport failure is deliberately *not* caught here: it is not a refusal, the void
-     * may well have gone through, and asking again is how money leaves twice.
+     * late — unless the store already knows it is too late, in which case the void is not
+     * attempted at all.
+     *
+     * A transport failure is deliberately *not* caught here: it is not a refusal, the void may
+     * well have gone through, and asking again is how money leaves twice.
      *
      * @return array{NmiResponse, string, string|null}
      */
-    private function giveBack(NmiGatewayConfiguration $configuration, PaymentInterface $payment, string $transactionId): array
+    private function giveBack(NmiGatewayConfiguration $configuration, PaymentInterface $payment, string $transactionId, bool $hasSettled): array
     {
+        if ($hasSettled) {
+            // No void, and no request spent finding out it would be refused. The store was told.
+            return [
+                $this->client->refund($configuration, $transactionId, null, (string) $payment->getCurrencyCode()),
+                NmiTransactionInterface::TYPE_REFUND,
+                $transactionId,
+            ];
+        }
+
         try {
             return [
                 $this->client->void($configuration, $transactionId),

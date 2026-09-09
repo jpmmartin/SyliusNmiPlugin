@@ -21,3 +21,17 @@ jpm_martin_sylius_nmi_admin_order_payment_void:
                 route: sylius_admin_order_show
                 parameters:
                     id: $orderId
+
+# What the gateway reported that nobody in this store caused: a batch that failed to settle, a
+# chargeback. Read-only — there is no create, no edit and no delete, because a store cannot
+# un-happen either of them by deleting a row.
+jpm_martin_sylius_nmi_admin_gateway_notice_index:
+    path: /nmi-notices
+    methods: [GET]
+    defaults:
+        _controller: jpm_martin_sylius_nmi.controller.nmi_gateway_notice::indexAction
+        _sylius:
+            section: admin
+            permission: true
+            template: "@SyliusAdmin/shared/crud/index.html.twig"
+            grid: jpm_martin_sylius_nmi_admin_gateway_notice

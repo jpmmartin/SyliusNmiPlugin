@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\Webhook;
 
+use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNoticeInterface;
+use JpmMartin\SyliusNmiPlugin\Recorder\NmiGatewayNoticeRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Sylius\Bundle\PaymentBundle\Announcer\PaymentRequestAnnouncerInterface;
@@ -28,8 +30,14 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  */
 final class NmiWebhookRouter implements NmiWebhookRouterInterface
 {
-    /** The prefix of every event this router currently acts on. */
+    /** The prefix of the events that are about one payment. */
     private const TRANSACTION_PREFIX = 'transaction.';
+
+    /** A batch that reached the processor, naming every transaction it carried. */
+    private const SETTLEMENT_COMPLETE = 'settlement.batch.complete';
+
+    /** A batch that did not, naming **no transaction at all**. */
+    private const SETTLEMENT_FAILURE = 'settlement.batch.failure';
 
     /**
      * @param PaymentRequestFactoryInterface<PaymentRequestInterface> $paymentRequestFactory
@@ -40,12 +48,25 @@ final class NmiWebhookRouter implements NmiWebhookRouterInterface
         private readonly PaymentRequestFactoryInterface $paymentRequestFactory,
         private readonly PaymentRequestRepositoryInterface $paymentRequestRepository,
         private readonly PaymentRequestAnnouncerInterface $announcer,
+        private readonly NmiGatewayNoticeRecorderInterface $noticeRecorder,
         private readonly LoggerInterface $logger,
     ) {
     }
 
     public function route(NmiWebhookEnvelope $envelope, PaymentMethodInterface $paymentMethod): void
     {
+        if (self::SETTLEMENT_COMPLETE === $envelope->eventType) {
+            $this->recordSettlement($envelope);
+
+            return;
+        }
+
+        if (self::SETTLEMENT_FAILURE === $envelope->eventType) {
+            $this->recordSettlementFailure($envelope, $paymentMethod);
+
+            return;
+        }
+
         if (!str_starts_with($envelope->eventType, self::TRANSACTION_PREFIX)) {
             $this->logger->info('Recorded an NMI webhook delivery this store does not act on.', [
                 'event_id' => $envelope->eventId,
@@ -79,6 +100,99 @@ final class NmiWebhookRouter implements NmiWebhookRouterInterface
         $this->paymentRequestRepository->add($paymentRequest);
 
         $this->announcer->dispatchPaymentRequestCommand($paymentRequest);
+    }
+
+    /**
+     * Writes down that a batch settled, against every transaction in it this store knows.
+     *
+     * **Settlement is a fact about a transaction, not a state of a payment.** No place is added to
+     * the payment state machine and none is wanted: `completed` is what the order payment state
+     * resolver and the admin screen key on, and an extra state between completed and settled would
+     * risk orders that never reach paid. What the moment buys is one question answered without
+     * asking the gateway — whether a reversal must be a refund rather than a void.
+     *
+     * Most identifiers in a batch belong to other stores on a shared account and match nothing.
+     * That is the ordinary case, not a failure.
+     */
+    private function recordSettlement(NmiWebhookEnvelope $envelope): void
+    {
+        $transactionIds = self::transactionIdsOf($envelope);
+        if ([] === $transactionIds) {
+            $this->logger->warning('An NMI settlement event named no transactions.', [
+                'event_id' => $envelope->eventId,
+            ]);
+
+            return;
+        }
+
+        $marked = $this->transactionRepository->markSettled($transactionIds, new \DateTimeImmutable());
+
+        $this->logger->info('Recorded an NMI batch settlement.', [
+            'event_id' => $envelope->eventId,
+            'named' => count($transactionIds),
+            'marked' => $marked,
+        ]);
+    }
+
+    /**
+     * A settlement that failed, which the gateway reports **without naming a single transaction**
+     * — the payload carries a batch identifier, the merchant and the processor and nothing else.
+     *
+     * So it cannot be attributed to an order, and inventing an attribution would be worse than
+     * having none. It is recorded against the account and surfaced to the operator there.
+     */
+    private function recordSettlementFailure(NmiWebhookEnvelope $envelope, PaymentMethodInterface $paymentMethod): void
+    {
+        $batchId = self::textOf($envelope, 'batch_id');
+
+        $this->noticeRecorder->record(
+            NmiGatewayNoticeInterface::TYPE_SETTLEMENT_FAILURE,
+            $batchId,
+            (string) $paymentMethod->getCode(),
+        );
+
+        // Logged as well as recorded, and at error level: money that did not reach the processor
+        // is not an informational event, and whoever watches the logs should not have to open the
+        // admin to find out.
+        $this->logger->error('An NMI batch failed to settle.', [
+            'event_id' => $envelope->eventId,
+            'batch_id' => $batchId,
+            'payment_method_code' => $paymentMethod->getCode(),
+        ]);
+    }
+
+    /**
+     * The transaction identifiers a settled batch names.
+     *
+     * @return list<string>
+     */
+    private static function transactionIdsOf(NmiWebhookEnvelope $envelope): array
+    {
+        $ids = $envelope->eventBody['transaction_ids'] ?? null;
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        $found = [];
+        foreach ($ids as $id) {
+            if (!is_scalar($id)) {
+                continue;
+            }
+
+            $id = trim((string) $id);
+            if ('' !== $id) {
+                $found[] = $id;
+            }
+        }
+
+        return array_values(array_unique($found));
+    }
+
+    private static function textOf(NmiWebhookEnvelope $envelope, string $key): ?string
+    {
+        $value = $envelope->eventBody[$key] ?? null;
+
+        return is_scalar($value) && '' !== trim((string) $value) ? trim((string) $value) : null;
     }
 
     /**
