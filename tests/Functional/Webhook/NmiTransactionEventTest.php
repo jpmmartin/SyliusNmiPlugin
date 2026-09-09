@@ -12,6 +12,7 @@ use Sylius\Component\Core\Model\Payment;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\RecordingLogger;
 
 /**
  * What the gateway did to a payment somewhere else, arriving at the endpoint.
@@ -39,6 +40,8 @@ final class NmiTransactionEventTest extends WebTestCase
      */
     private string $sale;
 
+    private RecordingLogger $logger;
+
     protected function setUp(): void
     {
         $this->client = self::createClient();
@@ -50,14 +53,19 @@ final class NmiTransactionEventTest extends WebTestCase
 
         $this->code = 'nmi_evt_' . bin2hex(random_bytes(4));
         $this->sale = (string) random_int(10_000_000_000, 99_999_999_999);
+
+        $this->logger = new RecordingLogger();
+        self::getContainer()->set('logger', $this->logger);
     }
 
     protected function tearDown(): void
     {
-        $this->manager->getConnection()->executeStatement(
-            'DELETE FROM jpm_martin_sylius_nmi_received_event WHERE payment_method_code = :code',
-            ['code' => $this->code],
-        );
+        foreach (['jpm_martin_sylius_nmi_gateway_notice', 'jpm_martin_sylius_nmi_received_event'] as $table) {
+            $this->manager->getConnection()->executeStatement(
+                sprintf('DELETE FROM %s WHERE payment_method_code = :code', $table),
+                ['code' => $this->code],
+            );
+        }
 
         parent::tearDown();
     }
@@ -136,7 +144,11 @@ final class NmiTransactionEventTest extends WebTestCase
         self::assertSame('REFUND NOT ALLOWED', $refusal['detail'], "The gateway's own sentence is the only description some failures have.");
     }
 
-    /** An event naming a transaction this store does not know creates nothing and still succeeds. */
+    /**
+     * *An event for a transaction this store does not know.* Nothing is created — not a payment
+     * request, not a notice — and it still succeeds, because a gateway account shared with another
+     * store produces these continuously and twenty retries of each would be a flood.
+     */
     public function testAnEventForATransactionThisStoreDoesNotKnowCreatesNothing(): void
     {
         $this->aPaymentIn(PaymentInterface::STATE_COMPLETED);
@@ -146,6 +158,40 @@ final class NmiTransactionEventTest extends WebTestCase
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode(), 'It must succeed, or the gateway redelivers for three days.');
         self::assertSame($before, $this->totalPaymentRequests());
+        self::assertSame(0, $this->noticeCount(), 'And no notice either: the default is silence.');
+    }
+
+    /** *The notice enabled.* */
+    public function testWithTheNoticeOnAnUnknownTransactionIsRaisedForTheOperator(): void
+    {
+        $this->aPaymentIn(PaymentInterface::STATE_COMPLETED, notifyUnknownTransactions: true);
+
+        $this->deliver('transaction.refund.success', 'ref-unknown-on', [], '99999999999');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(1, $this->noticeCount());
+    }
+
+    /** *The notice left at its default.* Still accepted, still logged, and nothing raised. */
+    public function testWithTheNoticeAtItsDefaultNothingIsRaisedButItIsStillLogged(): void
+    {
+        $this->aPaymentIn(PaymentInterface::STATE_COMPLETED);
+
+        $this->deliver('transaction.refund.success', 'ref-unknown-off', [], '99999999999');
+
+        self::assertSame(0, $this->noticeCount());
+        self::assertTrue(
+            $this->logger->hasRecordContaining('does not know'),
+            'A store that turned the notice off still gets the log line.',
+        );
+    }
+
+    private function noticeCount(): int
+    {
+        return (int) $this->manager->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM jpm_martin_sylius_nmi_gateway_notice WHERE payment_method_code = :code',
+            ['code' => $this->code],
+        );
     }
 
     /**

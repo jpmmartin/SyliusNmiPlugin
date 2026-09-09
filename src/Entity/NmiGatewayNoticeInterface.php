@@ -15,6 +15,14 @@ interface NmiGatewayNoticeInterface extends ResourceInterface
     /** Money taken back by the cardholder's issuer. */
     public const TYPE_CHARGEBACK = 'chargeback';
 
+    /**
+     * An event naming a transaction this store does not know.
+     *
+     * Only ever recorded when an operator asked for it: on a shared gateway account these are the
+     * other store's ordinary business and there would be thousands.
+     */
+    public const TYPE_UNKNOWN_TRANSACTION = 'unknown_transaction';
+
     public function getType(): ?string;
 
     public function setType(string $type): void;

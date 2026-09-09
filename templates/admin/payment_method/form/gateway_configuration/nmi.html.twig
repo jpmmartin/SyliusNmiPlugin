@@ -44,3 +44,11 @@
 <div class="col-12 col-md-6 mt-5">
     {{ form_row(config.email_cardholder, sylius_test_form_attribute('nmi-email-cardholder')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
 </div>
+
+{#
+    The last switch, and the one most stores should leave alone: on a gateway account shared with
+    another store it fires on everything that other store does.
+#}
+<div class="col-12 col-md-6 mt-5">
+    {{ form_row(config.notify_unknown_transactions, sylius_test_form_attribute('nmi-notify-unknown-transactions')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
+</div>

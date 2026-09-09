@@ -68,6 +68,11 @@ jpm_martin_sylius_nmi_admin:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/admin.yaml"
     prefix: /%sylius_admin.path_name%
 
+# Required if you want NMI to tell your store what it did. Without it there is no endpoint and
+# nothing arrives. No prefix: not the locale, not the admin path. See "Webhooks" below.
+jpm_martin_sylius_nmi_webhook:
+    resource: "@JpmMartinSyliusNmiPlugin/config/routes/webhook.yaml"
+
 # Required if you turn saved cards on, and harmless if you do not. See "Saved cards" below.
 jpm_martin_sylius_nmi_shop_account:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop_account.yaml"
@@ -78,7 +83,7 @@ jpm_martin_sylius_nmi_shop_account:
 
 The shop route receives the token the browser produces. The admin route adds the *Void* action to
 the payment row, which Sylius itself does not ship. The account route is the shopper's saved-cards
-page.
+page. The webhook route is where NMI delivers what it did outside your store.
 
 **Neither prefix is cosmetic.** Sylius's admin firewall is defined by the admin path, so importing
 the admin routes without it leaves the void action reachable by anyone who knows the URL. The
@@ -269,20 +274,97 @@ payment is the more common trade. The form says the same thing, so nobody has to
 > liability in two jurisdictions. They have not been reviewed by anyone qualified to make them.
 > Treat them as a prompt to check your own position, not as advice.
 
+## Webhooks
+
+Everything NMI does outside your store is invisible to it until you wire this up: a refund issued
+from NMI's own portal, a batch that failed to settle, a chargeback, a card your shopper's bank
+reissued or closed. With webhooks configured, all of it reaches the order it belongs to.
+
+**Without the route import there is no endpoint and nothing arrives.** The plugin cannot import it
+for you. It is the `jpm_martin_sylius_nmi_webhook` block in step 3, and it takes **no prefix** —
+not the locale, because NMI's URL cannot depend on a language it knows nothing about, and not the
+admin path, because that is behind a firewall NMI cannot pass.
+
+### 1. Give NMI the URL
+
+One endpoint takes every category. The last segment is the **code of the payment method**, which is
+what tells the store which NMI account the delivery belongs to when you have more than one:
+
+```
+https://your-store.example/nmi/webhooks/<payment method code>
+```
+
+It must be `https` with a valid certificate; NMI refuses anything else.
+
+### 2. Create the webhook at NMI
+
+In the Merchant Portal, **Settings → Webhooks → Create**. Paste the URL and subscribe these
+categories:
+
+| Category | What it gives you |
+|---|---|
+| **Transactions** | Refunds and voids performed in NMI's portal land on the order |
+| **Settlement** | The store learns a transaction has settled, and stops asking NMI whether a reversal must be a refund |
+| **Chargebacks** | Money taken back is recorded and shown to you |
+| **Automatic Card Updater** | A saved card the issuer renewed, closed, or flagged is updated |
+
+Subscribe the `success`, `failure` and `unknown` variants of the transaction events you use. There
+is no harm in subscribing more than the plugin acts on: anything it does not recognise is accepted,
+logged and ignored.
+
+### 3. Paste the signing key
+
+The same Webhooks page shows a **signing key** for the account. Put it in the payment method's
+*Webhook signing key* field in Sylius. It is stored encrypted and never reaches the browser.
+
+**Until you paste it, the endpoint refuses everything** — there is nothing to verify a delivery
+against, and accepting unverified instructions about money is not a thing this plugin will do. That
+is also what keeps a store that never wires webhooks behaving exactly as it did before.
+
+If you rotate the key at NMI, change it here in the same sitting. Every delivery fails verification
+in the meantime, NMI gives up after three days, and the only visible sign is an error in your log.
+
+**Optionally, restrict the endpoint to NMI's addresses** at your web server or firewall. NMI
+delivers from `104.192.32.81`–`104.192.32.87` and `104.192.36.81`–`104.192.36.87`. Treat this as a
+second lock, never as a substitute for the signing key.
+
+### 4. Prune the received events on a schedule
+
+Every accepted delivery is written down, and that record is what makes NMI's retries harmless — the
+same event delivered twice changes state once. It has to be bounded, so run this daily:
+
+```bash
+bin/console jpm-martin:sylius-nmi:prune-received-events
+```
+
+It keeps **30 days** by default. That number is not arbitrary and is not a preference: **NMI retries
+a delivery for three days**, so anything shorter than four risks deleting the record of an event
+still being retried — which would then be applied a second time. Thirty is that window with an order
+of magnitude of margin, and short enough that the table does not become a permanent archive of
+payloads carrying billing addresses and cardholder emails. Pass `--days` to change it; the command
+refuses a period inside the retry window unless you also pass `--force`.
+
+Nothing you need to keep lives there. Chargebacks and failed settlements are recorded separately and
+are never pruned.
+
+### What you will see
+
+**Sales → Gateway notices** lists what NMI reported that nobody in your store caused: chargebacks
+and batches that failed to settle. There is no setting to hide a chargeback, and the page is empty
+until something happens.
+
+Two settings on the payment method are off by default and stay off unless you say otherwise:
+
+- **Email the shopper when a saved card is closed or flagged.** Everything else happens either way —
+  the card is marked, the account shows it, the checkout stops offering it. Only the email is
+  skipped.
+- **Tell me about transactions this store does not recognise.** Useful only if the NMI account is
+  yours alone. If you share it with another shop or another system, every one of their transactions
+  arrives here too and this would list all of them.
+
 ## Limitations
 
-Four things this release deliberately does not do. They are stated here rather than discovered.
-
-**No webhooks.** Anything done inside NMI's own portal — a refund issued there, a chargeback, a
-card the issuer replaced — is invisible to the store. The store's record and the gateway's can
-drift apart, and only actions taken through Sylius keep them together.
-
-**A saved card the issuer renewed or closed keeps its old details.** The expiry a card was stored
-with is the one shown, and nothing updates it — so a card your shopper's bank has already reissued
-is shown as expired and cannot be chosen, and one the bank closed is offered and declines at
-checkout. Their recourse is to add the card again. This is the *No webhooks* limitation above with
-a face on it: NMI's Automatic Card Updater reports exactly these events, and until this plugin
-listens for them the store cannot hear them.
+Two things this release deliberately does not do. They are stated here rather than discovered.
 
 **No partial captures.** An order shipped in several parcels is charged in full at the first
 shipment. This is not only a scoping decision: the gateway closes an authorisation on the first

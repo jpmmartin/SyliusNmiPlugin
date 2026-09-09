@@ -42,3 +42,4 @@ sylius_grid:
                         choices:
                             jpm_martin_sylius_nmi.admin.gateway_notice.types.settlement_failure: !php/const JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNoticeInterface::TYPE_SETTLEMENT_FAILURE
                             jpm_martin_sylius_nmi.admin.gateway_notice.types.chargeback: !php/const JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNoticeInterface::TYPE_CHARGEBACK
+                            jpm_martin_sylius_nmi.admin.gateway_notice.types.unknown_transaction: !php/const JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNoticeInterface::TYPE_UNKNOWN_TRANSACTION

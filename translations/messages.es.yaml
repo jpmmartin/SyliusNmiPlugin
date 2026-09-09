@@ -28,6 +28,7 @@ jpm_martin_sylius_nmi:
             types:
                 settlement_failure: Liquidación fallida
                 chargeback: Contracargo
+                unknown_transaction: Transacción desconocida
     email:
         stored_card_attention:
             subject:
@@ -81,6 +82,12 @@ jpm_martin_sylius_nmi:
                 Si se activa, se envía un correo al comprador cuando su banco da de baja una
                 tarjeta que tenía guardada, o pide que se le contacte por ella. Déjalo desactivado
                 y la tarjeta se marca igual y deja de ofrecerse igual — sólo se omite el correo.
+            notify_unknown_transactions: Avisarme de transacciones que esta tienda no reconoce
+            notify_unknown_transactions_help: >-
+                Sólo es útil si esta cuenta de NMI es exclusivamente de esta tienda. Si la
+                compartes con otra tienda u otro sistema, todas sus transacciones llegan aquí
+                también y esto las listaría todas. Los eventos se aceptan y se registran en
+                cualquier caso.
             webhook_signing_key: Clave de firma de webhooks
             webhook_signing_key_help: >-
                 La muestra la página de Webhooks de NMI. Pégala aquí y la tienda aceptará los

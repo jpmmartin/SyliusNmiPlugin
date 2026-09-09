@@ -86,6 +86,13 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'help' => 'jpm_martin_sylius_nmi.form.gateway_config.email_cardholder_help',
                 'required' => false,
             ])
+            // Off by default and deliberately so: on an account shared with another store this
+            // would fire on every one of that store's transactions.
+            ->add(NmiGatewayFactory::CONFIG_NOTIFY_UNKNOWN_TRANSACTIONS, CheckboxType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.notify_unknown_transactions',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.notify_unknown_transactions_help',
+                'required' => false,
+            ])
             // Optional, and last because it is the only field that is about the gateway talking to
             // the store rather than the other way round. Leaving it blank is a complete answer: no
             // key, no events accepted.

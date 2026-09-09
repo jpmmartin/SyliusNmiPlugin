@@ -28,6 +28,7 @@ jpm_martin_sylius_nmi:
             types:
                 settlement_failure: Settlement failed
                 chargeback: Chargeback
+                unknown_transaction: Unknown transaction
     email:
         stored_card_attention:
             subject:
@@ -81,6 +82,12 @@ jpm_martin_sylius_nmi:
                 When enabled, a shopper is emailed if their bank closes a card they saved with
                 you, or asks that they be contacted about it. Leave it off and the card is still
                 marked and still stops being offered — only the email is skipped.
+            notify_unknown_transactions: Tell me about transactions this store does not recognise
+            notify_unknown_transactions_help: >-
+                Only useful when this NMI account belongs to this store alone. If you share the
+                account with another shop or another system, every one of their transactions
+                arrives here too and this would list all of them. The events are accepted and
+                logged either way.
             webhook_signing_key: Webhook signing key
             webhook_signing_key_help: >-
                 NMI's Webhooks settings page shows this. Paste it here and the store will accept

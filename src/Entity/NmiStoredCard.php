@@ -185,9 +185,9 @@ class NmiStoredCard implements NmiStoredCardInterface
      * A card expires at the end of its month, which is why this compares against the first day of
      * the next one rather than the first of its own.
      *
-     * The expiry is the one captured when the card was stored. Until the webhooks change lands
-     * nothing updates it, so a card the issuer renewed reads as expired here — a false negative
-     * this plugin documents rather than hides.
+     * The expiry is whatever the store was last told. A card the issuer renews is corrected by the
+     * card-updater summary and stops reading as expired; a store that has not wired webhooks never
+     * hears that, and the card stays expired here until the shopper adds it again.
      */
     public function isExpired(?\DateTimeImmutable $now = null): bool
     {

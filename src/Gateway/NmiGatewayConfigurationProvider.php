@@ -66,6 +66,8 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             webhookSigningKey: $this->optionalString($config, NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY),
             // Absent means off: mail nobody asked for is not something to inherit from silence.
             emailCardholder: (bool) ($config[NmiGatewayFactory::CONFIG_EMAIL_CARDHOLDER] ?? false),
+            // Absent means off, and on a shared account that default is what keeps the page usable.
+            notifyUnknownTransactions: (bool) ($config[NmiGatewayFactory::CONFIG_NOTIFY_UNKNOWN_TRANSACTIONS] ?? false),
         );
     }
 

@@ -55,6 +55,16 @@ final class NmiGatewayFactory
     public const CONFIG_EMAIL_CARDHOLDER = 'email_cardholder';
 
     /**
+     * Whether an event naming a transaction this store does not know raises an operator notice.
+     *
+     * **Off, and the default is the whole point.** A gateway account shared with another store
+     * produces these continuously — every one of that store's sales, refunds and voids arrives
+     * here too — so a store that turned this on by inheritance would drown. It exists for the
+     * store that has the account to itself, where an unknown transaction means something.
+     */
+    public const CONFIG_NOTIFY_UNKNOWN_TRANSACTIONS = 'notify_unknown_transactions';
+
+    /**
      * The key the gateway signs its webhook deliveries with, shown on its Webhooks settings page.
      *
      * Absent is the ordinary case and means this method receives no events: the endpoint has

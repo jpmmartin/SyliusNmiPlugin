@@ -39,6 +39,13 @@ final class NmiGatewayConfiguration
          * operator makes, not one they inherit.
          */
         public readonly bool $emailCardholder = false,
+        /**
+         * Whether an unknown transaction is worth telling an operator about.
+         *
+         * Defaults to off, because on a shared gateway account every other store's activity
+         * arrives here and would fill the page with things nobody can act on.
+         */
+        public readonly bool $notifyUnknownTransactions = false,
     ) {
     }
 }

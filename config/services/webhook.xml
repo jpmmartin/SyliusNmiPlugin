@@ -7,6 +7,16 @@
 >
     <services>
         <!--
+            Meant for a scheduler. Registered here rather than autoconfigured, because this bundle
+            does not autowire and a console command nobody registered is a retention policy nobody
+            has.
+        -->
+        <service id="jpm_martin_sylius_nmi.command.prune_received_events" class="JpmMartin\SyliusNmiPlugin\Command\Console\PruneReceivedEventsCommand">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_received_event" />
+            <tag name="console.command" />
+        </service>
+
+        <!--
             Durable, unlike the received-event record beside it: a chargeback matters for months
             and the replay guard is measured in days, so they cannot be the same row.
         -->
@@ -70,6 +80,8 @@
             <argument type="service" id="sylius.announcer.payment_request" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.gateway_notice" />
             <argument type="service" id="jpm_martin_sylius_nmi.webhook.card_update_applier" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
             <argument type="service" id="logger" />
         </service>
 
