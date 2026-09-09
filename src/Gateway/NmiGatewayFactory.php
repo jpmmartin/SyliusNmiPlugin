@@ -44,6 +44,19 @@ final class NmiGatewayFactory
      */
     public const CONFIG_AUTHENTICATE_STORED_CARDS = 'authenticate_stored_cards';
 
+    /**
+     * The key the gateway signs its webhook deliveries with, shown on its Webhooks settings page.
+     *
+     * Absent is the ordinary case and means this method receives no events: the endpoint has
+     * nothing to verify against, so it refuses everything. It is a shared secret of the same kind
+     * as the security key and is stored the same way, encrypted with the rest of this array.
+     *
+     * Note it is one key per **gateway account**, not per endpoint — the portal shows a single
+     * signing key above the whole endpoint list. Two payment methods pointing at the same NMI
+     * account therefore carry the same value, which is correct and not duplication to factor out.
+     */
+    public const CONFIG_WEBHOOK_SIGNING_KEY = 'webhook_signing_key';
+
     public const ENVIRONMENT_PRODUCTION = 'production';
 
     public const ENVIRONMENT_SANDBOX = 'sandbox';

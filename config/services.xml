@@ -30,5 +30,17 @@
             <argument type="service" id="jpm_martin_sylius_nmi.provider.stored_card_offer" />
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
         </service>
+
+        <!--
+            The public endpoint. It takes the repository and the configuration provider and nothing
+            else: resolving a payment method and reading its signing key is all it may do before a
+            delivery has been proven to come from the gateway.
+        -->
+        <service id="JpmMartin\SyliusNmiPlugin\Controller\WebhookAction" public="true">
+            <argument type="service" id="sylius.repository.payment_method" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.webhook.ledger" />
+            <argument type="service" id="logger" />
+        </service>
     </services>
 </container>

@@ -44,6 +44,12 @@ jpm_martin_sylius_nmi:
                 a chargeback stays with you rather than moving to the issuer. Selling into North
                 America that pressure does not apply the same way, and the one-click payment is the
                 more common trade.
+            webhook_signing_key: Webhook signing key
+            webhook_signing_key_help: >-
+                NMI's Webhooks settings page shows this. Paste it here and the store will accept
+                the events that account sends — refunds and voids performed in NMI's own portal,
+                settlement, chargebacks and card updates. Leave it blank and no event is accepted.
+                It is stored encrypted and never sent to the browser.
     shop:
         pay:
             heading: Pay by card

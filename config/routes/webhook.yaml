@@ -1,0 +1,20 @@
+# Where the gateway delivers what it did outside this store.
+#
+# **Its own file, and the application must import it.** Without the import there is no endpoint,
+# nothing arrives, and the store carries on exactly as it did before — which is the promise this
+# change makes to a store that never wires webhooks. The plugin cannot import it for them, and the
+# README says so where a reader will meet it.
+#
+# Mount it with **no prefix**: not the locale, which would make the gateway's URL depend on a
+# language it knows nothing about, and not the admin path, which is behind a firewall the gateway
+# cannot pass. The route is public by construction and the signature is what guards it.
+#
+# The `code` is the payment method's, and it is what makes the NMI account unambiguous — a store
+# may have two, each with its own signing key. It is not a secret: it selects which key to verify
+# against, it authorises nothing, and an unknown one is refused exactly like a bad signature so
+# that the endpoint cannot be used to find out which codes exist.
+jpm_martin_sylius_nmi_webhook:
+    path: /nmi/webhooks/{code}
+    methods: [POST]
+    defaults:
+        _controller: JpmMartin\SyliusNmiPlugin\Controller\WebhookAction

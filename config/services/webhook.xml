@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <!--
+            Takes the model class rather than the table name, so a store that replaced the resource
+            is written to through its own mapping instead of a name hardcoded in the ledger.
+        -->
+        <service id="jpm_martin_sylius_nmi.webhook.ledger" class="JpmMartin\SyliusNmiPlugin\Webhook\NmiReceivedEventLedger">
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument>%jpm_martin_sylius_nmi.model.nmi_received_event.class%</argument>
+        </service>
+
+        <service id="JpmMartin\SyliusNmiPlugin\Webhook\NmiReceivedEventLedgerInterface" alias="jpm_martin_sylius_nmi.webhook.ledger" />
+    </services>
+</container>

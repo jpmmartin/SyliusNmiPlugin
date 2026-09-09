@@ -28,3 +28,11 @@
 <div class="col-12">
     {{ form_row(config.authenticate_stored_cards, sylius_test_form_attribute('nmi-authenticate-stored-cards')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
 </div>
+
+{#
+    The one field about the gateway talking to the store rather than the store talking to the
+    gateway, which is why it sits apart from the three credentials above.
+#}
+<div class="col-12 col-md-6 mt-5">
+    {{ form_row(config.webhook_signing_key, sylius_test_form_attribute('nmi-webhook-signing-key')) }}
+</div>

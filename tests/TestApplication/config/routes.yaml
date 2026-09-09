@@ -20,3 +20,9 @@ jpm_martin_sylius_nmi_shop_account:
     prefix: /{_locale}/account
     requirements:
         _locale: ^[A-Za-z]{2,4}(_([A-Za-z]{4}|[0-9]{3}))?(_([A-Za-z]{2}|[0-9]{3}))?$
+
+# No prefix at all: the gateway's URL must not depend on a locale, and the route has to be
+# reachable without a session. A consuming store imports this the same way, and if it does not, no
+# event ever arrives — which is the documented consequence, not a bug.
+jpm_martin_sylius_nmi_webhook:
+    resource: "@JpmMartinSyliusNmiPlugin/config/routes/webhook.yaml"

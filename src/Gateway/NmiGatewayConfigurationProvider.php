@@ -61,12 +61,23 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             // Absent means yes. A store that has not answered has not chosen to skip
             // authentication, and reading silence as "no" would make that choice for it.
             authenticateStoredCards: (bool) ($config[NmiGatewayFactory::CONFIG_AUTHENTICATE_STORED_CARDS] ?? true),
+            // Optional, and blank is the same as absent: an operator who cleared the field has
+            // stopped this method receiving events, which is a decision the endpoint honours.
+            webhookSigningKey: $this->optionalString($config, NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY),
         );
     }
 
     private function baseUrlFor(string $environment): string
     {
         return NmiGatewayFactory::ENVIRONMENT_SANDBOX === $environment ? self::SANDBOX_BASE_URL : self::PRODUCTION_BASE_URL;
+    }
+
+    /** @param array<string, mixed> $config */
+    private function optionalString(array $config, string $key): ?string
+    {
+        $value = $config[$key] ?? null;
+
+        return is_string($value) && '' !== trim($value) ? trim($value) : null;
     }
 
     /** @param array<string, mixed> $config */

@@ -77,6 +77,14 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'help_html' => true,
                 'required' => false,
             ])
+            // Optional, and last because it is the only field that is about the gateway talking to
+            // the store rather than the other way round. Leaving it blank is a complete answer: no
+            // key, no events accepted.
+            ->add(NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY, TextType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.webhook_signing_key',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.webhook_signing_key_help',
+                'required' => false,
+            ])
         ;
 
         // The provider reads an absent key as "yes", and the form has to agree with it or the

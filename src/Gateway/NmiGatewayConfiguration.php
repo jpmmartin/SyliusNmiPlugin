@@ -25,6 +25,13 @@ final class NmiGatewayConfiguration
          * the authenticated payment rather than the one nobody checked.
          */
         public readonly bool $authenticateStoredCards = true,
+        /**
+         * The key inbound deliveries are signed with, or null when this method receives none.
+         *
+         * Null is not a degraded mode: with no key there is nothing to verify a delivery against,
+         * so the endpoint refuses every one of them rather than trusting what it cannot check.
+         */
+        public readonly ?string $webhookSigningKey = null,
     ) {
     }
 }

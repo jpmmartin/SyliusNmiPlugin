@@ -25,6 +25,8 @@ final class NmiCredentialsAtRestTest extends KernelTestCase
 {
     private const SECURITY_KEY = 'sec-at-rest-4567';
 
+    private const WEBHOOK_SIGNING_KEY = 'sign-at-rest-89AB';
+
     private EntityManagerInterface $manager;
 
     protected function setUp(): void
@@ -51,6 +53,17 @@ final class NmiCredentialsAtRestTest extends KernelTestCase
     }
 
     /**
+     * The webhook signing key is a shared secret of the same kind as the security key, and it
+     * lives in the same array — so it is encrypted by the same mechanism and for the same reason.
+     * Asserted separately rather than assumed from the line above, because "it is in the same
+     * array" is exactly the sort of thing that stops being true when somebody moves a field.
+     */
+    public function testTheWebhookSigningKeyIsEncryptedToo(): void
+    {
+        self::assertStringNotContainsString(self::WEBHOOK_SIGNING_KEY, $this->storedConfigFor(false));
+    }
+
+    /**
      * The other half: left as Payum's, it is stored readable. Pinned so the first assertion cannot
      * quietly start passing for the wrong reason, and so the cost of the flag is written down
      * somewhere an author will meet it.
@@ -66,7 +79,10 @@ final class NmiCredentialsAtRestTest extends KernelTestCase
         $gatewayConfig = self::getContainer()->get('sylius.factory.gateway_config')->createNew();
         $gatewayConfig->setGatewayName(NmiGatewayFactory::NAME);
         $gatewayConfig->setFactoryName(NmiGatewayFactory::NAME);
-        $gatewayConfig->setConfig([NmiGatewayFactory::CONFIG_SECURITY_KEY => self::SECURITY_KEY]);
+        $gatewayConfig->setConfig([
+            NmiGatewayFactory::CONFIG_SECURITY_KEY => self::SECURITY_KEY,
+            NmiGatewayFactory::CONFIG_WEBHOOK_SIGNING_KEY => self::WEBHOOK_SIGNING_KEY,
+        ]);
         $gatewayConfig->setUsePayum($usePayum);
 
         $this->manager->persist($gatewayConfig);

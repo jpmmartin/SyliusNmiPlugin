@@ -44,6 +44,12 @@ jpm_martin_sylius_nmi:
                 el emisor puede rechazar un pago que no lleve autenticación, y la responsabilidad
                 por un contracargo se queda en la tienda en vez de pasar al emisor. Vendiendo a
                 Norteamérica esa presión no aplica igual, y el pago de un solo clic es lo habitual.
+            webhook_signing_key: Clave de firma de webhooks
+            webhook_signing_key_help: >-
+                La muestra la página de Webhooks de NMI. Pégala aquí y la tienda aceptará los
+                eventos que envíe esa cuenta: reembolsos y anulaciones hechos en el portal de NMI,
+                liquidaciones, contracargos y actualizaciones de tarjetas. Déjala en blanco y no
+                se acepta ningún evento. Se guarda cifrada y nunca se envía al navegador.
     shop:
         pay:
             heading: Pagar con tarjeta
