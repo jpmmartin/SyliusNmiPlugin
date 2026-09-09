@@ -56,10 +56,11 @@ return [
 ];
 ```
 
-Skip this and the plugin is installed but not loaded: none of its services exist, the imports in
-the next step resolve to nothing, and **NMI never appears in the list of gateways** when you go to
-create a payment method. That last symptom is the one you will actually see, and it looks like the
-package failed to install.
+Skip this and one of two things happens. With step 3 done, the store does not start: every page and
+every console command fails with *Bundle "JpmMartinSyliusNmiPlugin" does not exist or it is not
+enabled*, which at least names the cause. With step 3 skipped as well, the plugin is installed but
+not loaded — none of its services exist, and **NMI never appears in the list of gateways** when you
+go to create a payment method, which looks like the package failed to install.
 
 ### 3. Import its configuration and routes
 
@@ -119,7 +120,8 @@ bin/console doctrine:migrations:migrate
 Migrations ship for MySQL and for PostgreSQL; each skips itself on the other engine.
 
 Skip this and the store works right up until the first payment, which fails on a missing table —
-in the middle of checkout, with a shopper watching.
+in the middle of checkout, with a shopper watching, and **after their card has been charged**: the
+gateway is asked before the answer is recorded, so the money moves and the order stays unpaid.
 
 ### 5. Build the front-end assets
 
@@ -143,7 +145,8 @@ Encore
 
 The script tag goes on the shop's `javascripts` hook. **Do not create
 `templates/bundles/SyliusShopBundle/_javascripts.html.twig`** — Sylius 2.x does not read it, so the
-page renders with no card fields and nothing to explain why.
+page renders with no card fields and nothing to explain why. Get the build name wrong, or add the
+entry and never run `yarn build`, and the page errors instead, naming `entrypoints.json`.
 
 If your store already has this file with a `sylius_twig_hooks:` key, add the `hooks:` entry to it
 rather than pasting a second one — two of the same key at the top level and the file stops parsing.

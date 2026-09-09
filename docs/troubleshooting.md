@@ -9,54 +9,90 @@ install steps in order and check each one — most of what follows is a step tha
 
 ## The payment page has no card fields
 
-**What you see:** the pay page renders, the *Pay* button is there, and where the card number should
-be there is nothing. No error on the page, nothing in the browser console, nothing in the log. It
+**What you see:** the pay page renders its heading and the amount to pay, and below that there is
+nothing at all — no card fields and no *Pay* button, because the button is mounted by the same
+script as the fields. No error on the page, nothing in the browser console, nothing in the log. It
 looks like a broken template.
 
-**What was missed:** README **step 5**, the front-end build — or one of the three ways it goes
-wrong on its own:
+**What was missed:** README **step 5**, the front-end build, in one of the two ways it goes wrong
+without a sound:
 
-- The entry was added to the wrong Encore block. A Sylius Standard `webpack.config.js` builds four
-  configurations; the entry belongs in the **shop** one, the block that sets
-  `public/build/app/shop`.
-- `yarn build` was never run after adding it, or `bin/console assets:install` was not run after
-  that.
-- The script tag was put in `templates/bundles/SyliusShopBundle/_javascripts.html.twig`. **Sylius
-  2.x does not read that file.** It has to go on the `sylius_shop.base#javascripts` Twig hook.
-- The third argument to `encore_entry_script_tags` was omitted. It is the build name, it is
-  required, and without it Encore looks in a manifest that does not contain this entry.
+- The script tag was never put on the `sylius_shop.base#javascripts` Twig hook. The usual variant
+  is putting it in `templates/bundles/SyliusShopBundle/_javascripts.html.twig` instead: **Sylius
+  2.x does not read that file**, so the tag is simply never rendered.
+- The tag is rendered but the file it points at is not there — a deployment that shipped the
+  manifest and not `public/build`, or a web server that does not serve that directory. The page
+  looks exactly the same; the difference is in the browser's Network tab, where `nmi-shop.js`
+  fails to load.
 
 **How to confirm:** view the page source and look for a `<script>` whose `src` contains
-`nmi-shop`. If it is absent, the tag was never rendered. If it is present but 404s, the assets were
-never built or installed.
+`nmi-shop`. If it is absent, the hook never rendered the tag. If it is present, open the browser's
+Network tab: the request for it is failing.
+
+The other two ways of getting step 5 wrong do **not** fail silently — they are the next entry.
+
+## The pay page errors, and the error names `entrypoints.json`
+
+**What you see:** the store's error page instead of the pay page. In the log, a
+`HookRenderException` for the `nmi` hook in `sylius_shop.base#javascripts`, wrapping one of two
+messages.
+
+**What was missed:** README **step 5** again, in one of its two loud ways:
+
+- *Could not find the entrypoints file from Webpack: the file …/public/build/default/entrypoints.json
+  does not exist.* The third argument to `encore_entry_script_tags` was omitted. It is the build
+  name, `app.shop`, and without it Encore looks for a build that a Sylius Standard store does not
+  have.
+- *Could not find the entry "nmi-shop" in …/public/build/app/shop/entrypoints.json. Found:
+  app-shop-entry.* The entry is not in the shop build's manifest: either `yarn build` was never run
+  after adding it, or it was added to the wrong Encore block. A Sylius Standard `webpack.config.js`
+  builds four configurations; the entry belongs in the **shop** one, the block that sets
+  `public/build/app/shop`.
 
 ## NMI is not in the list of gateways when creating a payment method
 
 **What you see:** *Configuration → Payment methods → Create* offers Offline, Stripe, whatever else
 you have — and no NMI. It looks as though the package failed to install.
 
-**What was missed:** README **step 2**, registering the bundle. The package is on disk and Composer
-is happy; the application simply never loads it, so none of its services exist and the gateway
-never registers itself.
+**What was missed:** README **step 2**, registering the bundle — **and step 3 with it**. With the
+bundle unregistered but its configuration imported, the store does not start at all: every page and
+every console command fails with *Bundle "JpmMartinSyliusNmiPlugin" does not exist or it is not
+enabled*, naming the file that imports it. That failure is loud and points at the cause. The silent
+one above is what both steps skipped looks like: the package is on disk, Composer is happy, and the
+application simply never loads it, so none of its services exist and the gateway never registers
+itself.
 
-**How to confirm:** `bin/console debug:container --parameter=kernel.bundles | grep -i nmi`.
+**How to confirm:** `bin/console debug:container --tag=sylius.gateway_configuration_type` lists
+every gateway the form offers, and NMI is not among them. If step 3 was done and step 2 was not,
+no console command runs at all — the error above *is* the confirmation.
 
 ## The first payment fails on a missing table
 
-**What you see:** checkout gets as far as submitting the card and then throws a database error
-naming `jpm_martin_sylius_nmi_transaction` — in front of a shopper.
+**What you see:** the shopper types a card, presses *Pay*, and gets the store's error page. In the
+log, a database error naming `jpm_martin_sylius_nmi_transaction`. Opening the pay page itself does
+not touch the table; only the charge does.
 
 **What was missed:** README **step 4**, the migration. Run
 `bin/console doctrine:migrations:migrate`.
 
-## The pay page redirects away with no error and nothing is charged
+**What has already happened by then:** the card was charged. The gateway is asked first and the
+answer recorded second, so the money has moved when the recording fails; the store then rolls its
+own side back, and the order stays awaiting payment while NMI holds a sale nothing in the store
+knows about. After the migration, find that transaction in NMI's portal and either void it or, if
+the shopper is to keep their order, complete the payment by hand from the order page in the admin.
 
-**What you see:** the shopper submits the card and lands back on the order page or the homepage.
-No error, no flash message, no failed payment. The payment stays as it was.
+## The shopper never sees the card form — the pay page bounces straight back
+
+**What you see:** the shopper chooses to pay and lands on the order page without ever seeing the
+card fields: the pay page answers with a redirect. No error, no flash message, no failed payment.
+The payment stays `new`.
 
 **What was missed:** README **step 6** — `SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN` is
-pointed at a queue rather than `sync://`. The pay page announces its command and asks for a
-response *in the same request*, so a queued command leaves the page with nothing to render.
+pointed at a queue rather than `sync://`. The pay page announces its command and needs the answer
+*in the same request*; queued, the command sits in `messenger_messages` and the page has nothing to
+render, so it sends the shopper onward.
+
+**How to confirm:** `messenger_messages` gains a row per attempt, and nothing consumes them.
 
 **Note this is not Sylius's default** — Sylius ships `sync://` and it is correct. Something in your
 application changed it.
@@ -83,8 +119,10 @@ silently. Nothing in your store will tell you an event was lost.
 
 ## Webhooks never arrive at all — NMI shows failures, your log shows nothing
 
-**What you see:** deliveries failing in NMI's portal, and **not a single line** in your
-application's log. Not even a rejection.
+**What you see:** deliveries failing in NMI's portal, and nothing from the plugin in your
+application's log — not even a rejection. In production there is not a single line, because Sylius
+excludes 404s from the log; in `dev` there is only Symfony's own *No route found for "POST
+/nmi/webhooks/…"*.
 
 **What was missed:** README **step 3** — the application never imported the plugin's *webhook*
 routes. There is no endpoint, so the request never reaches the plugin and nothing can log it.
@@ -95,8 +133,9 @@ path.
 
 ## The gateway is missing from the refund plugin's methods
 
-**What you see:** you installed `sylius/refund-plugin`, and its refund screen offers *Offline* and
-nothing else. NMI is not refused — it simply never appears.
+**What you see:** you installed `sylius/refund-plugin`, and its refund screen offers only the
+methods its own list names — *Offline*, typically — and never NMI. The gateway is not refused; it
+simply never appears.
 
 **What was missed:** the refund plugin keeps its own list of gateways it will refund through, and a
 gateway missing from it is invisible rather than rejected. Add this one:
@@ -131,12 +170,14 @@ it.
 
 ## The saved-cards page in the shopper's account 404s
 
-**What was missed:** README **step 3** — the account routes were not imported, or were imported
-without the `/{_locale}/account` prefix.
+**What was missed:** README **step 3** — the account routes were not imported.
 
-That prefix is not decoration. Sylius's access rule is `^/(?!admin|api…)[^/]++/account`, and the
-first segment is the **locale** — mount the routes without it and the pages sit inside the shop
-firewall but outside the rule that requires a signed-in shopper.
+**A near miss that looks different:** imported *without* the `/{_locale}/account` prefix, the page
+exists — at `/saved-cards` instead of `/en_US/account/saved-cards` — and the account menu links to
+it, so a signed-in shopper reaches it and nothing seems wrong. What is wrong is who else can reach
+it. The prefix is what puts the page under Sylius's rule requiring a signed-in shopper
+(`^/(?!admin|api…)[^/]++/account`, whose first segment is the **locale**); without it, a visitor who
+is not signed in is not sent to log in but is handed an error page instead. Put the prefix back.
 
 ## *Add a card* answers 404 in the shopper's account
 
