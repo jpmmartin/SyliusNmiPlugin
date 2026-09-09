@@ -16,5 +16,19 @@
         </service>
 
         <service id="JpmMartin\SyliusNmiPlugin\Webhook\NmiReceivedEventLedgerInterface" alias="jpm_martin_sylius_nmi.webhook.ledger" />
+
+        <!--
+            Turns a verified event into a payment request with the notify action, so the store's
+            record of what the gateway told it sits beside its record of what it asked the gateway.
+        -->
+        <service id="jpm_martin_sylius_nmi.webhook.router" class="JpmMartin\SyliusNmiPlugin\Webhook\NmiWebhookRouter">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="logger" />
+        </service>
+
+        <service id="JpmMartin\SyliusNmiPlugin\Webhook\NmiWebhookRouterInterface" alias="jpm_martin_sylius_nmi.webhook.router" />
     </services>
 </container>

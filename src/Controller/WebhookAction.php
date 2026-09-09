@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
 use JpmMartin\SyliusNmiPlugin\Webhook\NmiReceivedEventLedgerInterface;
 use JpmMartin\SyliusNmiPlugin\Webhook\NmiWebhookEnvelope;
+use JpmMartin\SyliusNmiPlugin\Webhook\NmiWebhookRouterInterface;
 use JpmMartin\SyliusNmiPlugin\Webhook\NmiWebhookSignature;
 use Psr\Log\LoggerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
@@ -50,14 +51,19 @@ final class WebhookAction
         private readonly PaymentMethodRepositoryInterface $paymentMethodRepository,
         private readonly NmiGatewayConfigurationProviderInterface $configurationProvider,
         private readonly NmiReceivedEventLedgerInterface $ledger,
+        private readonly NmiWebhookRouterInterface $router,
         private readonly LoggerInterface $logger,
     ) {
     }
 
     public function __invoke(Request $request, string $code): Response
     {
-        $signingKey = $this->signingKeyFor($code);
-        if (null === $signingKey) {
+        $paymentMethod = $this->nmiPaymentMethodFor($code);
+        $signingKey = null === $paymentMethod
+            ? null
+            : $this->configurationProvider->fromPaymentMethod($paymentMethod)->webhookSigningKey;
+
+        if (null === $paymentMethod || null === $signingKey) {
             // Indistinguishable from a bad signature on purpose. Answering differently would let
             // anyone enumerate which payment method codes exist and which of them take webhooks.
             return $this->reject($code, 'no payment method with a signing key answers to that code');
@@ -96,32 +102,22 @@ final class WebhookAction
             return $this->accepted();
         }
 
-        // Routing on the event type, and the side effects themselves, land here as the change
-        // proceeds. Until then every event takes the path a type this store does not act on will
-        // always take: recorded, logged and acknowledged.
-        //
-        // Logged rather than silently dropped, because an account shared with another store
-        // produces types this one has no use for continuously, and an operator wondering why
-        // nothing happened deserves to see that the delivery did arrive.
-        $this->logger->info('Recorded an NMI webhook delivery this store does not act on.', [
-            'event_id' => $envelope->eventId,
-            'event_type' => $envelope->eventType,
-            'payment_method_code' => $code,
-        ]);
+        // Recorded first, acted on second, and acknowledged whatever the router made of it. A
+        // delivery this store cannot use is not a delivery worth twenty retries.
+        $this->router->route($envelope, $paymentMethod);
 
         return $this->accepted();
     }
 
     /**
-     * The key this method's deliveries are signed with, or null when there is nothing to verify
-     * against — an unknown code, a method belonging to another gateway, or one whose operator
-     * never pasted a signing key.
+     * The NMI payment method that answers to this code, or null when none does.
      *
-     * A method with no key is not a misconfiguration to complain about. It is the ordinary state
-     * of a store that has not wired webhooks, and the promise that such a store sees no change is
-     * kept precisely by refusing here.
+     * Null and "configured with no signing key" are answered identically by the caller, and that
+     * is the point: a store that has not wired webhooks is not a misconfiguration to complain
+     * about, and telling the two apart in the response would let anyone enumerate which methods
+     * exist and which of them take events.
      */
-    private function signingKeyFor(string $code): ?string
+    private function nmiPaymentMethodFor(string $code): ?PaymentMethodInterface
     {
         $paymentMethod = $this->paymentMethodRepository->findOneBy(['code' => $code]);
 
@@ -129,11 +125,7 @@ final class WebhookAction
             return null;
         }
 
-        if (NmiGatewayFactory::NAME !== $paymentMethod->getGatewayConfig()?->getFactoryName()) {
-            return null;
-        }
-
-        return $this->configurationProvider->fromPaymentMethod($paymentMethod)->webhookSigningKey;
+        return NmiGatewayFactory::NAME === $paymentMethod->getGatewayConfig()?->getFactoryName() ? $paymentMethod : null;
     }
 
     /**

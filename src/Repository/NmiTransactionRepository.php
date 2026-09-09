@@ -19,6 +19,23 @@ class NmiTransactionRepository extends EntityRepository implements NmiTransactio
         return $transactions;
     }
 
+    public function findOneByAnyTransactionId(string $transactionId): ?NmiTransactionInterface
+    {
+        /** @var NmiTransactionInterface|null $transaction */
+        $transaction = $this->createQueryBuilder('t')
+            ->andWhere('t.transactionId = :transactionId OR t.parentTransactionId = :transactionId')
+            ->setParameter('transactionId', $transactionId)
+            // Newest first: a capture and its authorisation share an id, and the later row is the
+            // one whose payment state an inbound event is about.
+            ->orderBy('t.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
+
+        return $transaction;
+    }
+
     public function findOneByTransactionIdAndType(string $transactionId, string $type): ?NmiTransactionInterface
     {
         /** @var NmiTransactionInterface|null $transaction */

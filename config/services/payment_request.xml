@@ -152,6 +152,21 @@
             <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="status" />
         </service>
 
+        <!--
+            What the gateway did outside the store. Same bus, same audit trail; the only difference
+            is that nothing here asks the gateway for anything, because it has already happened.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_provider.notify" class="JpmMartin\SyliusNmiPlugin\CommandProvider\NotifyCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="notify" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.command_handler.notify_payment" class="JpmMartin\SyliusNmiPlugin\CommandHandler\NotifyPaymentHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
         <!-- A void: the payment state machine has no void transition, so it travels as a cancel. -->
         <service id="jpm_martin_sylius_nmi.command_provider.cancel" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider">
             <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="cancel" />

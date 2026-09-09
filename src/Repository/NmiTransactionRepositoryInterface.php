@@ -27,6 +27,18 @@ interface NmiTransactionRepositoryInterface extends RepositoryInterface
      * schema, so this is what makes recording the same gateway answer twice a no-op instead
      * of a constraint violation.
      */
+    /**
+     * The newest row this store holds under a gateway transaction id, looking at both the id
+     * itself and the id a refund was recorded against.
+     *
+     * **Both columns, because a webhook does not say which it is naming.** NMI models a refund as
+     * an action on the original transaction, but the store records a refund under whatever id the
+     * gateway answered with and keeps the original as the parent — so an inbound event may name
+     * either, and searching one column would resolve half the events and silently treat the rest
+     * as belonging to another store.
+     */
+    public function findOneByAnyTransactionId(string $transactionId): ?NmiTransactionInterface;
+
     public function findOneByTransactionIdAndType(string $transactionId, string $type): ?NmiTransactionInterface;
 
     /**

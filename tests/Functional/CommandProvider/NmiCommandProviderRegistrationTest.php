@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
 use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\CardPaymentCommandProvider;
+use JpmMartin\SyliusNmiPlugin\CommandProvider\NotifyCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\RefundCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\StatusCommandProvider;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
@@ -50,6 +51,10 @@ final class NmiCommandProviderRegistrationTest extends KernelTestCase
                 // Not optional: the pay flow ends by minting a status request, and a gateway
                 // that does not answer it turns every successful payment into an error page.
                 PaymentRequestInterface::ACTION_STATUS,
+                // What the gateway did outside the store. It travels the same bus as everything
+                // else so the audit trail does not fork, and it is the only action here that asks
+                // the gateway for nothing: by the time it arrives, it has already happened.
+                PaymentRequestInterface::ACTION_NOTIFY,
             ],
             $this->nmiProvider()->getCommandProviderIndexes(),
         );
@@ -70,6 +75,7 @@ final class NmiCommandProviderRegistrationTest extends KernelTestCase
         yield 'refunding' => [PaymentRequestInterface::ACTION_REFUND, RefundCommandProvider::class];
         yield 'voiding' => [PaymentRequestInterface::ACTION_CANCEL, CancelCommandProvider::class];
         yield 'reporting status' => [PaymentRequestInterface::ACTION_STATUS, StatusCommandProvider::class];
+        yield 'being told what happened elsewhere' => [PaymentRequestInterface::ACTION_NOTIFY, NotifyCommandProvider::class];
     }
 
     /**

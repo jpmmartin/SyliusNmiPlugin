@@ -40,6 +40,7 @@
             <argument type="service" id="sylius.repository.payment_method" />
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
             <argument type="service" id="jpm_martin_sylius_nmi.webhook.ledger" />
+            <argument type="service" id="jpm_martin_sylius_nmi.webhook.router" />
             <argument type="service" id="logger" />
         </service>
     </services>
