@@ -165,7 +165,6 @@ The third argument is the build name and is required: that store's shop assets a
 `app.shop`, and without it Encore looks in a manifest that does not contain this entry.
 
 ```bash
-yarn build
 bin/console assets:install
 ```
 
