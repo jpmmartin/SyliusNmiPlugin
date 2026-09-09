@@ -50,10 +50,16 @@ jobs:
               with:
                   path: plugin
 
+            # 8.4, not the 8.2 the plugin itself supports, and the reason is the store rather than
+            # the plugin. Sylius Standard 2.2 requires PHP 8.3, so on 8.2 `create-project` quietly
+            # falls back to the last skeleton that accepted it, v2.1.4 — and that one no longer
+            # installs at all: its `allow-plugins` never named `rector/extension-installer`, which
+            # a development dependency of it has since come to require. Found by running this job,
+            # not by reading anything. Whether the plugin works on 8.2 is build.yaml's question.
             - name: Set up PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: '8.2'
+                  php-version: '8.4'
                   extensions: intl, gd, opcache, pdo_pgsql, pgsql
                   tools: composer:v2
                   coverage: none
