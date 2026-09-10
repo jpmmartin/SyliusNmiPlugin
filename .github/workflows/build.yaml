@@ -138,3 +138,73 @@ jobs:
                   name: "behat-logs-php${{ matrix.php }}-refund-${{ matrix.refund_plugin }}"
                   path: etc/build/
                   if-no-files-found: ignore
+
+    # The schema on the other engine Sylius supports. The four jobs above build their database with
+    # the plugin's migration on PostgreSQL and run the whole suite; this one builds it on MySQL and
+    # runs the test that compares the tables the migration built with the ones the mapping
+    # describes. One migration serves both engines — Doctrine derives each engine's statements when
+    # it runs — and this job, not a second copy of the SQL, is what proves it.
+    schema-on-mysql:
+        runs-on: ubuntu-latest
+
+        name: "Migrations on MySQL"
+
+        env:
+            APP_ENV: test
+            # serverVersion decides which DBAL platform handles the connection. The test
+            # application's own doctrine.yaml says 5.7; the step below prints which one won.
+            DATABASE_URL: "mysql://root:root@127.0.0.1:3306/nmi_plugin_test?serverVersion=8.4&charset=utf8mb4"
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN: "sync://"
+
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                ports: ["3306:3306"]
+                options: >-
+                    --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+                    --health-interval 5s
+                    --health-timeout 3s
+                    --health-retries 20
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Set up PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  extensions: intl, gd, opcache, pdo_mysql
+                  tools: composer:v2
+                  coverage: none
+
+            - name: Cache Composer
+              uses: actions/cache@v5
+              with:
+                  path: ~/.cache/composer/files
+                  key: "${{ runner.os }}-php-8.4-composer-${{ hashFiles('composer.json') }}"
+                  restore-keys: "${{ runner.os }}-php-8.4-composer-"
+
+            - name: Install dependencies
+              run: composer install --no-interaction --no-progress --prefer-dist
+
+            - name: Generate the payment encryption key
+              run: vendor/bin/console sylius:payment:generate-key
+
+            - name: Which platform DBAL picked
+              run: |
+                  vendor/bin/console dbal:run-sql "SELECT VERSION()"
+                  php -r 'require "vendor/autoload.php"; $_SERVER["APP_ENV"] = $_ENV["APP_ENV"] = "test"; require "vendor/sylius/test-application/config/bootstrap.php"; $kernel = new Sylius\TestApplication\Kernel("test", false); $kernel->boot(); echo get_class($kernel->getContainer()->get("doctrine.dbal.default_connection")->getDatabasePlatform()), PHP_EOL;'
+
+            # The migration must build the four tables here as it does on PostgreSQL, and nothing of
+            # the plugin's may be skipped: skipping is what the old per-engine halves did.
+            - name: Build the database with the migration
+              run: |
+                  set -o pipefail
+                  vendor/bin/console doctrine:database:create --if-not-exists
+                  vendor/bin/console doctrine:migrations:migrate --no-interaction | tee migrate.log
+                  ! grep -i 'JpmMartin' migrate.log | grep -qi skipped
+
+            - name: The tables the migration built are the ones the mapping describes
+              run: vendor/bin/phpunit tests/Integration/Migrations --colors=always
