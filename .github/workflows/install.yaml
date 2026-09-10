@@ -207,7 +207,14 @@ jobs:
                   }
                   require __DIR__ . '/index.php';
                   PHP
-                  php -S 127.0.0.1:8000 -t public public/router.php > server.log 2>&1 &
+                  # `variables_order=EGPCS`, because PHP's built-in server hands the environment to
+                  # getenv() only — nothing lands in $_SERVER or $_ENV, which is where Symfony's
+                  # Dotenv looks before falling back to the store's .env. Without the E, the job's
+                  # DATABASE_URL is invisible to the served page, the .env's MySQL address wins,
+                  # and the homepage answers 500 with a connection refused. The console never
+                  # shows it: the CLI populates $_SERVER from the environment by itself. Found by
+                  # the first run of this step in the runner, reproduced locally with a probe.
+                  php -S 127.0.0.1:8000 -d variables_order=EGPCS -t public public/router.php > server.log 2>&1 &
                   for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8000/ && break; sleep 1; done
                   status=$(curl -s -o homepage.html -w '%{http_code}' http://localhost:8000/en_US/)
                   test "$status" = '200' \
