@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\NotifyPayment;
 use Sylius\Bundle\PaymentBundle\CommandProvider\PaymentRequestCommandProviderInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 
+/** @internal */
 final class NotifyCommandProvider implements PaymentRequestCommandProviderInterface
 {
     public function supports(PaymentRequestInterface $paymentRequest): bool

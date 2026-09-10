@@ -24,6 +24,7 @@ use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingChargeFactory;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
 /**
@@ -75,6 +76,7 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
     protected function tearDown(): void
     {
         $this->manager->rollback();
+        DecoratingChargeFactory::reset();
 
         parent::tearDown();
     }
@@ -105,6 +107,31 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
 
         // The specification asks for the order too, not only the payment.
         self::assertSame(OrderPaymentStates::STATE_PAID, $paymentRequest->getPayment()->getOrder()?->getPaymentState());
+    }
+
+    /**
+     * The *a decorator adds what the plugin does not model* scenario, through a decorator
+     * registered in the test application the way a store registers its own: the charge the
+     * gateway receives carries the store's description and merchant-defined field, and
+     * everything the plugin put there.
+     */
+    public function testADecoratedChargeFactoryTellsTheGatewayMore(): void
+    {
+        DecoratingChargeFactory::$orderDescription = 'Three shirts and a cap';
+        DecoratingChargeFactory::$extra = ['merchant_defined_fields' => ['1' => 'campaign-2026']];
+        $this->gateway->willApprove('12513506464');
+        $paymentRequest = $this->processingRequest();
+
+        $this->post($paymentRequest, [self::TOKEN]);
+
+        self::assertResponseRedirects();
+        self::assertSame(PaymentInterface::STATE_COMPLETED, $this->reload($paymentRequest)->getPayment()->getState());
+        $charge = $this->gateway->lastCharge;
+        self::assertNotNull($charge);
+        self::assertSame('Three shirts and a cap', $charge->orderDescription);
+        self::assertSame(['merchant_defined_fields' => ['1' => 'campaign-2026']], $charge->extra);
+        self::assertSame(self::TOKEN, $charge->paymentToken, 'Everything the plugin put there is still there.');
+        self::assertSame(self::AMOUNT, $charge->amount);
     }
 
     /**
@@ -262,7 +289,7 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
         );
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('#nmi-payment'), 'The card form must still be there.');
+        self::assertCount(1, $crawler->filter('[data-nmi-payment]'), 'The card form must still be there.');
         self::assertNull($this->gateway->lastOperation, 'The gateway must not be called without a token.');
 
         $paymentRequest = $this->reload($paymentRequest);
@@ -682,7 +709,7 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
         );
 
         $this->csrfTokens[(string) $paymentRequest->getId()] = (string) $crawler
-            ->filter('#nmi-payment')
+            ->filter('[data-nmi-payment]')
             ->attr('data-nmi-csrf-token')
         ;
 

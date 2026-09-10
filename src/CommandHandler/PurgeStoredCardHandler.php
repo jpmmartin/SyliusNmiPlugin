@@ -21,6 +21,8 @@ use Sylius\Component\Payment\Repository\PaymentMethodRepositoryInterface;
  * is the gateway saying it has no such record, which is the state being asked for.
  *
  * @see PurgeStoredCard for why the identifiers travel rather than the row
+ *
+ * @internal
  */
 final class PurgeStoredCardHandler
 {

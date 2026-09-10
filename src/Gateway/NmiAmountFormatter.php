@@ -10,6 +10,8 @@ use Symfony\Component\Intl\Currencies;
  * Converts between Sylius's integer minor-unit amounts and the decimal string the gateway
  * uses ("x.xx"), in both directions, using the currency's own number of fraction digits and
  * no floating point anywhere.
+ *
+ * @internal
  */
 final class NmiAmountFormatter
 {

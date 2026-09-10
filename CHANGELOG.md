@@ -33,6 +33,11 @@ is, and a new empty `## [Unreleased]` takes its place.
   opens once the whole payment is back.
 - The same flow headless, through the shop API Sylius already documents. This plugin adds no
   endpoint a headless store has to call.
+- Seams for a store to build on, named in `docs/extending.md`: the charge sent to the gateway
+  comes from a decorable factory and carries any field of NMI's API a store adds; the card form
+  mounts on any element by its `data-nmi-*` attributes, has a `tokenize` mode, announces what it
+  does as DOM events and exports `mount`, `mountAll` and `submit`. Everything the page does not
+  name is internal.
 - Credentials stored per payment method and encrypted at rest, so two channels can charge two
   different NMI accounts.
 - A record of every transaction the gateway performed, kept against the payment it belongs to and

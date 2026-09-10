@@ -25,6 +25,8 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
  * This is the plugin's void. The payment state machine has no such transition — four definitions
  * ship and the two that load omit it — so a void travels as a cancel, and the gateway is asked
  * before the cancel is allowed to happen.
+ *
+ * @internal
  */
 final class CancelPaymentHandler
 {

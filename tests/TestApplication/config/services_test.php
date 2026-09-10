@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingChargeFactory;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
 return function (ContainerConfigurator $container) {
@@ -18,6 +20,14 @@ return function (ContainerConfigurator $container) {
         // wants particular behaviour prepares it on the instance it fetches.
         $container->services()
             ->set('jpm_martin_sylius_nmi.gateway.client', FakeNmiClient::class)
+        ;
+
+        // A store's decorator of the charge factory, as a store would register one. Dormant until
+        // a test tells it what to add, so the default charge is what every other test sees.
+        $container->services()
+            ->set(DecoratingChargeFactory::class)
+            ->decorate('jpm_martin_sylius_nmi.gateway.charge_factory')
+            ->args([service('.inner')])
         ;
 
         // Services fetched from the container by hand — by an integration test, or by the

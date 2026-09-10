@@ -15,6 +15,7 @@ use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Resource\Factory\FactoryInterface;
 
+/** @internal */
 final class NmiStoredCardRecorder implements NmiStoredCardRecorderInterface
 {
     /** @param FactoryInterface<NmiStoredCardInterface> $storedCardFactory */

@@ -21,6 +21,8 @@ use Sylius\Component\Core\Model\PaymentMethodInterface;
  * within one account.
  *
  * Nothing here flushes. Every caller is already inside a transaction that commits on return.
+ *
+ * @internal
  */
 final readonly class NmiDefaultCard
 {

@@ -7,6 +7,7 @@ namespace JpmMartin\SyliusNmiPlugin\Gateway;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
 use Sylius\Component\Payment\Model\PaymentMethodInterface;
 
+/** @internal */
 final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationProviderInterface
 {
     public function fromPaymentMethod(PaymentMethodInterface $paymentMethod): NmiGatewayConfiguration

@@ -26,6 +26,8 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
  * middle of moving the payment to completed, and this only decides whether they may: the request
  * finishes completed when the gateway took it and failed when it refused, and the caller reads
  * that.
+ *
+ * @internal
  */
 final class CapturePaymentHandler
 {

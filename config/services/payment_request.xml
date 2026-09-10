@@ -65,6 +65,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.stored_card" />
             <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_stored_card" />
             <argument type="service" id="jpm_martin_sylius_nmi.provider.stored_card_offer" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.charge_factory" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

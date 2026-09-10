@@ -35,6 +35,8 @@ use Symfony\Component\HttpFoundation\Response;
  * contract is `@experimental`, and nothing on that path deduplicates. Those five reasons are
  * recorded in the change's design; a sixth, about the response status forcing retries, was
  * withdrawn after the gateway was observed accepting a `204`.
+ *
+ * @internal
  */
 final class WebhookAction
 {

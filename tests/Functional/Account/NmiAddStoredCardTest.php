@@ -77,14 +77,14 @@ final class NmiAddStoredCardTest extends WebTestCase
 
         $page = $this->client->click($link->link());
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $page->filter('#nmi-payment'), 'And it must open a page that can take a card.');
+        self::assertCount(1, $page->filter('[data-nmi-payment]'), 'And it must open a page that can take a card.');
         // The same form the pay page renders — the gateway's frames in the theme's own markup —
         // with a button that says what this page does rather than "Pay".
-        self::assertCount(1, $page->filter('#nmi-payment #nmi-card-number'));
-        self::assertCount(1, $page->filter('#nmi-payment #nmi-card-expiry'));
-        self::assertCount(1, $page->filter('#nmi-payment #nmi-card-cvv'));
-        self::assertSame('Add a card', trim($page->filter('#nmi-card-pay')->text()));
-        self::assertNotNull($page->filter('#nmi-card-pay')->attr('disabled'));
+        self::assertCount(1, $page->filter('[data-nmi-payment] #nmi-card-number'));
+        self::assertCount(1, $page->filter('[data-nmi-payment] #nmi-card-expiry'));
+        self::assertCount(1, $page->filter('[data-nmi-payment] #nmi-card-cvv'));
+        self::assertSame('Add a card', trim($page->filter('[data-nmi-pay-button]')->text()));
+        self::assertNotNull($page->filter('[data-nmi-pay-button]')->attr('disabled'));
     }
 
     /**

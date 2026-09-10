@@ -20,6 +20,8 @@ use Symfony\Contracts\Translation\LocaleAwareInterface;
  * no locale to inherit and the translator would fall back to the application's default — which for
  * a shopper who reads Spanish means a payment email in English. It is captured where the event
  * arrived and restored here, and put back afterwards so the worker's next message is unaffected.
+ *
+ * @internal
  */
 final class NotifyCardholderHandler
 {

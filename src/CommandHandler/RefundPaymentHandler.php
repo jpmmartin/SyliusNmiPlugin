@@ -40,6 +40,8 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
  *
  * That fallback is not a leftover. A store that never wires webhooks has no settlement record and
  * must keep working exactly as it did, which is what the second path is for.
+ *
+ * @internal
  */
 final class RefundPaymentHandler
 {

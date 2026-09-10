@@ -15,6 +15,8 @@ use Sylius\Component\Core\Model\PaymentInterface;
  * each, because a retried operation leaves the newest row as the one the gateway honoured. Shared
  * by the order screen's refund and by everything the refund plugin asks, so that both paths point
  * at the same transaction and agree on what has been given back against it.
+ *
+ * @internal
  */
 final class MoneyTakingTransactionProvider
 {

@@ -31,6 +31,8 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  * It is not a secret in the sense the security key is. Charging against it needs the private key,
  * which never leaves the server. What this narrows is where it can be read from — page source, a
  * screenshot, a cached page — not what it is worth to somebody who reads it.
+ *
+ * @internal
  */
 final class StoredCardAuthenticationAction
 {

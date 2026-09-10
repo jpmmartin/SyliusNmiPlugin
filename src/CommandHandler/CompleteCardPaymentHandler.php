@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
-use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
@@ -15,9 +14,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
-use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
-use JpmMartin\SyliusNmiPlugin\Gateway\Request\StoredCard;
-use JpmMartin\SyliusNmiPlugin\Gateway\Request\ThreeDSecureResult;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\ChargeFactoryInterface;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOfferInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiStoredCardRecorderInterface;
@@ -26,7 +23,6 @@ use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
-use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
@@ -47,12 +43,11 @@ use Sylius\Component\Payment\PaymentTransitions;
  * - no answer: the request fails and the payment is left alone, because a request that never
  *   came back may still have been taken — and reporting that as a failure the shopper can retry
  *   is the lesser of the two wrongs, while reporting it as paid is the unrecoverable one
+ *
+ * @internal
  */
 final class CompleteCardPaymentHandler
 {
-    /** The most the gateway keeps of an order reference: its rule is "fewer than 50 characters". */
-    private const ORDER_REFERENCE_LENGTH = 49;
-
     /** A saved card that cannot be charged: gone, expired, or never this shopper's to begin with. */
     public const CARD_UNAVAILABLE_MESSAGE_KEY = 'jpm_martin_sylius_nmi.payment.card_unavailable';
 
@@ -66,6 +61,7 @@ final class CompleteCardPaymentHandler
         private readonly NmiStoredCardRecorderInterface $storedCardRecorder,
         private readonly NmiStoredCardRepositoryInterface $storedCardRepository,
         private readonly NmiStoredCardOfferInterface $storedCardOffer,
+        private readonly ChargeFactoryInterface $charges,
     ) {
     }
 
@@ -114,7 +110,7 @@ final class CompleteCardPaymentHandler
                     return;
                 }
 
-                $charge = $this->chargeFromStoredCard($payment, $storedCard, $payload);
+                $charge = $this->charges->forStoredCard($payment, $storedCard, $payload);
             } else {
                 // Asked once, here, and used twice: it decides whether the charge asks the gateway
                 // to keep the card and, if it does, who the card ends up filed against. Inside the
@@ -129,7 +125,7 @@ final class CompleteCardPaymentHandler
 
                 // Non-null here by the guard above: the request was refused when neither a token
                 // nor a saved card arrived, and a saved card is what this branch does not have.
-                $charge = $this->chargeFrom($payment, (string) $token, $payload, null !== $savingFor && !$alreadySaved);
+                $charge = $this->charges->forToken($payment, (string) $token, $payload, null !== $savingFor && !$alreadySaved);
             }
 
             $response = $authorizing
@@ -176,70 +172,6 @@ final class CompleteCardPaymentHandler
             $paymentRequest,
             PaymentRequestTransitions::GRAPH,
             PaymentRequestTransitions::TRANSITION_COMPLETE,
-        );
-    }
-
-    /**
-     * What the gateway is told the order is: its number, which is what the merchant knows it by
-     * and types into the portal's search. Not the order's token — the gateway keeps fewer than
-     * fifty characters here, and a Sylius order token is sixty-four, so sending the token made
-     * every real checkout fail with a validation error while the short tokens of seeded test
-     * orders sailed through. A number is nine characters; the cut is there for a store that
-     * numbers its orders some other way.
-     */
-    private function orderReference(?OrderInterface $order): ?string
-    {
-        $number = $order?->getNumber();
-
-        return null !== $number && '' !== $number ? substr($number, 0, self::ORDER_REFERENCE_LENGTH) : null;
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function chargeFrom(PaymentInterface $payment, string $token, array $payload, bool $storeCard): Charge
-    {
-        $order = $payment->getOrder();
-
-        return new Charge(
-            paymentToken: $token,
-            amount: (int) $payment->getAmount(),
-            currencyCode: (string) $payment->getCurrencyCode(),
-            // Sent on every charge so a merchant can find the transaction in the gateway's own
-            // portal after a lost response. It is not a reconciliation mechanism: nothing in the
-            // API looks a payment up by it.
-            orderId: $this->orderReference($order),
-            ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
-            threeDSecure: $this->threeDSecureFrom($payload),
-            storeCard: $storeCard,
-        );
-    }
-
-    /**
-     * The same charge, paid for by a card the gateway already holds.
-     *
-     * Everything about the amount, the order and the authentication is identical — which is the
-     * whole of *a stored card charges like a fresh one*. What differs is where the money comes
-     * from, and that is one object further down.
-     *
-     * @param array<string, mixed> $payload
-     */
-    private function chargeFromStoredCard(PaymentInterface $payment, NmiStoredCardInterface $card, array $payload): Charge
-    {
-        $order = $payment->getOrder();
-
-        return new Charge(
-            paymentToken: null,
-            amount: (int) $payment->getAmount(),
-            currencyCode: (string) $payment->getCurrencyCode(),
-            orderId: $this->orderReference($order),
-            ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
-            threeDSecure: $this->threeDSecureFrom($payload),
-            storedCard: new StoredCard(
-                vaultId: (string) $card->getVaultId(),
-                billingId: $card->getBillingId(),
-                // Cited when the card has one to cite. A card added from the account area was
-                // never charged, so it has none, and the gateway takes the sale regardless.
-                initialTransactionId: $card->getVaultingTransactionId(),
-            ),
         );
     }
 
@@ -301,23 +233,6 @@ final class CompleteCardPaymentHandler
         }
 
         return $this->cardSavingCustomerProvider->forPayment($payment, $configuration);
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function threeDSecureFrom(array $payload): ?ThreeDSecureResult
-    {
-        $result = new ThreeDSecureResult(
-            status: $this->stringOrNull($payload['cardholder_auth'] ?? null),
-            cavv: $this->stringOrNull($payload['cavv'] ?? null),
-            xid: $this->stringOrNull($payload['xid'] ?? null),
-            eci: $this->stringOrNull($payload['eci'] ?? null),
-            threeDsVersion: $this->stringOrNull($payload['three_ds_version'] ?? null),
-            directoryServerId: $this->stringOrNull($payload['directory_server_id'] ?? null),
-        );
-
-        // The gateway rejects a body carrying fields it does not expect, so an empty
-        // authentication object is omitted rather than sent.
-        return [] === $result->toArray() ? null : $result;
     }
 
     /** @return array<string, mixed> */

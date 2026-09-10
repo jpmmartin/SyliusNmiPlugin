@@ -20,6 +20,8 @@ use Sylius\Component\Core\Repository\PaymentMethodRepositoryInterface;
  * two, picking one silently would file the card against an account the shopper never chose, and
  * choosing properly means asking them before the card form is mounted rather than after. That is a
  * page this change never specified, so the honest behaviour is to offer nothing rather than guess.
+ *
+ * @internal
  */
 final readonly class NmiVaultingPaymentMethodProvider
 {

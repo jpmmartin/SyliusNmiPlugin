@@ -17,6 +17,8 @@ use Sylius\Bundle\UiBundle\Menu\Event\MenuBuilderEvent;
  *
  * KnpMenu again, and again no per-item priority, so it lands after the platform's own entries in
  * that submenu. The label is a translation key; the menu template runs `|trans` over it.
+ *
+ * @internal
  */
 final class AdminMainMenuListener
 {

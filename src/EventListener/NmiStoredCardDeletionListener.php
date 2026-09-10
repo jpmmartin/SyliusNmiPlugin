@@ -22,6 +22,8 @@ use Sylius\Bundle\ResourceBundle\Event\ResourceControllerEvent;
  *
  * A card the gateway no longer has is a deletion that already happened, so that refusal alone is
  * treated as success. Everything else stops the deletion and says why.
+ *
+ * @internal
  */
 final readonly class NmiStoredCardDeletionListener
 {

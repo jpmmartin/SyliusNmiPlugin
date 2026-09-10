@@ -27,6 +27,8 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  * A guard on the transition would have been the obvious place and is unusable: the admin asks the
  * state machine whether the transition is possible in order to decide whether to draw the button,
  * so a guard would charge the card every time somebody opened the order.
+ *
+ * @internal
  */
 final class CapturePaymentListener
 {

@@ -15,6 +15,8 @@ use Symfony\Component\Workflow\Event\GuardEvent;
  * else; a button that let an operator mark it done would record money as returned that the
  * gateway still holds. The admin renders the button only while the transition is allowed, so
  * blocking it here makes the button disappear rather than fail.
+ *
+ * @internal
  */
 final class GuardManualCompletionListener
 {

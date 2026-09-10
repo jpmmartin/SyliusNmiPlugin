@@ -24,6 +24,8 @@ use Sylius\Component\Payment\Model\PaymentInterface;
  *
  * **The order is theirs.** Belt and braces against a payment reached with somebody else's session:
  * a card must never be filed against a customer who is not the one paying.
+ *
+ * @internal
  */
 final class NmiCardSavingCustomerProvider implements NmiCardSavingCustomerProviderInterface
 {

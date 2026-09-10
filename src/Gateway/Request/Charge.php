@@ -32,6 +32,19 @@ final class Charge
         public readonly bool $storeCard = false,
         /** The card the gateway already holds, when this charge re-uses one instead of a token. */
         public readonly ?StoredCard $storedCard = null,
+        /**
+         * Fields of the gateway's API the plugin does not model, sent as given.
+         *
+         * A store's decorator of the charge factory puts here what it wants the gateway told —
+         * a descriptor, merchant-defined fields, level-3 data — without waiting for the plugin to
+         * learn the field. The client merges this beneath the plugin's own fields: where the two
+         * name the same key, the plugin's value is sent; where both hold an object, the objects
+         * merge. Nothing here is validated by the plugin; the gateway's refusal is surfaced as any
+         * other.
+         *
+         * @var array<string, mixed>
+         */
+        public readonly array $extra = [],
     ) {
         if ((null === $paymentToken) === (null === $storedCard)) {
             throw new \InvalidArgumentException('A charge is paid for by a payment token or by a stored card, and by exactly one of them.');
@@ -43,5 +56,28 @@ final class Charge
         if ($storeCard && null !== $storedCard) {
             throw new \InvalidArgumentException('A stored card cannot be stored again.');
         }
+    }
+
+    /**
+     * The same charge with more said to the gateway. Objects merge; a key given twice keeps the
+     * later value.
+     *
+     * @param array<string, mixed> $extra
+     */
+    public function with(array $extra): self
+    {
+        return new self(
+            paymentToken: $this->paymentToken,
+            amount: $this->amount,
+            currencyCode: $this->currencyCode,
+            orderId: $this->orderId,
+            orderDescription: $this->orderDescription,
+            ipAddress: $this->ipAddress,
+            billing: $this->billing,
+            threeDSecure: $this->threeDSecure,
+            storeCard: $this->storeCard,
+            storedCard: $this->storedCard,
+            extra: array_replace_recursive($this->extra, $extra),
+        );
     }
 }

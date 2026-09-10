@@ -20,6 +20,8 @@ use Sylius\Component\Payment\Model\PaymentRequestInterface;
  *
  * This covers both the sale and the authorise action, because which of the two a store uses is
  * the platform's decision, made from the payment method's configuration before this is reached.
+ *
+ * @internal
  */
 final class CardPaymentCommandProvider implements PaymentRequestCommandProviderInterface
 {

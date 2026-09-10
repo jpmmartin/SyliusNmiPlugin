@@ -30,7 +30,11 @@ after any update is the habit to have; a minor release is the case where it actu
 
 Not everything that changes is breaking. In this package these are, and nothing else is:
 
-- A change to a public interface, service id or DI tag another plugin could depend on
+- A change to anything [docs/extending.md](extending.md) names: a hook or hookable, a template's
+  path, a route, an interface or the service id it is aliased to, a value object a decorator
+  receives, a JavaScript export, event or `data-nmi-*` attribute, a transition the plugin applies.
+  Everything that page does not name is marked `@internal` in the code and may change in a minor
+  release; a test keeps the page and the code in agreement
 - An entity or schema change needing a migration that is not backward compatible
 - A change to the **gateway configuration keys already stored in existing installations** — the
   keys inside `sylius_gateway_config.config`, which is where your credentials and settings live

@@ -29,6 +29,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * through the relationship NmiStoredCard#customer"*, which is what a nested flush looks like from
  * the outside. `sylius.event_bus` carries no such middleware; the routing that sends this message
  * to a queue is per message class, so it is unaffected by which bus carried it.
+ *
+ * @internal
  */
 final class PurgeStoredCardsOnCustomerDeletionListener
 {

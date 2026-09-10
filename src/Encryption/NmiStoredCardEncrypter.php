@@ -20,6 +20,8 @@ use Sylius\Component\Payment\Encryption\EntityEncrypterInterface;
  * They are also what is already printed on a receipt.
  *
  * @implements EntityEncrypterInterface<NmiStoredCardInterface>
+ *
+ * @internal
  */
 final readonly class NmiStoredCardEncrypter implements EntityEncrypterInterface
 {

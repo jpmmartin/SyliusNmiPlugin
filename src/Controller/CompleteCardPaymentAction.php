@@ -27,6 +27,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * from the card form to the second-phase handler. It does not charge anything itself: it merges
  * what was posted into the request and hands it to the platform's announcer, which is the one
  * path every gateway call goes through.
+ *
+ * @internal
  */
 final class CompleteCardPaymentAction
 {

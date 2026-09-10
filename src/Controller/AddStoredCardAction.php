@@ -35,6 +35,8 @@ use Twig\Environment;
  *
  * The customer comes from the customer context and never from the request. The route is behind the
  * shop's ROLE_USER rule, so there is no anonymous path in here at all.
+ *
+ * @internal
  */
 final class AddStoredCardAction
 {

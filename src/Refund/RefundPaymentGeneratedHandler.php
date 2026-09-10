@@ -36,6 +36,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  *
  * Runs inside the refund plugin's own request, on the bus it dispatches on, never queued: that is
  * what lets a refusal reach the operator's session and the rollback reach the credit memo.
+ *
+ * @internal
  */
 final class RefundPaymentGeneratedHandler
 {

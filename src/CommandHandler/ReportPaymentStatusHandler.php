@@ -16,6 +16,8 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
  * transaction would return what the store already knows. It also could not rescue the one case
  * where a question would help — a charge whose response was lost never yielded an identifier to
  * ask about. This is what the platform's own offline gateway does with the same action.
+ *
+ * @internal
  */
 final class ReportPaymentStatusHandler
 {

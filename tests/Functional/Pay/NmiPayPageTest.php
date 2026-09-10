@@ -73,11 +73,11 @@ final class NmiPayPageTest extends WebTestCase
         self::assertSame('USD', $responseData['currency_code']);
         self::assertSame(PaymentRequestInterface::ACTION_CAPTURE, $responseData['action']);
 
-        $mount = $crawler->filter('#nmi-payment');
+        $mount = $crawler->filter('[data-nmi-payment]');
         self::assertCount(1, $mount, 'The page must carry one mount point for the browser component.');
         // The *same margins as the checkout* scenario: inside the theme's content container, like
         // every other page of the store, rather than against the edge of the viewport.
-        self::assertCount(1, $crawler->filter('.container .row .col #nmi-payment'), 'The pay page must sit inside the theme\'s content container.');
+        self::assertCount(1, $crawler->filter('.container .row .col [data-nmi-payment]'), 'The pay page must sit inside the theme\'s content container.');
         self::assertSame(self::TOKENIZATION_KEY, $mount->attr('data-nmi-tokenization-key'));
         self::assertSame('1299', $mount->attr('data-nmi-amount'));
         self::assertSame('USD', $mount->attr('data-nmi-currency'));
@@ -102,22 +102,22 @@ final class NmiPayPageTest extends WebTestCase
         );
 
         foreach (['#nmi-card-number' => 'ccnumber', '#nmi-card-expiry' => 'ccexp', '#nmi-card-cvv' => 'cvv'] as $id => $field) {
-            $element = $crawler->filter('#nmi-payment ' . $id);
+            $element = $crawler->filter('[data-nmi-payment] ' . $id);
             self::assertCount(1, $element, sprintf('%s is where the gateway puts its %s frame.', $id, $field));
             self::assertSame($field, $element->attr('data-nmi-field'));
             self::assertNotSame('', (string) $element->attr('data-nmi-title'), 'The frame\'s accessible name comes off the element, translated.');
         }
         self::assertSame('Card number', $crawler->filter('#nmi-card-number')->attr('data-nmi-title'));
-        self::assertCount(3, $crawler->filter('#nmi-payment label.form-label'), 'A label above each field, as the theme draws a form.');
+        self::assertCount(3, $crawler->filter('[data-nmi-payment] label.form-label'), 'A label above each field, as the theme draws a form.');
 
-        $button = $crawler->filter('#nmi-card-pay');
+        $button = $crawler->filter('[data-nmi-pay-button]');
         self::assertCount(1, $button, 'The pay button is a hookable of its own.');
         self::assertStringContainsString('btn-primary', (string) $button->attr('class'));
         self::assertNotNull($button->attr('disabled'), 'Enabled by the script once the frames are ready, never before.');
         self::assertNotNull($button->attr('data-nmi-new-card-only'), 'Choosing a saved card must put the button away along with the fields.');
         self::assertSame('Pay', trim($button->text()));
 
-        $error = $crawler->filter('#nmi-card-error');
+        $error = $crawler->filter('[data-nmi-error]');
         self::assertCount(1, $error, 'Somewhere for a failed attempt to be said.');
         self::assertNotNull($error->attr('hidden'));
     }
@@ -162,9 +162,9 @@ final class NmiPayPageTest extends WebTestCase
             sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
         );
 
-        self::assertCount(1, $crawler->filter('#nmi-three-d-secure'), 'The challenge needs somewhere to render.');
+        self::assertCount(1, $crawler->filter('[data-nmi-three-d-secure]'), 'The challenge needs somewhere to render.');
 
-        $mount = $crawler->filter('#nmi-payment');
+        $mount = $crawler->filter('[data-nmi-payment]');
         self::assertSame('12.99', $mount->attr('data-nmi-amount-major'));
         self::assertSame('Ada', $mount->attr('data-nmi-first-name'));
         self::assertSame('Lovelace', $mount->attr('data-nmi-last-name'));
@@ -194,11 +194,11 @@ final class NmiPayPageTest extends WebTestCase
         // and the frames' accessible names.
         self::assertSame(
             'No se han podido leer los datos de la tarjeta. Revísalos e inténtalo de nuevo.',
-            $spanish->filter('#nmi-payment')->attr('data-nmi-error-message'),
+            $spanish->filter('[data-nmi-payment]')->attr('data-nmi-error-message'),
         );
         self::assertSame('Número de tarjeta', $spanish->filter('#nmi-card-number')->attr('data-nmi-title'));
-        self::assertSame('Número de tarjeta', trim($spanish->filter('#nmi-payment label.form-label')->first()->text()));
-        self::assertSame('Pagar', trim($spanish->filter('#nmi-card-pay')->text()));
+        self::assertSame('Número de tarjeta', trim($spanish->filter('[data-nmi-payment] label.form-label')->first()->text()));
+        self::assertSame('Pagar', trim($spanish->filter('[data-nmi-pay-button]')->text()));
     }
 
     /** A finished request has nothing left to collect, so the platform sends the shopper onward. */

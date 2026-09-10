@@ -29,6 +29,8 @@ use Sylius\Component\Payment\Encryption\EncryptionCheckTrait;
  * store with a very large vault, and the answer then is an indexed keyed fingerprint beside the
  * ciphertext — a column, a secret and a backfill, which is a price worth paying only once the
  * scanning actually hurts.
+ *
+ * @internal
  */
 final class NmiStoredCardLocator implements NmiStoredCardLocatorInterface
 {

@@ -23,6 +23,8 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * The table and column names still come from the mapping, so a store that replaced the model class
  * through the resource configuration is written to correctly rather than to a name hardcoded here.
+ *
+ * @internal
  */
 final class NmiReceivedEventLedger implements NmiReceivedEventLedgerInterface
 {

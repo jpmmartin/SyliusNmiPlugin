@@ -29,6 +29,8 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  *
  * Settlement, chargebacks and card-updater summaries do not travel this way, because none of them
  * is about one payment. They arrive as the change proceeds.
+ *
+ * @internal
  */
 final class NmiWebhookRouter implements NmiWebhookRouterInterface
 {

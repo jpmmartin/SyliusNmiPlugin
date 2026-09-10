@@ -628,6 +628,52 @@ final class NmiClientTest extends TestCase
         );
     }
 
+    /** A store's extras join the body beneath the plugin's own fields, objects merging rather than replacing. */
+    public function testWhatAStoreAddsJoinsTheBodyBeneathThePluginsOwnFields(): void
+    {
+        $this->answerWith(self::approved());
+        $charge = (new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD', orderId: '000000021'))
+            ->with(['merchant_defined_fields' => ['1' => 'promo-2026'], 'order_details' => ['po_number' => 'PO-7']]);
+
+        $this->client->sale($this->configuration, $charge);
+
+        $body = $this->httpClient->lastBodyJson();
+        self::assertSame(['1' => 'promo-2026'], $body['merchant_defined_fields']);
+        self::assertSame('PO-7', $body['order_details']['po_number'], 'Joins the plugin\'s order details rather than replacing them.');
+        self::assertSame('000000021', $body['order_details']['id']);
+        self::assertSame('12.34', $body['amount']);
+    }
+
+    /** A key both name is the plugin\'s: a decorator cannot change the amount or the order it is charging. */
+    public function testThePluginsFieldsWinAConflictWithAStoresExtras(): void
+    {
+        $this->answerWith(self::approved());
+        $charge = (new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD', orderId: '000000021'))
+            ->with(['amount' => '0.01', 'currency' => 'EUR', 'order_details' => ['id' => 'somebody-else'], 'payment_details' => ['payment_token' => 'tok-other']]);
+
+        $this->client->sale($this->configuration, $charge);
+
+        $body = $this->httpClient->lastBodyJson();
+        self::assertSame('12.34', $body['amount']);
+        self::assertSame('USD', $body['currency']);
+        self::assertSame('000000021', $body['order_details']['id']);
+        self::assertSame('tok-once-abc', $body['payment_details']['payment_token'], 'Inside an object both hold, the plugin\'s value still wins.');
+    }
+
+    /** A charge nobody touched sends the body it always sent; `with([])` is the same charge. */
+    public function testAChargeWithoutExtrasSendsTheBodyItAlwaysSent(): void
+    {
+        $this->answerWith(self::approved());
+        $this->client->sale($this->configuration, self::charge());
+        $untouched = $this->httpClient->lastBodyJson();
+
+        $this->answerWith(self::approved());
+        $this->client->sale($this->configuration, self::charge()->with([]));
+
+        self::assertSame($untouched, $this->httpClient->lastBodyJson());
+        self::assertSame(['amount', 'currency', 'payment_details'], array_keys($untouched));
+    }
+
     private static function vaultRecord(): string
     {
         return '{"object":"customer","id":"1929110340","billing":[{"object":"billing","id":"349429273","payment_details":{"card_number":"411111******1111","card_exp":"1025","card_type":"Visa"}}]}';

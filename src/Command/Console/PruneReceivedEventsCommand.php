@@ -27,6 +27,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * them.
  *
  * Meant for a scheduler — daily is ample — and the README says so beside the number.
+ *
+ * @internal
  */
 #[AsCommand(
     name: 'jpm-martin:sylius-nmi:prune-received-events',

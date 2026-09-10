@@ -643,6 +643,7 @@ taking payments. They are for depth.
 |---|---|
 | [Configuration reference](docs/configuration.md) | Every field on the payment method form: what it is, where to get it, and what each switch costs |
 | [Troubleshooting](docs/troubleshooting.md) | Symptom to missed step. Almost nothing here fails loudly, so this is the page to reach for |
+| [Extending](docs/extending.md) | Every seam a store may rely on — hooks, decorable services, routes, the browser contract — and the rule that everything else is internal |
 | [Upgrading](docs/upgrading.md) | What a version number promises, what to do on each kind of release, and where to report a problem |
 
 The documentation is English only. The plugin's own interface is bilingual — different audiences,

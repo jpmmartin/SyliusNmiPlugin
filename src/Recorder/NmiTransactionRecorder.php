@@ -12,6 +12,7 @@ use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Resource\Factory\FactoryInterface;
 
+/** @internal */
 final class NmiTransactionRecorder implements NmiTransactionRecorderInterface
 {
     /** The key this plugin owns inside the payment's details; nothing else is touched. */

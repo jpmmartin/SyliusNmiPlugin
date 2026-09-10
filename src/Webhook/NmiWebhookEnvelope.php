@@ -15,6 +15,8 @@ namespace JpmMartin\SyliusNmiPlugin\Webhook;
  * every sample published. It is read as an opaque string rather than validated as a UUID: refusing
  * a delivery because its identifier had a shape this plugin did not expect would be refusing money
  * news over a formatting opinion.
+ *
+ * @internal
  */
 final class NmiWebhookEnvelope
 {

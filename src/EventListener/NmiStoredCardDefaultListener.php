@@ -14,6 +14,8 @@ use Sylius\Bundle\ResourceBundle\Event\ResourceControllerEvent;
  * It runs before the resource controller flushes, which is what lets the previous default be
  * cleared in the same transaction as the new one being set — there is no moment where the customer
  * has two defaults, or none.
+ *
+ * @internal
  */
 final readonly class NmiStoredCardDefaultListener
 {

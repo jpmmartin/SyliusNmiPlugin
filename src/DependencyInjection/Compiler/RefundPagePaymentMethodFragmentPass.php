@@ -23,6 +23,8 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * overrides the file under `templates/bundles/SyliusRefundPlugin/`, keeps its own: the pass runs
  * after every configuration is merged, which is what lets it see that. Without the refund plugin
  * the hookable does not exist and there is nothing to do.
+ *
+ * @internal
  */
 final class RefundPagePaymentMethodFragmentPass implements CompilerPassInterface
 {

@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\RefundPayment;
 use Sylius\Bundle\PaymentBundle\CommandProvider\PaymentRequestCommandProviderInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 
+/** @internal */
 final class RefundCommandProvider implements PaymentRequestCommandProviderInterface
 {
     public function supports(PaymentRequestInterface $paymentRequest): bool

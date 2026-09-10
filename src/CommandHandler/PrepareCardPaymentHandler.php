@@ -23,6 +23,8 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
  *
  * Everything the browser needs travels in one response, so a client driving the payment through
  * the shop API never has to ask a second time before tokenising a card.
+ *
+ * @internal
  */
 final class PrepareCardPaymentHandler
 {

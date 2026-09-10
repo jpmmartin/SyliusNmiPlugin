@@ -15,6 +15,8 @@ namespace JpmMartin\SyliusNmiPlugin\Command;
  * Sent asynchronously, which is what buys both halves of the deletion requirement at once. A
  * gateway that is down cannot make deleting a customer fail, because deleting a customer does not
  * talk to the gateway; and a purge that fails is retried by the transport rather than lost.
+ *
+ * @internal
  */
 final class PurgeStoredCard
 {

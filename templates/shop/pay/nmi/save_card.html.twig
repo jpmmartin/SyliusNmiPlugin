@@ -5,8 +5,9 @@
     setting is on, the shopper is signed in, and the order is theirs. A guest never reaches this,
     and neither does a shop that left the setting alone.
 
-    The checkbox sits outside any form on purpose — the component builds its own and posts it — so
-    the name is for the person reading the markup; what the browser reads is the id.
+    The checkbox sits outside any form on purpose — the script builds its own and posts it — so
+    the name is for the person reading the markup; what the script reads is the attribute, and the
+    id only ties the label to the box.
 #}
 {% if nmi.can_store_card|default(false) %}
     <p data-nmi-new-card-only>
@@ -14,6 +15,7 @@
             <input
                 type="checkbox"
                 id="nmi-store-card"
+                data-nmi-store-card
                 name="store_card"
                 value="1"
                 {{ sylius_test_html_attribute('nmi-store-card') }}

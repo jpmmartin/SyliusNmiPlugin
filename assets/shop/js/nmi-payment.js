@@ -20,17 +20,39 @@ import { collectStylesFor } from './input-styles.mjs';
  */
 const COLLECT_JS_URL = 'https://secure.nmi.com/token/Collect.js';
 
-const MOUNT_SELECTOR = '#nmi-payment';
+/*
+ * Every part is named by an attribute, never by an id, and looked up inside its container first
+ * and on the page second. On the plugin's own pay page the pay button, the option to keep the
+ * card and the 3-D Secure element are sibling hookables of the card form rather than its
+ * children, while a store that wraps everything in one element is served by the first lookup.
+ * The second lookup is safe because Collect.js configures one card form per page — the script
+ * refuses a second — so there is never another form's part to find by mistake.
+ */
+const MOUNT_SELECTOR = '[data-nmi-payment]';
 const FIELD_SELECTOR = '[data-nmi-field]';
-const PAY_BUTTON_SELECTOR = '#nmi-card-pay';
-const CARD_ERROR_SELECTOR = '#nmi-card-error';
-const THREE_D_SECURE_SELECTOR = '#nmi-three-d-secure';
-const STORE_CARD_SELECTOR = '#nmi-store-card';
-const STORED_CARDS_SELECTOR = '#nmi-stored-cards';
-const STORED_CARD_PAY_SELECTOR = '#nmi-stored-card-pay';
-const STORED_CARD_ERROR_SELECTOR = '#nmi-stored-card-error';
-const PAYMENT_SOURCE_SELECTOR = 'input[name="nmi_payment_source"]';
+const PAY_BUTTON_SELECTOR = '[data-nmi-pay-button]';
+const CARD_ERROR_SELECTOR = '[data-nmi-error]';
+const THREE_D_SECURE_SELECTOR = '[data-nmi-three-d-secure]';
+const STORE_CARD_SELECTOR = '[data-nmi-store-card]';
+const STORED_CARDS_SELECTOR = '[data-nmi-stored-cards]';
+const STORED_CARD_PAY_SELECTOR = '[data-nmi-stored-card-pay]';
+const STORED_CARD_ERROR_SELECTOR = '[data-nmi-stored-card-error]';
+const PAYMENT_SOURCE_SELECTOR = '[data-nmi-payment-source]';
 const NEW_CARD_ONLY_SELECTOR = '[data-nmi-new-card-only]';
+
+/* A mode a store sets on the container: `tokenize` tokenises and authenticates but posts nothing. */
+const TOKENIZE_MODE = 'tokenize';
+
+const part = (container, selector) => container.querySelector(selector) ?? document.querySelector(selector);
+
+/*
+ * What the script tells the page, on the container, bubbling so a store listens where it likes:
+ * `nmi:mounted` once the frames take input, `nmi:token` with a token and its authentication,
+ * `nmi:submitted` — cancelable — just before the hidden form posts, `nmi:failed` with a reason
+ * and the message shown. Returns false when a cancelable event was cancelled.
+ */
+const emit = (container, name, detail = {}, cancelable = false) =>
+    container.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, cancelable }));
 
 /*
  * The theme's class for a text input, and the class it marks an invalid one with. The frames copy
@@ -61,7 +83,7 @@ const NEW_CARD = 'new';
  * after the card fields are already up. Absent unless the server rendered it — and the server
  * checks again on the way in regardless, because this is a request for something, never permission.
  */
-const storeCardRequested = () => document.querySelector(STORE_CARD_SELECTOR)?.checked === true;
+const storeCardRequested = (container) => part(container, STORE_CARD_SELECTOR)?.checked === true;
 
 /*
  * How Collect.js described the card when it handed over the token: the gateway's masked number,
@@ -111,6 +133,24 @@ const postToken = (container, fields) => {
 
     document.body.appendChild(form);
     form.submit();
+};
+
+/**
+ * Hands the store what pays for the order: a token and its authentication, or a saved card's row,
+ * posted to the container's action URL with the page's CSRF token. Exported so that a store which
+ * tokenised elsewhere — on the checkout's summary step, say — can complete the payment on the pay
+ * page with what it kept. Announced first; a listener that cancels the event keeps the post.
+ */
+const submit = (container, fields) => {
+    const detail = { fields: { ...fields, _csrf_token: container.dataset.nmiCsrfToken } };
+
+    if (!emit(container, 'nmi:submitted', detail, true)) {
+        return false;
+    }
+
+    postToken(container, detail.fields);
+
+    return true;
 };
 
 /** What the issuer is told about the shopper. The more it gets, the less likely a challenge. */
@@ -335,23 +375,42 @@ const loadCollectJs = (tokenizationKey) =>
         document.head.appendChild(script);
     });
 
+/* The one card form Collect.js allows per page, once mounted. */
+let cardForm = null;
+
 const mount = (container) => {
     if (container.dataset.nmiMounted === 'true') {
         return;
     }
-    container.dataset.nmiMounted = 'true';
+    // Collect.js configures once per page: a second form would take over the first one's frames.
+    if (cardForm !== null && cardForm !== container) {
+        console.warn('NMI: a card form is already mounted on this page and the gateway allows one, so this one was left alone.');
 
+        return;
+    }
+    container.dataset.nmiMounted = 'true';
+    cardForm = container;
+
+    const tokenizeOnly = container.dataset.nmiMode === TOKENIZE_MODE;
     const fields = [...container.querySelectorAll(FIELD_SELECTOR)];
-    const button = document.querySelector(PAY_BUTTON_SELECTOR);
-    const errorLine = document.querySelector(CARD_ERROR_SELECTOR);
+    const button = part(container, PAY_BUTTON_SELECTOR);
+    const errorLine = part(container, CARD_ERROR_SELECTOR);
 
     // A store that overrode the card form and kept none of its markup. There is nothing to mount
     // into, and saying so in the console beats a page that waits for ever.
     if (fields.length === 0 || !button) {
-        console.warn('NMI: the card form has no field elements or no pay button, so nothing was mounted.');
+        console.warn('NMI: the card form has no [data-nmi-field] elements or no [data-nmi-pay-button], so nothing was mounted.');
+        cardForm = null;
 
         return;
     }
+
+    // Collect.js takes a CSS selector per field; a field a store rendered without an id gets one.
+    fields.forEach((field, index) => {
+        if (!field.id) {
+            field.id = `nmi-field-${field.dataset.nmiField || index}`;
+        }
+    });
 
     // Translated by the template; the literals are only reached by a store that overrode it and
     // dropped the attributes.
@@ -384,12 +443,8 @@ const mount = (container) => {
      * its own timeout runs out. The two names are public on its instance and documented nowhere;
      * should a later Collect.js drop them, its timeout still frees the button after the deadline.
      */
-    const endAttempt = (message) => {
-        if (attempt === null) {
-            return;
-        }
+    const release = () => {
         attempt = null;
-        say(message);
         button.disabled = false;
 
         if (collect && typeof collect.inSubmission === 'boolean') {
@@ -398,6 +453,14 @@ const mount = (container) => {
         if (collect && collect.responseTimeout) {
             window.clearTimeout(collect.responseTimeout);
         }
+    };
+    const endAttempt = (message, reason) => {
+        if (attempt === null) {
+            return;
+        }
+        release();
+        say(message);
+        emit(container, 'nmi:failed', { reason, message });
     };
 
     const onToken = async (response) => {
@@ -408,7 +471,7 @@ const mount = (container) => {
         }
 
         if (!response || !response.token) {
-            endAttempt(messages.unreadable);
+            endAttempt(messages.unreadable, 'unreadable');
 
             return;
         }
@@ -422,7 +485,7 @@ const mount = (container) => {
             // A shopper who fails, abandons, or is blocked is not charged: the message leaves
             // them on the page with the form intact.
             if (!outcome.authenticated) {
-                endAttempt(outcome.message || threeDSecure.notAuthenticated());
+                endAttempt(outcome.message || threeDSecure.notAuthenticated(), 'not_authenticated');
 
                 return;
             }
@@ -430,18 +493,28 @@ const mount = (container) => {
             authentication = outcome.fields;
         }
 
-        postToken(container, {
+        const fields = {
             payment_token: response.token,
-            _csrf_token: container.dataset.nmiCsrfToken,
             // Omitted when unticked: postToken drops empty values, so an unsaved card sends
             // nothing at all rather than a falsy flag the server would have to interpret.
-            ...(storeCardRequested() ? { store_card: '1', ...describedCard(response) } : {}),
+            ...(storeCardRequested(container) ? { store_card: '1', ...describedCard(response) } : {}),
             // The account's add-a-card page asks for this, and needs it: the gateway's vault
             // call answers with the masked number and the expiry and no brand at all, so
             // without it the card cannot be described and the record would be stranded there.
             ...(container.dataset.nmiDescribeCard !== undefined ? { card_brand: response.card?.type } : {}),
             ...authentication,
-        });
+        };
+
+        if (tokenizeOnly) {
+            // The store asked for the token and nothing else: it is handed over, and the form is
+            // usable again in case the store wants another one.
+            release();
+            emit(container, 'nmi:token', { token: response.token, authentication, fields });
+
+            return;
+        }
+
+        submit(container, fields);
 
         // The page is navigating; the button stays disabled so it cannot be pressed twice.
     };
@@ -466,9 +539,14 @@ const mount = (container) => {
         };
     });
 
+    const unavailable = () => {
+        say(messages.unavailable);
+        emit(container, 'nmi:failed', { reason: 'unavailable', message: messages.unavailable });
+    };
+
     const framesDeadline = window.setTimeout(() => {
         if (!ready) {
-            say(messages.unavailable);
+            unavailable();
         }
     }, FRAMES_DEADLINE_MS);
 
@@ -497,20 +575,21 @@ const mount = (container) => {
                     timeoutDuration: ATTEMPT_DEADLINE_MS,
                     timeoutCallback: () => {
                         if (attempt?.phase === 'tokenising') {
-                            endAttempt(messages.unreadable);
+                            endAttempt(messages.unreadable, 'unreadable');
                         }
                     },
                     // Reported on blur as well as on an attempt; only the attempt is anyone's
                     // business here — the frame itself draws the invalid border either way.
                     validationCallback: (field, valid) => {
                         if (!valid && attempt?.phase === 'tokenising') {
-                            endAttempt(messages.unreadable);
+                            endAttempt(messages.unreadable, 'unreadable');
                         }
                     },
                     fieldsAvailableCallback: () => {
                         ready = true;
                         window.clearTimeout(framesDeadline);
                         button.disabled = false;
+                        emit(container, 'nmi:mounted');
                     },
                     callback: onToken,
                 });
@@ -531,7 +610,7 @@ const mount = (container) => {
         })
         .catch(() => {
             window.clearTimeout(framesDeadline);
-            say(messages.unavailable);
+            unavailable();
         });
 };
 
@@ -539,7 +618,7 @@ const mount = (container) => {
  * Which of the two ways to pay the shopper picked. Absent radios mean there is nothing saved, so
  * the new-card form is the only path and the answer never changes.
  */
-const chosenSource = () => document.querySelector(`${PAYMENT_SOURCE_SELECTOR}:checked`)?.value ?? NEW_CARD;
+const chosenSource = (container) => part(container, `${PAYMENT_SOURCE_SELECTOR}:checked`)?.value ?? NEW_CARD;
 
 /*
  * What the store will tell us about a saved card, and only when asked.
@@ -580,8 +659,8 @@ const mountStoredCards = (container) => {
     }
     container.dataset.nmiMounted = 'true';
 
-    const payButton = container.querySelector(STORED_CARD_PAY_SELECTOR);
-    const errorMessage = container.querySelector(STORED_CARD_ERROR_SELECTOR);
+    const payButton = part(container, STORED_CARD_PAY_SELECTOR);
+    const errorMessage = part(container, STORED_CARD_ERROR_SELECTOR);
 
     const say = (message) => {
         if (!errorMessage) {
@@ -593,7 +672,7 @@ const mountStoredCards = (container) => {
     };
 
     const show = () => {
-        const savedCard = chosenSource() !== NEW_CARD;
+        const savedCard = chosenSource(container) !== NEW_CARD;
 
         document.querySelectorAll(NEW_CARD_ONLY_SELECTOR).forEach((element) => {
             element.hidden = savedCard;
@@ -604,12 +683,12 @@ const mountStoredCards = (container) => {
         }
     };
 
-    document
+    container
         .querySelectorAll(PAYMENT_SOURCE_SELECTOR)
         .forEach((radio) => radio.addEventListener('change', show));
 
     payButton?.addEventListener('click', async () => {
-        const storedCard = chosenSource();
+        const storedCard = chosenSource(container);
         if (storedCard === NEW_CARD) {
             return;
         }
@@ -625,7 +704,7 @@ const mountStoredCards = (container) => {
             // The store would not say which card this is, which is the same answer the charge
             // would give. Let it fail there, where the shopper gets a sentence about it.
             if (details === null) {
-                postToken(container, { stored_card: storedCard, _csrf_token: container.dataset.nmiCsrfToken });
+                submit(container, { stored_card: storedCard });
 
                 return;
             }
@@ -640,24 +719,22 @@ const mountStoredCards = (container) => {
             });
 
             if (!outcome.authenticated) {
-                say(outcome.message || threeDSecure.notAuthenticated());
+                const message = outcome.message || threeDSecure.notAuthenticated();
+                say(message);
                 payButton.disabled = false;
+                emit(container, 'nmi:failed', { reason: 'not_authenticated', message });
 
                 return;
             }
 
-            postToken(container, {
-                stored_card: storedCard,
-                _csrf_token: container.dataset.nmiCsrfToken,
-                ...outcome.fields,
-            });
+            submit(container, { stored_card: storedCard, ...outcome.fields });
 
             return;
         }
 
         // Nothing is tokenised and nothing is authenticated: the card is already at the gateway,
         // and the store reads its reference out of its own row rather than from this page.
-        postToken(container, { stored_card: storedCard, _csrf_token: container.dataset.nmiCsrfToken });
+        submit(container, { stored_card: storedCard });
     });
 
     show();
@@ -667,6 +744,14 @@ const mountAll = () => {
     document.querySelectorAll(STORED_CARDS_SELECTOR).forEach(mountStoredCards);
     document.querySelectorAll(MOUNT_SELECTOR).forEach(mount);
 };
+
+/*
+ * Exported for a store's own script, which the store compiles beside this one: `mount` a card
+ * form it rendered anywhere, `mountAll` the page, `submit` what it tokenised elsewhere. The page
+ * still mounts itself on load, and `mount` refuses to mount the same element twice, so a store
+ * calling it as well changes nothing.
+ */
+export { mount, mountAll, submit };
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mountAll);

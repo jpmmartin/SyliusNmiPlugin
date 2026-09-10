@@ -9,7 +9,7 @@
 {% set customer = hookable_metadata.context.customer %}
 
 <div
-    id="nmi-payment"
+    data-nmi-payment
     data-nmi-tokenization-key="{{ hookable_metadata.context.tokenization_key }}"
     data-nmi-action-url="{{ path('jpm_martin_sylius_nmi_shop_account_stored_card_add') }}"
     data-nmi-csrf-token=""

@@ -13,6 +13,10 @@
 
         <service id="jpm_martin_sylius_nmi.gateway.amount_formatter" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiAmountFormatter" />
 
+        <!-- The charge as sent; a store decorates it to tell the gateway more. -->
+        <service id="jpm_martin_sylius_nmi.gateway.charge_factory" class="JpmMartin\SyliusNmiPlugin\Gateway\Request\ChargeFactory" />
+        <service id="JpmMartin\SyliusNmiPlugin\Gateway\Request\ChargeFactoryInterface" alias="jpm_martin_sylius_nmi.gateway.charge_factory" />
+
         <!--
             PSR-18 client and PSR-17 factories come from the application: Symfony's FrameworkBundle
             aliases these interfaces to whatever implementation the store has installed.

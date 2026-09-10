@@ -344,6 +344,13 @@ routes `/payment-requests/{hash}` and `/payment-methods/{code}`; duplicate suppr
 `PaymentRequestDuplicationChecker`, which prevents a second capture for the same action, payment and
 method.
 
+**The public surface is a list, and the list is tested.** `docs/extending.md` names every seam a
+store may rely on: hooks, templates, routes, interfaces with their service aliases, value objects,
+the JavaScript exports, events and `data-nmi-*` attributes, the transitions applied. Every class
+under `src/` is either named there or carries `@internal`, and `tests/Unit/Docs/ExtendingSurfaceTest`
+fails when either half drifts. A new class starts internal; making it public is a decision taken in
+the document, not by leaving the tag off. SemVer is promised about the list and nothing else.
+
 **Reference implementation:** `flux-se/sylius-stripe-plugin` is the closest model on the modern
 contract — install it in a scratch project and read it. `sylius/adyen-plugin` predates
 `PaymentRequest` and uses its own command bus; useful for packaging and Twig Hooks, misleading for

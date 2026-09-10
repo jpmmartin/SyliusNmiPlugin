@@ -20,6 +20,8 @@ use Sylius\RefundPlugin\Provider\RefundPaymentMethodsProviderInterface;
  * the inner provider offers for other gateways is passed through untouched, which is what keeps
  * the store's own list the store's own. An NMI entry a store may have put on that list adds
  * nothing: whatever it would add is filtered out here.
+ *
+ * @internal
  */
 final class NmiRefundPaymentMethodsProvider implements RefundPaymentMethodsProviderInterface
 {

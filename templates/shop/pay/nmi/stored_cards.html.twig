@@ -23,7 +23,7 @@
     {% set preselected = preferred ? preferred.id : (selectable ? selectable.id : null) %}
 
     <div
-        id="nmi-stored-cards"
+        data-nmi-stored-cards
         data-nmi-action-url="{{ path('jpm_martin_sylius_nmi_shop_complete_card_payment', { hash: payment_request.id }) }}"
         data-nmi-csrf-token="{{ csrf_token('jpm_martin_sylius_nmi_pay_' ~ payment_request.id) }}"
         {#
@@ -43,6 +43,7 @@
                     class="form-check-input"
                     type="radio"
                     name="nmi_payment_source"
+                    data-nmi-payment-source
                     id="nmi-stored-card-{{ card.id }}"
                     value="{{ card.id }}"
                     {# Shown so the shopper can see why the card they were looking for is not an
@@ -80,6 +81,7 @@
                 class="form-check-input"
                 type="radio"
                 name="nmi_payment_source"
+                data-nmi-payment-source
                 id="nmi-payment-source-new"
                 value="new"
                 {% if preselected is null %}checked{% endif %}
@@ -102,7 +104,7 @@
             whose authentication failed would watch the button re-enable and learn nothing.
         #}
         <p
-            id="nmi-stored-card-error"
+            data-nmi-stored-card-error
             class="text-danger mt-2"
             role="alert"
             hidden
@@ -111,7 +113,7 @@
 
         <button
             type="button"
-            id="nmi-stored-card-pay"
+            data-nmi-stored-card-pay
             class="btn btn-primary mt-3"
             hidden
             {{ sylius_test_html_attribute('nmi-stored-card-pay') }}

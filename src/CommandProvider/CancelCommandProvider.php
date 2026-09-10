@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\CancelPayment;
 use Sylius\Bundle\PaymentBundle\CommandProvider\PaymentRequestCommandProviderInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 
+/** @internal */
 final class CancelCommandProvider implements PaymentRequestCommandProviderInterface
 {
     public function supports(PaymentRequestInterface $paymentRequest): bool

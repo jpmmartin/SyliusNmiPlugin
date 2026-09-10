@@ -7,8 +7,8 @@
 
     The title is the frame's accessible name and the placeholder is what a shopper sees before
     typing. Both are read by the script off these elements, so they are translated here rather than
-    in JavaScript. The ids are what the script hands the gateway as selectors, so a store that
-    overrides this file keeps them.
+    in JavaScript. The ids are what the script hands the gateway as selectors; a store that overrides
+    this file and drops them gets ids from the script.
 #}
 <div class="row">
     <div class="col-12 col-md-8 col-lg-6">
@@ -48,6 +48,6 @@
             Where an attempt that went nowhere is said out loud: a field left empty, frames that
             did not answer, an authentication that failed. Hidden until there is something to say.
         #}
-        <p id="nmi-card-error" class="text-danger" role="alert" hidden {{ sylius_test_html_attribute('nmi-card-error') }}></p>
+        <p data-nmi-error class="text-danger" role="alert" hidden {{ sylius_test_html_attribute('nmi-card-error') }}></p>
     </div>
 </div>

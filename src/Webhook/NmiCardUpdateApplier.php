@@ -29,6 +29,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * **A renewal can replace the card number, not only the expiry.** The gateway sends two arrays for
  * that reason, and the shopper has to recognise the card in their account afterwards, so the
  * stored last four digits move with the expiry.
+ *
+ * @internal
  */
 final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
 {

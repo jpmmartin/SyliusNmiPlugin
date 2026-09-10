@@ -11,6 +11,7 @@ use Sylius\Component\Core\Model\PaymentInterface as CorePaymentInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Payment\Model\PaymentInterface;
 
+/** @internal */
 final class NmiStoredCardOffer implements NmiStoredCardOfferInterface
 {
     public function __construct(

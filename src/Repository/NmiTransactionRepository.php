@@ -9,6 +9,7 @@ use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use Sylius\Bundle\ResourceBundle\Doctrine\ORM\EntityRepository;
 use Sylius\Component\Core\Model\PaymentInterface;
 
+/** @internal */
 class NmiTransactionRepository extends EntityRepository implements NmiTransactionRepositoryInterface
 {
     public function findByTransactionId(string $transactionId): array

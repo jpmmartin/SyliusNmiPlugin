@@ -23,6 +23,8 @@ use Psr\Log\NullLogger;
  * `Authorization` header — a scheme prefix is rejected — and the status code answers a
  * different question from the body: a status of 200 means the gateway reached a decision,
  * which may well be a decline, while everything else means it did not.
+ *
+ * @internal
  */
 final class NmiClient implements NmiClientInterface
 {
@@ -112,7 +114,9 @@ final class NmiClient implements NmiClientInterface
             $body['customer_vault'] = ['add_to_vault' => true];
         }
 
-        return $body;
+        // What a store added, beneath what the plugin says: a key both name keeps the plugin's
+        // value, and an object both hold merges rather than replaces.
+        return [] === $charge->extra ? $body : array_replace_recursive($charge->extra, $body);
     }
 
     /**

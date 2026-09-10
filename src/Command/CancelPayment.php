@@ -10,6 +10,8 @@ use Sylius\Bundle\PaymentBundle\Command\PaymentRequestHashAwareTrait;
 /**
  * Cancel a transaction the gateway has not settled. This is the plugin's void: the payment
  * state machine has no void transition, so a void travels as a cancel.
+ *
+ * @internal
  */
 final class CancelPayment implements PaymentRequestHashAwareInterface
 {

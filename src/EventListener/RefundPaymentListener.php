@@ -17,6 +17,8 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  *
  * Before, like the capture and the void: nothing leaves `refunded`, so a refusal after the fact
  * would leave an order claiming it returned money it still holds.
+ *
+ * @internal
  */
 final class RefundPaymentListener
 {

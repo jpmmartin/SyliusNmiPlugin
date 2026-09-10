@@ -24,6 +24,8 @@ use Symfony\Component\Workflow\Event\Event;
  * has shipped, and that is a fact about the world. A gateway that refuses the capture therefore
  * leaves the payment authorised with the reason recorded, for the operator to deal with, rather
  * than pretending the shipment did not happen.
+ *
+ * @internal
  */
 final class CaptureOnShipmentListener
 {

@@ -28,6 +28,8 @@ use Sylius\Component\Payment\PaymentTransitions;
  * refund performed in the portal would ask the gateway to refund again, and the store would give
  * the money back twice. Nothing else in this plugin depends on that distinction, so it is written
  * down here.
+ *
+ * @internal
  */
 final class NotifyPaymentHandler
 {

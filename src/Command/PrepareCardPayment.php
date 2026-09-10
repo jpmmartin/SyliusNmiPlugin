@@ -13,6 +13,8 @@ use Sylius\Bundle\PaymentBundle\Command\PaymentRequestHashAwareTrait;
  *
  * The hash is the whole message because the request itself carries everything else, and
  * because the bus routes on the interface rather than on this class.
+ *
+ * @internal
  */
 final class PrepareCardPayment implements PaymentRequestHashAwareInterface
 {

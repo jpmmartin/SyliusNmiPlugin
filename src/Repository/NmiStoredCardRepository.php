@@ -9,6 +9,7 @@ use Sylius\Bundle\ResourceBundle\Doctrine\ORM\EntityRepository;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 
+/** @internal */
 class NmiStoredCardRepository extends EntityRepository implements NmiStoredCardRepositoryInterface
 {
     public function findByCustomer(CustomerInterface $customer, ?PaymentMethodInterface $paymentMethod = null): array

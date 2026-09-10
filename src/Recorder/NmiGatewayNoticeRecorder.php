@@ -18,6 +18,8 @@ use Sylius\Resource\Factory\FactoryInterface;
  * gateway's retries make ordinary. This guards a much rarer thing — a redelivery after the event
  * record has been pruned, days later — and by then there is no concurrent twin to race with. The
  * unique index is still there, and is what would catch it if that reasoning is ever wrong.
+ *
+ * @internal
  */
 final class NmiGatewayNoticeRecorder implements NmiGatewayNoticeRecorderInterface
 {

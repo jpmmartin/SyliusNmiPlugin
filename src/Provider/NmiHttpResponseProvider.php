@@ -18,6 +18,8 @@ use Twig\Environment;
  * on the request. Only a request in progress gets a form: one that has finished has nothing left
  * to collect, and returning no response lets the platform send the shopper on to its own
  * after-pay page rather than showing a card form for a payment that is already settled.
+ *
+ * @internal
  */
 final class NmiHttpResponseProvider implements HttpResponseProviderInterface
 {

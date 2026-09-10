@@ -13,6 +13,8 @@ use Sylius\Bundle\PaymentBundle\Command\PaymentRequestHashAwareTrait;
  * It travels as a payment request like every other operation this plugin performs, so the audit
  * trail does not fork: an operator looking at a payment sees what the store asked the gateway and
  * what the gateway told the store in the same list, distinguished by the action.
+ *
+ * @internal
  */
 final class NotifyPayment implements PaymentRequestHashAwareInterface
 {

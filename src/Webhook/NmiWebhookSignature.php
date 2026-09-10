@@ -26,6 +26,8 @@ namespace JpmMartin\SyliusNmiPlugin\Webhook;
  * **The nonce is a Unix timestamp and this deliberately ignores that.** Rejecting an old one would
  * look like replay protection and would in fact reject the gateway's own retries, which continue
  * for three days. Replay is handled where it belongs: a unique index on the event identifier.
+ *
+ * @internal
  */
 final class NmiWebhookSignature
 {

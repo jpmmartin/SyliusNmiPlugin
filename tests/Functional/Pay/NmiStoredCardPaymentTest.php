@@ -18,6 +18,7 @@ use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingChargeFactory;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
 /**
@@ -65,6 +66,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
     protected function tearDown(): void
     {
         $this->manager->rollback();
+        DecoratingChargeFactory::reset();
 
         parent::tearDown();
     }
@@ -91,7 +93,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
 
         $crawler = $this->payPage($paymentRequest);
 
-        self::assertCount(1, $crawler->filter('#nmi-stored-cards'), 'A shopper with saved cards must be offered them.');
+        self::assertCount(1, $crawler->filter('[data-nmi-stored-cards]'), 'A shopper with saved cards must be offered them.');
         self::assertTrue($this->has($this->radioFor($crawler, $everyday), 'checked'), 'The default card is the one preselected.');
         self::assertFalse($this->has($this->radioFor($crawler, $spare), 'checked'));
         self::assertFalse($this->has($this->radioFor($crawler, $spare), 'disabled'), 'A card that has not expired is selectable.');
@@ -130,6 +132,34 @@ final class NmiStoredCardPaymentTest extends WebTestCase
         self::assertNull($this->gateway->lastCharge?->paymentToken, 'A stored card is charged without a token.');
         self::assertSame('vault-1111', $this->gateway->lastCharge?->storedCard?->vaultId);
         self::assertSame('billing-1111', $this->gateway->lastCharge?->storedCard?->billingId);
+    }
+
+    /**
+     * The decorator seam holds for a stored card too: what a store adds joins a charge that
+     * names the vault and no token, with the plugin's fields intact.
+     */
+    public function testADecoratedChargeFactoryTellsTheGatewayMoreAboutAStoredCardCharge(): void
+    {
+        DecoratingChargeFactory::$orderDescription = 'Three shirts and a cap';
+        DecoratingChargeFactory::$extra = ['merchant_defined_fields' => ['1' => 'campaign-2026']];
+        $this->gateway->willApprove('12513506464');
+
+        $user = $this->signedInShopper();
+        $paymentRequest = $this->newPaymentRequest(storeCards: true, customer: $user->getCustomer());
+        $card = $this->aCard($paymentRequest, $user, '1111', default: true);
+        $this->manager->flush();
+
+        $this->payPage($paymentRequest);
+        $this->payWith($paymentRequest, $card);
+
+        self::assertResponseRedirects();
+        self::assertSame(PaymentInterface::STATE_COMPLETED, $this->reload($paymentRequest)->getPayment()->getState());
+        $charge = $this->gateway->lastCharge;
+        self::assertNotNull($charge);
+        self::assertSame('Three shirts and a cap', $charge->orderDescription);
+        self::assertSame(['merchant_defined_fields' => ['1' => 'campaign-2026']], $charge->extra);
+        self::assertNull($charge->paymentToken);
+        self::assertSame('vault-1111', $charge->storedCard?->vaultId, 'Everything the plugin put there is still there.');
     }
 
     /**
@@ -191,7 +221,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
         $this->manager->flush();
 
         $crawler = $this->payPage($here);
-        self::assertCount(0, $crawler->filter('#nmi-stored-cards'), 'The other account\'s card is not this page\'s to offer.');
+        self::assertCount(0, $crawler->filter('[data-nmi-stored-cards]'), 'The other account\'s card is not this page\'s to offer.');
 
         $this->payWith($here, $card);
 
@@ -297,7 +327,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
         $this->manager->flush();
 
         $crawler = $this->payPage($guestRequest);
-        self::assertCount(1, $crawler->filter('#nmi-stored-cards'), 'Signed in, the cards are there.');
+        self::assertCount(1, $crawler->filter('[data-nmi-stored-cards]'), 'Signed in, the cards are there.');
 
         // Signed out, on the same order, with the same identifier.
         $this->client->request('GET', '/en_US/logout');
@@ -325,7 +355,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
 
         // Asked for, never rendered. This is the assertion the whole route exists for.
         self::assertStringNotContainsString('vault-1111', (string) $this->client->getResponse()->getContent());
-        self::assertSame('1', $crawler->filter('#nmi-stored-cards')->attr('data-nmi-authenticate'));
+        self::assertSame('1', $crawler->filter('[data-nmi-stored-cards]')->attr('data-nmi-authenticate'));
 
         $this->askToAuthenticate($paymentRequest, (string) $card->getId());
 
@@ -362,7 +392,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
         $this->manager->flush();
 
         $crawler = $this->payPage($paymentRequest);
-        self::assertNull($crawler->filter('#nmi-stored-cards')->attr('data-nmi-authenticate'));
+        self::assertNull($crawler->filter('[data-nmi-stored-cards]')->attr('data-nmi-authenticate'));
 
         $this->askToAuthenticate($paymentRequest, (string) $card->getId());
         self::assertResponseStatusCodeSame(404);
@@ -461,7 +491,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
             sprintf('/nmi/pay/%s/authenticate', (string) $paymentRequest->getId()),
             [
                 'stored_card' => $storedCardId,
-                '_csrf_token' => (string) $crawler->filter('#nmi-payment')->attr('data-nmi-csrf-token'),
+                '_csrf_token' => (string) $crawler->filter('[data-nmi-payment]')->attr('data-nmi-csrf-token'),
             ],
         );
     }
@@ -489,7 +519,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
 
         // The token the page rendered, taken from the page rather than minted here: a form that
         // stopped carrying one would then fail these tests rather than pass them.
-        $fields['_csrf_token'] = (string) $crawler->filter('#nmi-payment')->attr('data-nmi-csrf-token');
+        $fields['_csrf_token'] = (string) $crawler->filter('[data-nmi-payment]')->attr('data-nmi-csrf-token');
 
         $this->client->request('POST', sprintf('/nmi/pay/%s', (string) $paymentRequest->getId()), $fields);
     }

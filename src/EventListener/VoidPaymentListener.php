@@ -18,6 +18,8 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  * Before, for the same reason the capture is: the payment state machine offers nothing out of
  * cancelled, so a void the gateway refused — because the transaction has already settled, which
  * it will say in words — would leave an order claiming it returned money that never moved.
+ *
+ * @internal
  */
 final class VoidPaymentListener
 {

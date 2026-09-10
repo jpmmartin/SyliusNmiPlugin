@@ -14,6 +14,8 @@ namespace JpmMartin\SyliusNmiPlugin\Command;
  *
  * It carries the card's identifier rather than the card, because by the time it is handled the
  * shopper may have deleted it — which is not an error, only a reason to send nothing.
+ *
+ * @internal
  */
 final class NotifyCardholder
 {
