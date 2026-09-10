@@ -227,10 +227,10 @@ final class CompleteCardPaymentHandler
     /**
      * Whether this shopper already has this card on file for this payment method.
      *
-     * The browser is what makes the check possible in time: its token lookup reports the masked
-     * number, the expiry and the brand, so the same three values the row is keyed on are known
-     * before anything is charged. **Verified in the component's own typings** — `PaymentEvent`
-     * carries an optional `lookupData.card` — not assumed from how Collect.js behaves.
+     * The browser is what makes the check possible in time: Collect.js hands the token over with
+     * the masked number, the expiry and the brand, so the same three values the row is keyed on
+     * are known before anything is charged. **Verified in Collect.js's documented callback
+     * response** — it carries a `card` whose every field may be null — not assumed.
      *
      * Optional there, and therefore optional here: a lookup that did not happen means no check
      * happens now, and the recorder's own guard is what still keeps a second row from appearing.

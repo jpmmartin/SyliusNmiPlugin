@@ -1,9 +1,9 @@
 {#
-    The same mount point the pay page uses, and the same component behind it — the card is entered
+    The same card form the pay page renders, and the same script behind it — the card is entered
     inside the gateway's own frames and the only thing this page ever receives is a token.
 
-    Two attributes the pay page carries are missing on purpose. There is no amount, because nothing
-    is being charged. And there is no 3-D Secure container, so the component does not authenticate:
+    Two things the pay page carries are missing on purpose. There is no amount, because nothing is
+    being charged. And there is no 3-D Secure container, so the script does not authenticate:
     authenticating a card nobody is charging has nothing to authorise.
 #}
 {% set customer = hookable_metadata.context.customer %}
@@ -17,6 +17,7 @@
     data-nmi-last-name="{{ customer.lastName }}"
     data-nmi-email="{{ customer.email }}"
     data-nmi-error-message="{{ 'jpm_martin_sylius_nmi.shop.pay.card_unreadable'|trans }}"
+    data-nmi-unavailable-message="{{ 'jpm_martin_sylius_nmi.shop.pay.form_unavailable'|trans }}"
     {#
         Ask the browser to name the brand. The vault call answers with the masked number and the
         expiry and **no brand** — established against the gateway — so without this the card cannot
@@ -24,4 +25,8 @@
     #}
     data-nmi-describe-card
     {{ sylius_test_html_attribute('nmi-add-card') }}
-></div>
+>
+    {{ include('@JpmMartinSyliusNmiPlugin/shop/pay/nmi/card_fields.html.twig') }}
+</div>
+
+{{ include('@JpmMartinSyliusNmiPlugin/shop/pay/nmi/pay_button.html.twig', { label: 'jpm_martin_sylius_nmi.ui.add_card'|trans }) }}

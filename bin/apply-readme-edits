@@ -82,14 +82,26 @@ foreach ($blocks['yaml'] ?? [] as $body) {
         }
     }
 
-    // ── Step 5: the Twig hook, appended rather than written ──────────────────────────────────
-    // The store already has this file, and the README shows what to add to it.
+    // ── Step 5: the Twig hook, merged rather than written ────────────────────────────────────
+    // The README says it: a store that already has this file adds the entry under its own
+    // `hooks:` key rather than pasting a second top-level one, which stops the file parsing.
+    // So the entry goes under an existing `hooks:` when there is one, and the whole block is
+    // written when there is not. Sylius Standard 2.2 ships no such file; a store of its own may.
     if (str_contains((string) $first, 'config/packages/twig_hooks.yaml')) {
         $hookPath = $storePath . '/config/packages/twig_hooks.yaml';
         $existing = is_file($hookPath) ? readOrFail($hookPath) : '';
 
-        if (!str_contains($existing, 'nmi-shop') && !str_contains($existing, "template: 'shop/nmi_scripts.html.twig'")) {
-            file_put_contents($hookPath, rtrim($existing) . "\n" . withoutFirstLine($body), \FILE_APPEND | \LOCK_EX);
+        if (!str_contains($existing, '@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig')) {
+            $block = withoutFirstLine($body);
+            $entry = implode("\n", array_slice(explode("\n", rtrim($block)), 2)); // below `sylius_twig_hooks:` and `    hooks:`
+
+            if (1 === preg_match('/^    hooks:\n/m', $existing)) {
+                $merged = preg_replace('/^    hooks:\n/m', "    hooks:\n" . $entry . "\n", $existing, 1);
+            } else {
+                $merged = rtrim($existing) . ('' === $existing ? '' : "\n\n") . rtrim($block) . "\n";
+            }
+
+            file_put_contents($hookPath, $merged, \LOCK_EX);
             report('added the Twig hook');
         }
     }
@@ -112,15 +124,6 @@ if (!str_contains($webpack, 'nmi-shop')) {
     file_put_contents($webpackPath, str_replace($anchor, $anchor . "\n" . $entryLine, $webpack));
     report('added the shop Encore entry');
 }
-
-// ── Step 5: the template the hook renders ────────────────────────────────────────────────────
-$templateBody = $blocks['twig'][0] ?? fail('The README no longer shows the script-tag template.');
-$templatePath = $storePath . '/templates/shop/nmi_scripts.html.twig';
-if (!is_dir(dirname($templatePath)) && !mkdir(dirname($templatePath), 0o777, true) && !is_dir(dirname($templatePath))) {
-    fail('Could not create templates/shop in the store.');
-}
-writeFile($templatePath, withoutFirstLine($templateBody));
-report('wrote templates/shop/nmi_scripts.html.twig');
 
 /** @param list<string> $bodies */
 function firstLineContaining(array $bodies, string $needle): string

@@ -186,3 +186,31 @@ jobs:
                       || { echo 'nmi-shop.js was not produced. Step 5.'; exit 1; }
                   grep -q 'data-nmi' public/build/app/shop/nmi-shop.js \
                       || { echo 'The built bundle does not look like this plugin. Step 5 — the entry points at the wrong file.'; exit 1; }
+
+            # Everything above proves the parts exist. Nothing proves the hook renders — and that
+            # is the step a reader gets wrong most quietly. The shop's homepage carries the base
+            # layout's scripts hook, so a missing hook entry, a wrong template name or a wrong build
+            # name all show up on it, loudly, here. The sample data is what gives the store a
+            # channel to answer on.
+            - name: Give the store something to show
+              working-directory: store
+              run: bin/console sylius:fixtures:load default --no-interaction
+
+            - name: The script tag reaches a real shop page
+              working-directory: store
+              run: |
+                  cat > public/router.php <<'PHP'
+                  <?php
+                  // PHP's built-in server hands static files back itself and everything else to Symfony.
+                  if (is_file(__DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH))) {
+                      return false;
+                  }
+                  require __DIR__ . '/index.php';
+                  PHP
+                  php -S 127.0.0.1:8000 -t public public/router.php > server.log 2>&1 &
+                  for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8000/ && break; sleep 1; done
+                  status=$(curl -s -o homepage.html -w '%{http_code}' http://localhost:8000/en_US/)
+                  test "$status" = '200' \
+                      || { echo "The shop's homepage answered $status. Step 5 — the hook names a template that does not exist, or the build name is wrong."; grep -o '<title>[^<]*' homepage.html | head -1; tail -40 server.log; exit 1; }
+                  grep -q 'nmi-shop' homepage.html \
+                      || { echo 'The homepage carries no nmi-shop script tag. Step 5 — the hook entry was never added.'; exit 1; }

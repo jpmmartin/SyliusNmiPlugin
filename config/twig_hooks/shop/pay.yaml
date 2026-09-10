@@ -14,6 +14,10 @@ sylius_twig_hooks:
             save_card:
                 template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/save_card.html.twig'
                 priority: -5
+            # Below the option to keep the card, above the authentication target.
+            pay_button:
+                template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/pay_button.html.twig'
+                priority: -8
             three_d_secure:
                 template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/three_d_secure.html.twig'
                 priority: -10

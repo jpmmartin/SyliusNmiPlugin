@@ -75,12 +75,51 @@ final class NmiPayPageTest extends WebTestCase
 
         $mount = $crawler->filter('#nmi-payment');
         self::assertCount(1, $mount, 'The page must carry one mount point for the browser component.');
+        // The *same margins as the checkout* scenario: inside the theme's content container, like
+        // every other page of the store, rather than against the edge of the viewport.
+        self::assertCount(1, $crawler->filter('.container .row .col #nmi-payment'), 'The pay page must sit inside the theme\'s content container.');
         self::assertSame(self::TOKENIZATION_KEY, $mount->attr('data-nmi-tokenization-key'));
         self::assertSame('1299', $mount->attr('data-nmi-amount'));
         self::assertSame('USD', $mount->attr('data-nmi-currency'));
 
         // The private key must never reach the browser.
         self::assertStringNotContainsString(self::SECURITY_KEY, (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
+     * The *card fields are the theme's inputs* scenario, as far as markup can show it: the form is
+     * the theme's own — a label above each of the three elements the gateway's frames go into,
+     * and the theme's primary button — rather than something the script draws. The button starts
+     * disabled, because only the script knows when the frames are ready to take a card.
+     */
+    public function testTheCardFormIsTheThemesOwnMarkup(): void
+    {
+        $paymentRequest = $this->newPaymentRequest();
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        foreach (['#nmi-card-number' => 'ccnumber', '#nmi-card-expiry' => 'ccexp', '#nmi-card-cvv' => 'cvv'] as $id => $field) {
+            $element = $crawler->filter('#nmi-payment ' . $id);
+            self::assertCount(1, $element, sprintf('%s is where the gateway puts its %s frame.', $id, $field));
+            self::assertSame($field, $element->attr('data-nmi-field'));
+            self::assertNotSame('', (string) $element->attr('data-nmi-title'), 'The frame\'s accessible name comes off the element, translated.');
+        }
+        self::assertSame('Card number', $crawler->filter('#nmi-card-number')->attr('data-nmi-title'));
+        self::assertCount(3, $crawler->filter('#nmi-payment label.form-label'), 'A label above each field, as the theme draws a form.');
+
+        $button = $crawler->filter('#nmi-card-pay');
+        self::assertCount(1, $button, 'The pay button is a hookable of its own.');
+        self::assertStringContainsString('btn-primary', (string) $button->attr('class'));
+        self::assertNotNull($button->attr('disabled'), 'Enabled by the script once the frames are ready, never before.');
+        self::assertNotNull($button->attr('data-nmi-new-card-only'), 'Choosing a saved card must put the button away along with the fields.');
+        self::assertSame('Pay', trim($button->text()));
+
+        $error = $crawler->filter('#nmi-card-error');
+        self::assertCount(1, $error, 'Somewhere for a failed attempt to be said.');
+        self::assertNotNull($error->attr('hidden'));
     }
 
     /**
@@ -150,12 +189,16 @@ final class NmiPayPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('Pagar con tarjeta', $spanish->filter('h1')->text());
 
-        // The message the component shows in place when it cannot read the card is rendered by
-        // the template, not by the JavaScript, which is the only reason it can be translated.
+        // The message the script shows when it cannot read the card is rendered by the template,
+        // not by the JavaScript, which is the only reason it can be translated. So are the labels
+        // and the frames' accessible names.
         self::assertSame(
             'No se han podido leer los datos de la tarjeta. Revísalos e inténtalo de nuevo.',
             $spanish->filter('#nmi-payment')->attr('data-nmi-error-message'),
         );
+        self::assertSame('Número de tarjeta', $spanish->filter('#nmi-card-number')->attr('data-nmi-title'));
+        self::assertSame('Número de tarjeta', trim($spanish->filter('#nmi-payment label.form-label')->first()->text()));
+        self::assertSame('Pagar', trim($spanish->filter('#nmi-card-pay')->text()));
     }
 
     /** A finished request has nothing left to collect, so the platform sends the shopper onward. */

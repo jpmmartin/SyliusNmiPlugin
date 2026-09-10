@@ -97,7 +97,7 @@ final class AddStoredCardAction
 
         $token = $request->request->get('payment_token');
         if (!is_string($token) || '' === trim($token)) {
-            // The page posts to itself only after the component produced a token, so an empty one
+            // The page posts to itself only after the gateway's script produced a token, so an empty one
             // is a page that was submitted some other way rather than a shopper who made a mistake.
             return $this->backToTheList($request, 'jpm_martin_sylius_nmi.stored_card.no_token', 'error');
         }

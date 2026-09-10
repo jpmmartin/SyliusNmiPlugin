@@ -3,6 +3,17 @@
 
 {% extends '@SyliusShop/shared/layout/base.html.twig' %}
 
+{#
+    The same three wrappers Sylius's own checkout layout uses, so the pay page keeps the margins
+    and the vertical rhythm of the pages the shopper has just come through. The hookables render
+    inside untouched: a store that overrode one keeps its override.
+#}
 {% block content %}
-    {% hook nmi_pay_hook %}
+    <div class="container">
+        <div class="row">
+            <div class="col pt-4 pb-5">
+                {% hook nmi_pay_hook %}
+            </div>
+        </div>
+    </div>
 {% endblock %}

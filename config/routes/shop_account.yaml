@@ -58,8 +58,8 @@ jpm_martin_sylius_nmi_shop_account_stored_card_delete:
                 parameters: {}
             flash: jpm_martin_sylius_nmi.stored_card.deleted
 
-# One route for both halves: the page renders the card form, and the component posts the token
-# straight back to it. There is nothing between them worth a second route.
+# One route for both halves: the page renders the card form, and the plugin's script posts the
+# token straight back to it. There is nothing between them worth a second route.
 jpm_martin_sylius_nmi_shop_account_stored_card_add:
     path: /saved-cards/add
     methods: [GET, POST]

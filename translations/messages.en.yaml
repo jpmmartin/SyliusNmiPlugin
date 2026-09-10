@@ -94,7 +94,14 @@ jpm_martin_sylius_nmi:
         pay:
             heading: Pay by card
             amount: Amount to pay:
+            card_number: Card number
+            card_number_placeholder: 1234 1234 1234 1234
+            expiry: Expiry date
+            expiry_placeholder: MM / YY
+            security_code: Security code
+            security_code_placeholder: CVC
             card_unreadable: The card details could not be read. Please check them and try again.
+            form_unavailable: The card form could not be loaded. Please reload the page.
             not_authenticated: The card could not be authenticated, so it has not been charged. Try again or use another card.
             save_card: Save this card for next time
             use_saved_card: Pay with a saved card

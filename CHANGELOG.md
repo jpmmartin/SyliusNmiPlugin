@@ -16,6 +16,9 @@ is, and a new empty `## [Unreleased]` takes its place.
 - Card payments through NMI on Sylius's own pay page. The card number, expiry and verification
   value are entered inside the gateway's own frames and never reach the store, which receives a
   single-use token.
+- A pay page in the store's own theme: the card fields are the theme's text inputs, labels above
+  them, inside the theme's content container, with the *Pay* button as the theme's primary
+  button. Read off the theme when the page loads; there is nothing to configure.
 - 3-D Secure on every payment, performed in the browser. A frictionless authentication is
   invisible to the shopper; a challenge is presented in place rather than by redirecting away.
 - A choice, per payment method, between charging at checkout and authorising then capturing later.

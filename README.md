@@ -125,8 +125,10 @@ gateway is asked before the answer is recorded, so the money moves and the order
 
 ### 5. Build the front-end assets
 
-NMI distributes its browser component as an npm package rather than a script tag, so it has to be
-bundled with your store's assets.
+The card fields are drawn by NMI's Collect.js, which the plugin's script fetches from NMI when the
+pay page loads — there is nothing to install for them. The authentication that follows uses NMI's
+browser component, which NMI distributes as an npm package rather than a script tag, so that one
+has to be bundled with your store's assets.
 
 ```bash
 yarn add @nmipayments/nmi-pay
@@ -143,10 +145,11 @@ Encore
 ;
 ```
 
-The script tag goes on the shop's `javascripts` hook. **Do not create
+The script tag comes with the plugin: point the shop's `javascripts` hook at the template it ships
+and there is no file to create. **Do not create
 `templates/bundles/SyliusShopBundle/_javascripts.html.twig`** — Sylius 2.x does not read it, so the
-page renders with no card fields and nothing to explain why. Get the build name wrong, or add the
-entry and never run `yarn build`, and the page errors instead, naming `entrypoints.json`.
+page renders with no card fields and nothing to explain why. Add the entry and never run
+`yarn build`, and the page errors instead, naming `entrypoints.json`.
 
 If your store already has this file with a `sylius_twig_hooks:` key, add the `hooks:` entry to it
 rather than pasting a second one — two of the same key at the top level and the file stops parsing.
@@ -157,17 +160,13 @@ sylius_twig_hooks:
     hooks:
         'sylius_shop.base#javascripts':
             nmi:
-                template: 'shop/nmi_scripts.html.twig'
+                template: '@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig'
                 priority: -10
 ```
 
-```twig
-{# templates/shop/nmi_scripts.html.twig #}
-{{ encore_entry_script_tags('nmi-shop', null, 'app.shop') }}
-```
-
-The third argument is the build name and is required: that store's shop assets are built under
-`app.shop`, and without it Encore looks in a manifest that does not contain this entry.
+That template assumes the two names above — the `nmi-shop` entry, in the `app.shop` build a Sylius
+Standard store compiles its shop assets under. If your store builds under other names, override it
+at `templates/bundles/JpmMartinSyliusNmiPlugin/shop/scripts.html.twig` and change them there.
 
 ```bash
 yarn build
@@ -211,9 +210,12 @@ Changing the key after credentials are stored makes the stored ones unreadable, 
 you create the payment method — or re-enter the credentials afterwards.
 
 **If your store sends a Content Security Policy**, the card fields and the authentication both run
-in frames served by NMI. Allow `https://secure.nmi.com` and `https://secure.networkmerchants.com`
-in `script-src`, `connect-src` and `frame-src`. These hosts are compiled into NMI's package and
-cannot be changed, including on a reseller account.
+in frames served by NMI, and the script that draws the fields is fetched from NMI too, along with a
+stylesheet of its own. Allow `https://secure.nmi.com` in `script-src`, `style-src`, `connect-src`
+and `frame-src`, and `https://secure.networkmerchants.com` in `script-src`, `connect-src` and
+`frame-src`. Collect.js also asks for Apple's Pay SDK from `https://applepay.cdn-apple.com`;
+blocking that one costs nothing, since this plugin offers no wallet. These hosts are compiled into
+NMI's scripts and cannot be changed, including on a reseller account.
 
 ## Configuring a payment method
 

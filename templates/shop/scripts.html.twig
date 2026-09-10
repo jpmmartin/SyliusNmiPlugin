@@ -1,0 +1,10 @@
+{#
+    The plugin's script tag, for the shop's `sylius_shop.base#javascripts` hook — the one thing an
+    application has to add to reach the card fields, and the file it no longer has to create.
+
+    Two names are assumed, the ones the README gives: the Encore entry `nmi-shop`, in `app.shop`,
+    the build a Sylius Standard store compiles its shop assets under. A store that named either
+    differently overrides this file at
+    `templates/bundles/JpmMartinSyliusNmiPlugin/shop/scripts.html.twig` and changes them there.
+#}
+{{ encore_entry_script_tags('nmi-shop', null, 'app.shop') }}

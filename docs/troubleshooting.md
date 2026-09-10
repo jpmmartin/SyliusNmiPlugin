@@ -9,25 +9,34 @@ install steps in order and check each one — most of what follows is a step tha
 
 ## The payment page has no card fields
 
-**What you see:** the pay page renders its heading and the amount to pay, and below that there is
-nothing at all — no card fields and no *Pay* button, because the button is mounted by the same
-script as the fields. No error on the page, nothing in the browser console, nothing in the log. It
-looks like a broken template.
+**What you see:** the pay page renders its heading, the amount to pay and the three labels —
+*Card number*, *Expiry date*, *Security code* — with nothing under them, and a greyed-out *Pay*
+button that does nothing. The button is disabled in the markup and enabled by the same script that
+fills the fields, so without the script neither happens. No error on the page, nothing in the
+browser console, nothing in the log. It looks like a broken template.
 
 **What was missed:** README **step 5**, the front-end build, in one of the two ways it goes wrong
-without a sound:
+without a sound — or, less often, nothing was missed and something is blocking NMI's script, which
+is the third bullet:
 
-- The script tag was never put on the `sylius_shop.base#javascripts` Twig hook. The usual variant
-  is putting it in `templates/bundles/SyliusShopBundle/_javascripts.html.twig` instead: **Sylius
-  2.x does not read that file**, so the tag is simply never rendered.
+- The hook entry on `sylius_shop.base#javascripts` was never added, or names something other than
+  the plugin's `@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig`. The usual variant is putting the
+  tag in `templates/bundles/SyliusShopBundle/_javascripts.html.twig` instead: **Sylius 2.x does not
+  read that file**, so the tag is simply never rendered.
 - The tag is rendered but the file it points at is not there — a deployment that shipped the
   manifest and not `public/build`, or a web server that does not serve that directory. The page
   looks exactly the same; the difference is in the browser's Network tab, where `nmi-shop.js`
   fails to load.
+- The plugin's script ran, but Collect.js — the NMI script that draws the fields — could not be
+  fetched from `https://secure.nmi.com`: a Content Security Policy without that host in
+  `script-src`, or a browser extension blocking it. This one is not silent for long: after twenty
+  seconds the page says the card form could not be loaded, and the browser's console names the
+  blocked request. The README's step 6 lists the hosts a policy has to allow.
 
 **How to confirm:** view the page source and look for a `<script>` whose `src` contains
 `nmi-shop`. If it is absent, the hook never rendered the tag. If it is present, open the browser's
-Network tab: the request for it is failing.
+Network tab: either the request for it is failing, or it loaded and the request for `Collect.js` is
+the one that failed.
 
 The other two ways of getting step 5 wrong do **not** fail silently — they are the next entry.
 
@@ -40,9 +49,9 @@ messages.
 **What was missed:** README **step 5** again, in one of its two loud ways:
 
 - *Could not find the entrypoints file from Webpack: the file …/public/build/default/entrypoints.json
-  does not exist.* The third argument to `encore_entry_script_tags` was omitted. It is the build
-  name, `app.shop`, and without it Encore looks for a build that a Sylius Standard store does not
-  have.
+  does not exist.* Only possible with an overridden template: the third argument to
+  `encore_entry_script_tags` was dropped. It is the build name, `app.shop`, and without it Encore
+  looks for a build that a Sylius Standard store does not have. The plugin's own template has it.
 - *Could not find the entry "nmi-shop" in …/public/build/app/shop/entrypoints.json. Found:
   app-shop-entry.* The entry is not in the shop build's manifest: either `yarn build` was never run
   after adding it, or it was added to the wrong Encore block. A Sylius Standard `webpack.config.js`

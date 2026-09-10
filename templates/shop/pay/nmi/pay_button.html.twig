@@ -1,0 +1,20 @@
+{#
+    The button that starts an attempt, as a hookable of its own so that the option to keep the card
+    sits above it rather than below. Disabled here and enabled by the script once the gateway's
+    frames report ready: a page whose script never ran shows a button that does nothing rather
+    than one that promises to.
+
+    Marked as belonging to the new-card path, like the fields, so that choosing a saved card puts
+    it away — that path has a button of its own. `label` is optional: the account's add-a-card
+    page includes this file with a label of its own.
+#}
+<button
+    type="button"
+    id="nmi-card-pay"
+    class="btn btn-primary"
+    data-nmi-new-card-only
+    disabled
+    {{ sylius_test_html_attribute('nmi-card-pay') }}
+>
+    {{ label|default('jpm_martin_sylius_nmi.shop.pay.pay_now'|trans) }}
+</button>

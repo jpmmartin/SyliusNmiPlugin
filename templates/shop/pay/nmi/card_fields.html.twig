@@ -1,0 +1,53 @@
+{#
+    The three card fields, drawn the way the theme draws any form: a label above each, and an empty
+    element the gateway's script fills with its frame. The frame copies the look of a `form-control`
+    placed in that element for a moment — height, border, radius, font, colours — which is why there
+    is no stylesheet here: the theme's own inputs are the source, and a theme that changes them
+    changes these.
+
+    The title is the frame's accessible name and the placeholder is what a shopper sees before
+    typing. Both are read by the script off these elements, so they are translated here rather than
+    in JavaScript. The ids are what the script hands the gateway as selectors, so a store that
+    overrides this file keeps them.
+#}
+<div class="row">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="mb-3">
+            <label class="form-label">{{ 'jpm_martin_sylius_nmi.shop.pay.card_number'|trans }}</label>
+            <div
+                id="nmi-card-number"
+                data-nmi-field="ccnumber"
+                data-nmi-title="{{ 'jpm_martin_sylius_nmi.shop.pay.card_number'|trans }}"
+                data-nmi-placeholder="{{ 'jpm_martin_sylius_nmi.shop.pay.card_number_placeholder'|trans }}"
+                {{ sylius_test_html_attribute('nmi-card-number') }}
+            ></div>
+        </div>
+        <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label">{{ 'jpm_martin_sylius_nmi.shop.pay.expiry'|trans }}</label>
+                <div
+                    id="nmi-card-expiry"
+                    data-nmi-field="ccexp"
+                    data-nmi-title="{{ 'jpm_martin_sylius_nmi.shop.pay.expiry'|trans }}"
+                    data-nmi-placeholder="{{ 'jpm_martin_sylius_nmi.shop.pay.expiry_placeholder'|trans }}"
+                    {{ sylius_test_html_attribute('nmi-card-expiry') }}
+                ></div>
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label">{{ 'jpm_martin_sylius_nmi.shop.pay.security_code'|trans }}</label>
+                <div
+                    id="nmi-card-cvv"
+                    data-nmi-field="cvv"
+                    data-nmi-title="{{ 'jpm_martin_sylius_nmi.shop.pay.security_code'|trans }}"
+                    data-nmi-placeholder="{{ 'jpm_martin_sylius_nmi.shop.pay.security_code_placeholder'|trans }}"
+                    {{ sylius_test_html_attribute('nmi-card-cvv') }}
+                ></div>
+            </div>
+        </div>
+        {#
+            Where an attempt that went nowhere is said out loud: a field left empty, frames that
+            did not answer, an authentication that failed. Hidden until there is something to say.
+        #}
+        <p id="nmi-card-error" class="text-danger" role="alert" hidden {{ sylius_test_html_attribute('nmi-card-error') }}></p>
+    </div>
+</div>

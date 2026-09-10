@@ -94,7 +94,14 @@ jpm_martin_sylius_nmi:
         pay:
             heading: Pagar con tarjeta
             amount: Importe a pagar:
+            card_number: Número de tarjeta
+            card_number_placeholder: 1234 1234 1234 1234
+            expiry: Fecha de caducidad
+            expiry_placeholder: MM / AA
+            security_code: Código de seguridad
+            security_code_placeholder: CVC
             card_unreadable: No se han podido leer los datos de la tarjeta. Revísalos e inténtalo de nuevo.
+            form_unavailable: No se ha podido cargar el formulario de la tarjeta. Recarga la página.
             not_authenticated: No se ha podido autenticar la tarjeta, así que no se ha cobrado nada. Inténtalo de nuevo o usa otra tarjeta.
             save_card: Guardar esta tarjeta para la próxima vez
             use_saved_card: Pagar con una tarjeta guardada
