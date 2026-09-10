@@ -12,24 +12,13 @@
         xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
 >
     <services>
-        <!-- Which methods the refund plugin offers: the NMI method that took the money, once settled, and no other of ours. -->
+        <!-- Which methods the refund plugin offers: the NMI method that took the money, and no other of ours. -->
         <service
                 id="jpm_martin_sylius_nmi.refund.provider.refund_payment_methods"
                 class="JpmMartin\SyliusNmiPlugin\Refund\NmiRefundPaymentMethodsProvider"
                 decorates="sylius_refund.provider.refund_payment_methods"
         >
             <argument type="service" id=".inner" />
-            <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
-        </service>
-
-        <!-- Whether the refund plugin offers refunding an order at all: not an NMI order before its transaction settles. -->
-        <service
-                id="jpm_martin_sylius_nmi.refund.checker.order_refunding_availability"
-                class="JpmMartin\SyliusNmiPlugin\Refund\NmiOrderRefundingAvailabilityChecker"
-                decorates="sylius_refund.checker.order_refunding_availability"
-        >
-            <argument type="service" id=".inner" />
-            <argument type="service" id="sylius.repository.order" />
             <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
         </service>
 

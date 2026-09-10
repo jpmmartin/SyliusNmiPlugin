@@ -24,8 +24,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  *
  * This plugin refunds from the order screen on its own and needs nothing from that package. What
  * the package adds is its own refund screens, and there NMI is offered for the order that an NMI
- * method paid — once the transaction has settled, which is when the gateway will refund — with
- * nothing on the package's own list of gateways. The refund itself is the other test class's.
+ * method paid — as soon as its transaction is on record — with nothing on the package's own list
+ * of gateways. The refund itself is the other test class's.
  */
 final class NmiRefundPluginIntegrationTest extends KernelTestCase
 {
@@ -51,8 +51,8 @@ final class NmiRefundPluginIntegrationTest extends KernelTestCase
         parent::tearDown();
     }
 
-    /** The *With the optional refund plugin* scenario: the method that took the money, once settled, and nothing configured. */
-    public function testTheMethodThatTookTheMoneyIsOfferedOnceSettled(): void
+    /** The *With the optional refund plugin* scenario: the method that took the money, and nothing configured. */
+    public function testTheMethodThatTookTheMoneyIsOffered(): void
     {
         $this->onlyWithTheRefundPlugin();
         [$order, $payment] = $this->paidNmiOrder(settled: true);
@@ -63,14 +63,19 @@ final class NmiRefundPluginIntegrationTest extends KernelTestCase
         self::assertTrue($this->available()($this->number($order)), 'And the refund plugin may refund the order.');
     }
 
-    /** The *Not offered before settlement* scenario. */
-    public function testNothingIsOfferedBeforeTheTransactionSettles(): void
+    /**
+     * The *Offered as soon as the money was taken* scenario. Settlement is not waited for: the
+     * sandbox refunded an unsettled sale when asked, and a store with no webhooks would never
+     * record a settlement anyway. Whether the gateway refunds is the gateway's answer to give.
+     */
+    public function testOfferedAsSoonAsTheMoneyWasTaken(): void
     {
         $this->onlyWithTheRefundPlugin();
-        [$order] = $this->paidNmiOrder(settled: false);
+        [$order, $payment] = $this->paidNmiOrder(settled: false);
 
-        self::assertSame([], $this->offeredFor($order));
-        self::assertFalse($this->available()($this->number($order)), 'Voiding from the order screen is the way until the gateway will refund.');
+        self::assertSame([$payment->getMethod()], $this->offeredFor($order));
+        self::assertTrue($this->available()($this->number($order)), 'The refund plugin\'s own rule — paid, and worth something — is the only one.');
+        self::assertFalse(self::getContainer()->has('jpm_martin_sylius_nmi.refund.checker.order_refunding_availability'), 'No decorator of the availability checker remains.');
     }
 
     /**

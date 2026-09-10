@@ -258,14 +258,17 @@ have to know which applies — nothing the gateway exposes would tell you.
 
 **With `sylius/refund-plugin`**, which Sylius Standard ships, NMI is offered on that plugin's own
 refund screens too, and there is nothing to configure: an order paid with an NMI method is offered
-that method — the one that took the money, never another NMI account — as soon as the gateway has
-settled the transaction. A refund made there, for part of the order or all of it, is sent to NMI
-and the refund payment is completed only when NMI approves it; a refusal undoes the credit memo and
-tells you NMI's reason. The refund plugin's own *Complete* button never applies to an NMI refund:
-money the gateway has not returned is not marked returned. Until the transaction settles, the
-refund plugin does not offer the order at all; the order screen's *Refund* — a void, at that
-point — is the way to give the whole amount back. And the order screen keeps working afterwards:
-it refunds whatever the refund plugin has not returned yet, and refuses when nothing is left.
+that method — the one that took the money, never another NMI account — as soon as the payment is
+complete. A refund made there, for part of the order or all of it, is sent to NMI and the refund
+payment is completed only when NMI approves it; a refusal undoes the credit memo and tells you
+NMI's reason. Several partial refunds of one payment are each their own refund at NMI, which keeps
+the balance and refuses one that would exceed it. NMI's reference says a transaction has to settle
+before it can be refunded, while its sandbox refunds unsettled ones without complaint; the plugin
+asks either way and shows you the answer, and the order screen's *Refund* — a void, before
+settlement — remains the way to give the whole amount back if NMI says no. The refund plugin's own
+*Complete* button never applies to an NMI refund: money the gateway has not returned is not marked
+returned. And the order screen keeps working afterwards: it refunds whatever the refund plugin has
+not returned yet, and refuses when nothing is left.
 
 ## Saved cards
 
@@ -410,12 +413,10 @@ Two things this release deliberately does not do. They are stated here rather th
 shipment. This is not only a scoping decision: the gateway closes an authorisation on the first
 capture, so a partial capture would forfeit the rest rather than leave it claimable.
 
-**A refund through the refund plugin waits for settlement.** The gateway refunds only a settled
-transaction, so the refund plugin does not offer an NMI order until the settlement webhook has
-told the store the transaction settled — usually the next day. Until then, the order screen voids
-the whole amount. There is no entry to add to the refund plugin's `sylius_refund.supported_gateways`
-list; NMI is offered for the order's own method without it, and an entry a store added earlier
-changes nothing.
+**The refund plugin needs no entry for NMI.** There is nothing to add to its
+`sylius_refund.supported_gateways` list: NMI is offered for the order's own method without it, and
+an entry a store added earlier changes nothing. Refunds made there are real refunds at NMI; see
+*Voiding and refunding* above for what NMI accepts before a transaction settles.
 
 Installing the refund plugin itself is more than the package: it needs **three** bundles
 registered, its configuration and **its routes** imported, and its migrations run.

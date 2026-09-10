@@ -8,6 +8,5 @@ includes:
 parameters:
     excludePaths:
         - src/Refund/NmiRefundPaymentMethodsProvider.php
-        - src/Refund/NmiOrderRefundingAvailabilityChecker.php
         - src/Refund/GuardManualCompletionListener.php
         - src/Refund/RefundPaymentGeneratedHandler.php

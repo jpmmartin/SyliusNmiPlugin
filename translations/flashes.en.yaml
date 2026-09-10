@@ -16,7 +16,7 @@ jpm_martin_sylius_nmi:
         refused_by_gateway: 'NMI refused the refund, so nothing has been given back: %reason%'
         gateway_unreachable: NMI could not be reached, so the refund was not performed. Please try again.
         exceeds_transaction: The refund asks for more than the transaction has left to give back, so it was not performed.
-        nothing_to_refund: This order's payment has no settled transaction to refund against, so it was not performed.
+        nothing_to_refund: This order's payment has no recorded transaction to refund against, so it was not performed.
     stored_card:
         default_changed: That card is now your default.
         deleted: The card has been removed.

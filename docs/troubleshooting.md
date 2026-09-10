@@ -158,21 +158,21 @@ routes. There is no endpoint, so the request never reaches the plugin and nothin
 import is missing. If it is present, check it has **no prefix** — not the locale, not the admin
 path.
 
-## The refund plugin will not refund an order NMI paid
+## The refund plugin does not offer the NMI method for an order
 
 **What you see:** you installed `sylius/refund-plugin`, an order was paid through NMI, and the
-refund plugin's *Refund* button is not there for it — or it is there, but the list of refund
-methods does not name the NMI method.
+refund plugin's list of refund methods for it does not name the NMI method — only *Offline*, or
+nothing.
 
-**What was missed:** nothing, most likely: the transaction has not settled yet. The gateway refunds
-only settled transactions, so the plugin keeps the refund plugin away from an NMI order until the
-settlement webhook has marked the transaction settled, which happens at the gateway's next
-settlement run. Until then, the order screen's own *Refund* voids the whole amount. If it has been
-more than a day, the settlement webhook is not reaching the store — see the two webhook entries
-above. There is no list entry to add: NMI is offered for the order's own method without one.
+**What was missed:** nothing to configure — there is no list entry to add, and one a store added
+earlier changes nothing. NMI is offered for exactly one method: the one that took the order's
+money, when that payment is completed, the method is still enabled, and the plugin has the
+gateway's transaction on record. A payment completed some other way — marked paid by hand, paid
+through another method — has no NMI transaction behind it and is not offered, because there is
+nothing at the gateway to refund against.
 
-**How to confirm:** the payment's transaction on the order screen shows when it settled; empty
-means the store has not been told.
+**How to confirm:** the order screen shows the payment's transaction, with the gateway's id, when
+there is one.
 
 ## A refund from the refund plugin's screens was refused
 
@@ -180,8 +180,10 @@ means the store has not been told.
 No credit memo, no refund payment, nothing on the order.
 
 **What was missed:** nothing was half done — the refusal undid the credit memo with it. NMI's own
-sentence says why: an amount above what the transaction has left, a transaction that had not
-settled after all, or a key the gateway refused. Fix the cause and refund again.
+sentence says why: an amount above what the transaction has left (*Refund amount may not exceed
+the transaction balance*), a processor that will not refund before settlement — NMI's sandbox
+does, a live account may not — or a key the gateway refused. Fix the cause and refund again; for a
+transaction that must settle first, the order screen's *Refund* voids the whole amount meanwhile.
 
 ## A shopper's saved card is not offered at checkout
 

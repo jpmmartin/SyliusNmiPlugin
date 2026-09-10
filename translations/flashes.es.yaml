@@ -16,7 +16,7 @@ jpm_martin_sylius_nmi:
         refused_by_gateway: 'NMI rechazó la devolución, así que no se ha devuelto nada: %reason%'
         gateway_unreachable: No se ha podido contactar con NMI, así que la devolución no se ha realizado. Inténtalo de nuevo.
         exceeds_transaction: La devolución pide más de lo que le queda por devolver a la transacción, así que no se ha realizado.
-        nothing_to_refund: El pago de este pedido no tiene ninguna transacción liquidada contra la que devolver, así que no se ha realizado.
+        nothing_to_refund: El pago de este pedido no tiene ninguna transacción registrada contra la que devolver, así que no se ha realizado.
     stored_card:
         default_changed: Esa tarjeta es ahora tu predeterminada.
         deleted: La tarjeta se ha eliminado.

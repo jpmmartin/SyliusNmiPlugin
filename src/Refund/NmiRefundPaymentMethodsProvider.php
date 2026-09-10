@@ -14,8 +14,9 @@ use Sylius\RefundPlugin\Provider\RefundPaymentMethodsProviderInterface;
  * concerned: the one that took it, and no other of this gateway's.
  *
  * Money can only go back through the account that took it, so an order paid with an NMI method
- * is offered that method — once its transaction has settled, which is when the gateway will
- * refund — and never a second NMI method that happens to be enabled on the channel. Everything
+ * is offered that method — as soon as the transaction that took the money is on record — and
+ * never a second NMI method that happens to be enabled on the channel. Whether the gateway will
+ * refund before settling is the gateway's to say, and it says it when asked. Everything
  * the inner provider offers for other gateways is passed through untouched, which is what keeps
  * the store's own list the store's own. An NMI entry a store may have put on that list adds
  * nothing: whatever it would add is filtered out here.
@@ -43,7 +44,7 @@ final class NmiRefundPaymentMethodsProvider implements RefundPaymentMethodsProvi
             !$method instanceof PaymentMethodInterface ||
             !NmiPaymentMethods::includes($method) ||
             !$method->isEnabled() ||
-            null === $this->transactions->forPayment($payment)?->getSettledAt()
+            null === $this->transactions->forPayment($payment)
         ) {
             return $others;
         }

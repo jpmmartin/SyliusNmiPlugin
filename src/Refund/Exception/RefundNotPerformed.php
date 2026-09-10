@@ -26,7 +26,7 @@ final class RefundNotPerformed extends \RuntimeException
 
     public static function nothingToRefund(): self
     {
-        return new self('The payment has no settled transaction to refund against.');
+        return new self('The payment has no recorded transaction to refund against.');
     }
 
     public static function exceedsWhatWasTaken(int $requested, int $remaining): self

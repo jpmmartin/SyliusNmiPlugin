@@ -64,8 +64,8 @@ final class RefundPaymentGeneratedHandler
         $transaction = $payment instanceof PaymentInterface ? $this->transactions->forPayment($payment) : null;
         $transactionId = $transaction?->getTransactionId();
 
-        // The availability checker has already required a settled transaction to be there, so
-        // this is a store whose record changed under it. Refusing is the only honest answer.
+        // The provider only offered NMI because a transaction was on record, so this is a store
+        // whose record changed under it. Refusing is the only honest answer.
         if (!$payment instanceof PaymentInterface || null === $transaction || null === $transactionId) {
             $this->tell('jpm_martin_sylius_nmi.refund.nothing_to_refund');
 
