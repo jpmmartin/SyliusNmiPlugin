@@ -271,12 +271,31 @@ A channel with exactly one card-saving NMI method does not hit this.
 using `config/encryption/test.key`, which `sylius/sylius-standard` ships and points `.env` at in
 *every* environment, and which is published in a public skeleton.
 
-The generator refuses to overwrite an existing key, so running it prints *Key generation has been
-canceled* and changes nothing — which reads like success. Use `--overwrite`.
+Point the store at a new path first and generate second, as step 6 says. Run against the
+skeleton's key, the generator refuses to overwrite it and prints *Key generation has been
+canceled*, changing nothing — which reads like success — and run with `--overwrite` it replaces
+the published key in place, in a file git tracks.
 
 **There is a second cause worth knowing:** Sylius only encrypts a gateway configuration that is
 *not* a Payum one, and a config created by fixture, migration or API defaults to `usePayum: true`.
 The admin form sets it correctly; anything else has to set it itself.
+
+## The payment method fails with "Invalid encryption key" on save or on reopening
+
+**What you see:** the payment method form, on save or when you open it again, answers with an
+exception page headed *Invalid encryption key*; its second exception, the cause, reads *Cannot
+read keyfile: <path>*, and the path is the one you put in `.env.local`, where no file exists.
+
+**What was missed:** README **step 6**, in its order. The generator writes wherever the store
+points *at the moment it runs*, and it never moves a key: run before the path was changed, it wrote
+into the skeleton's `config/encryption/test.key` — with `--overwrite`, over the published key — and
+the new path got nothing. Sylius loads the key the first time it encrypts or decrypts a gateway
+configuration, which is why the store worked until you saved the method.
+
+**How to confirm:** the file the message names is absent, and `config/encryption/test.key` is newer
+than your `create-project`. Copy that file to the path `.env.local` names rather than generating
+again — a method you saved is encrypted with it — and treat it as the private key it now is if it
+was committed.
 
 ## Nothing above matches
 

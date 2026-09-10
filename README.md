@@ -200,23 +200,36 @@ SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN=sync://
 **Gateway credentials are encrypted at rest**, by Sylius rather than by this plugin, and that needs
 a key — **which your store almost certainly already has, and it is the wrong one.**
 `sylius/sylius-standard` ships `config/encryption/test.key` and points `.env` at it in *every*
-environment, not only `test`. The generator refuses to overwrite an existing key, so running it
-prints *Key generation has been canceled* and changes nothing, which reads like success.
+environment, not only `test`. That key is published in a public skeleton, so credentials encrypted
+with it are not encrypted against anyone who knows that. Make your own now, before you create the
+payment method: the key in use when a method is saved is the key its credentials are bound to, and
+changing it afterwards makes them unreadable until you re-enter them.
 
-That key is published in a public skeleton. Credentials encrypted with it are not encrypted against
-anyone who knows that. Before going live, make your own and keep it out of the repository:
+A key of your own must stay out of the repository, and the skeleton does not arrange that: its
+`.gitignore` excludes `config/jwt/*.pem` but nothing under `config/encryption/`. So, in this order
+— the generator writes wherever the store points *at the moment it runs*:
 
-```bash
-bin/console sylius:payment:generate-key --overwrite
+```gitignore
+# .gitignore — the rule the skeleton already uses for its JWT keys; test.key stays tracked, .env names it
+/config/encryption/*.key
+!/config/encryption/test.key
 ```
 
 ```dotenv
-# .env.local — point at a key you generated, not the one the skeleton shipped
-SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH=/etc/sylius/payment.key
+# .env.local — a sibling of the skeleton's key: writable by the web user, ignored by git
+SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH=%kernel.project_dir%/config/encryption/payment.key
 ```
 
-Changing the key after credentials are stored makes the stored ones unreadable, so do this before
-you create the payment method — or re-enter the credentials afterwards.
+```bash
+bin/console sylius:payment:generate-key
+```
+
+The command writes the key where `.env.local` now points and touches nothing else. It needs no
+`--overwrite`, because the new path is empty. Run with that flag *before* the path was changed, it
+would have replaced the skeleton's `test.key` with your key instead; if that already happened, copy
+that file to `config/encryption/payment.key` rather than generating again, and the credentials you
+have stored stay readable. Keep the file across deployments the way you keep the JWT keys; how is
+your deployment's business.
 
 **If your store sends a Content Security Policy**, the card fields and the authentication both run
 in frames served by NMI, and the script that draws the fields is fetched from NMI too, along with a
