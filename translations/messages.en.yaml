@@ -2,6 +2,7 @@ jpm_martin_sylius_nmi:
     gateway_factory:
         nmi: NMI
     ui:
+        nmi_gateway_notices: Gateway notices
         saved_cards: Saved cards
         no_saved_cards: You have no saved cards yet.
         expires: Expires

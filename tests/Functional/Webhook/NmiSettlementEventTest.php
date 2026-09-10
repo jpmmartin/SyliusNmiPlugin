@@ -195,8 +195,13 @@ final class NmiSettlementEventTest extends WebTestCase
         $this->client->request('GET', '/admin/nmi-notices');
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        self::assertStringContainsString('445566', (string) $this->client->getResponse()->getContent());
-        self::assertStringContainsString('Settlement failed', (string) $this->client->getResponse()->getContent());
+        $page = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('445566', $page);
+        self::assertStringContainsString('Settlement failed', $page);
+        // Sylius names an index page after its resource — `<application>.ui.<plural name>` — and
+        // shows the key itself when the catalogue has no entry for it. Seen on a real store.
+        self::assertStringContainsString('Gateway notices', $page, 'The page and its breadcrumb name themselves.');
+        self::assertStringNotContainsString('jpm_martin_sylius_nmi.ui.', $page, 'No key of the plugin is shown raw.');
     }
 
     private function notice(string $reference): NmiGatewayNoticeInterface

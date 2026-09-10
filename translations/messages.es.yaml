@@ -2,6 +2,7 @@ jpm_martin_sylius_nmi:
     gateway_factory:
         nmi: NMI
     ui:
+        nmi_gateway_notices: Avisos de la pasarela
         saved_cards: Tarjetas guardadas
         no_saved_cards: Todavía no tienes ninguna tarjeta guardada.
         expires: Caduca
