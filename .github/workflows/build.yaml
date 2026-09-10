@@ -192,6 +192,11 @@ jobs:
             - name: Generate the payment encryption key
               run: vendor/bin/console sylius:payment:generate-key
 
+            # Before anything asks the server a question: MySQL refuses a connection to a database
+            # that does not exist yet, where PostgreSQL would only have refused the query.
+            - name: Create the database
+              run: vendor/bin/console doctrine:database:create --if-not-exists
+
             - name: Which platform DBAL picked
               run: |
                   vendor/bin/console dbal:run-sql "SELECT VERSION()"
@@ -199,10 +204,9 @@ jobs:
 
             # The migration must build the four tables here as it does on PostgreSQL, and nothing of
             # the plugin's may be skipped: skipping is what the old per-engine halves did.
-            - name: Build the database with the migration
+            - name: Build the schema with the migration
               run: |
                   set -o pipefail
-                  vendor/bin/console doctrine:database:create --if-not-exists
                   vendor/bin/console doctrine:migrations:migrate --no-interaction | tee migrate.log
                   ! grep -i 'JpmMartin' migrate.log | grep -qi skipped
 
