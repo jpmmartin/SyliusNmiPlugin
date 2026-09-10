@@ -22,11 +22,10 @@ declare(strict_types=1);
  * Usage:
  *   bin/apply-readme-edits <path to README.md> <path to the store>
  */
-
 [$self, $readmePath, $storePath] = $argv + [null, null, null];
 
 if (null === $readmePath || null === $storePath) {
-    fwrite(STDERR, "Usage: apply-readme-edits <README.md> <store directory>\n");
+    fwrite(\STDERR, "Usage: apply-readme-edits <README.md> <store directory>\n");
 
     exit(1);
 }
@@ -43,7 +42,7 @@ if (false === $from || false === $to) {
 }
 $install = substr($readme, $from, $to - $from);
 
-preg_match_all('/^```(\w*)\n(.*?)^```/sm', $install, $matches, PREG_SET_ORDER);
+preg_match_all('/^```(\w*)\n(.*?)^```/sm', $install, $matches, \PREG_SET_ORDER);
 
 /** @var array<string, list<string>> $blocks */
 $blocks = [];
@@ -107,6 +106,22 @@ foreach ($blocks['yaml'] ?? [] as $body) {
     }
 }
 
+// ── Step 6: the key's path and the ignore rule, appended rather than written ─────────────────
+// Two files a store already has, or may. Lines go below what is there, and a line already there
+// is not added twice. The `.env` block in the same step documents a Sylius default and says not
+// to change it, so a block naming `.env` and nothing more is left alone.
+foreach (['dotenv' => '.env.local', 'gitignore' => '.gitignore'] as $language => $path) {
+    foreach ($blocks[$language] ?? [] as $body) {
+        if (!str_contains((string) strtok($body, "\n"), $path)) {
+            continue;
+        }
+
+        if (appendMissingLines($storePath . '/' . $path, withoutFirstLine($body))) {
+            report('appended to ' . $path);
+        }
+    }
+}
+
 // ── Step 5: the entry in the shop Encore block ───────────────────────────────────────────────
 // The most fragile of the lot, and the README says why: a Sylius Standard webpack.config.js
 // builds four configurations and this one belongs in the shop block, identified by the line the
@@ -148,6 +163,25 @@ function withoutFirstLine(string $body): string
     return implode("\n", $lines);
 }
 
+/** Adds the lines of a block that the file does not have yet; says whether it added any. */
+function appendMissingLines(string $path, string $lines): bool
+{
+    $existing = is_file($path) ? readOrFail($path) : '';
+    $present = array_map('trim', explode("\n", $existing));
+    $missing = array_filter(
+        array_map('rtrim', explode("\n", rtrim($lines))),
+        static fn (string $line): bool => '' !== trim($line) && !in_array(trim($line), $present, true),
+    );
+
+    if ([] === $missing) {
+        return false;
+    }
+
+    file_put_contents($path, rtrim($existing) . ('' === $existing ? '' : "\n") . implode("\n", $missing) . "\n", \LOCK_EX);
+
+    return true;
+}
+
 function readOrFail(string $path): string
 {
     if (!is_readable($path)) {
@@ -164,12 +198,12 @@ function writeFile(string $path, string $contents): void
 
 function report(string $what): void
 {
-    fwrite(STDOUT, '  ' . $what . "\n");
+    fwrite(\STDOUT, '  ' . $what . "\n");
 }
 
 function fail(string $why): never
 {
-    fwrite(STDERR, "\n" . $why . "\n");
+    fwrite(\STDERR, "\n" . $why . "\n");
 
     exit(1);
 }

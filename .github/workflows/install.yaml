@@ -17,6 +17,7 @@ on:
             - 'composer.json'
             - 'package.json'
             - 'bin/extract-readme-commands'
+            - 'bin/apply-readme-edits'
             - '.github/workflows/install.yaml'
     workflow_dispatch:
 
@@ -142,6 +143,15 @@ jobs:
                       eval "$command" < /dev/null
                       echo '::endgroup::'
                   done 3< ../commands.txt
+
+            # Step 6's own failure, seen on a real store: the generator writes wherever the
+            # environment points at the moment it runs, so generated before the path changed, the
+            # key lands in the skeleton's file and the store fails on its first encryption.
+            - name: The key was generated where the store points
+              working-directory: store
+              run: |
+                  test -s config/encryption/payment.key \
+                      || { echo 'No key at config/encryption/payment.key. Step 6 — the path in .env.local is set before the generator runs.'; exit 1; }
 
             # These three are what a half-finished install actually costs, and every one of them
             # fails silently: a missing bundle looks like a failed package, missing routes look
