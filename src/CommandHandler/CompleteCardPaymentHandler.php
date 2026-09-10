@@ -26,6 +26,7 @@ use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
+use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
@@ -49,6 +50,9 @@ use Sylius\Component\Payment\PaymentTransitions;
  */
 final class CompleteCardPaymentHandler
 {
+    /** The most the gateway keeps of an order reference: its rule is "fewer than 50 characters". */
+    private const ORDER_REFERENCE_LENGTH = 49;
+
     /** A saved card that cannot be charged: gone, expired, or never this shopper's to begin with. */
     public const CARD_UNAVAILABLE_MESSAGE_KEY = 'jpm_martin_sylius_nmi.payment.card_unavailable';
 
@@ -175,6 +179,21 @@ final class CompleteCardPaymentHandler
         );
     }
 
+    /**
+     * What the gateway is told the order is: its number, which is what the merchant knows it by
+     * and types into the portal's search. Not the order's token — the gateway keeps fewer than
+     * fifty characters here, and a Sylius order token is sixty-four, so sending the token made
+     * every real checkout fail with a validation error while the short tokens of seeded test
+     * orders sailed through. A number is nine characters; the cut is there for a store that
+     * numbers its orders some other way.
+     */
+    private function orderReference(?OrderInterface $order): ?string
+    {
+        $number = $order?->getNumber();
+
+        return null !== $number && '' !== $number ? substr($number, 0, self::ORDER_REFERENCE_LENGTH) : null;
+    }
+
     /** @param array<string, mixed> $payload */
     private function chargeFrom(PaymentInterface $payment, string $token, array $payload, bool $storeCard): Charge
     {
@@ -187,7 +206,7 @@ final class CompleteCardPaymentHandler
             // Sent on every charge so a merchant can find the transaction in the gateway's own
             // portal after a lost response. It is not a reconciliation mechanism: nothing in the
             // API looks a payment up by it.
-            orderId: $order?->getTokenValue(),
+            orderId: $this->orderReference($order),
             ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
             threeDSecure: $this->threeDSecureFrom($payload),
             storeCard: $storeCard,
@@ -211,7 +230,7 @@ final class CompleteCardPaymentHandler
             paymentToken: null,
             amount: (int) $payment->getAmount(),
             currencyCode: (string) $payment->getCurrencyCode(),
-            orderId: $order?->getTokenValue(),
+            orderId: $this->orderReference($order),
             ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
             threeDSecure: $this->threeDSecureFrom($payload),
             storedCard: new StoredCard(

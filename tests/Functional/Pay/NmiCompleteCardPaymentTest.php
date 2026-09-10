@@ -108,6 +108,31 @@ final class NmiCompleteCardPaymentTest extends WebTestCase
     }
 
     /**
+     * What the gateway is told the order is: the order's number, which the merchant knows it by.
+     *
+     * Found by the first real checkout on a real store. The handler used to send the order's
+     * token — sixty-four characters on an order Sylius placed — and the gateway keeps fewer than
+     * fifty, so every real payment failed with a validation error, while the seeded orders of
+     * the sandbox rehearsals carried short tokens and sailed through. This pins both facts.
+     */
+    public function testTheGatewayIsToldTheOrdersNumberNotItsToken(): void
+    {
+        $this->gateway->willApprove();
+        $paymentRequest = $this->processingRequest();
+        $order = $paymentRequest->getPayment()->getOrder();
+        self::assertNotNull($order);
+        $order->setNumber('000000021');
+        $order->setTokenValue(bin2hex(random_bytes(32)));
+        $this->manager->flush();
+
+        $this->post($paymentRequest, [self::TOKEN]);
+
+        self::assertNotNull($this->gateway->lastCharge);
+        self::assertSame('000000021', $this->gateway->lastCharge->orderId);
+        self::assertLessThan(50, strlen((string) $this->gateway->lastCharge->orderId), 'The gateway keeps fewer than fifty characters of an order reference.');
+    }
+
+    /**
      * The shopper's last hop. The platform ends the flow by minting a status request, and a
      * gateway that does not answer it turns every successful payment into an error page.
      */
