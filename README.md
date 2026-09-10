@@ -267,8 +267,11 @@ before it can be refunded, while its sandbox refunds unsettled ones without comp
 asks either way and shows you the answer, and the order screen's *Refund* — a void, before
 settlement — remains the way to give the whole amount back if NMI says no. The refund plugin's own
 *Complete* button never applies to an NMI refund: money the gateway has not returned is not marked
-returned. And the order screen keeps working afterwards: it refunds whatever the refund plugin has
-not returned yet, and refuses when nothing is left.
+returned. Note that the refund plugin hides Sylius's own *Refund* button on the order screen, so
+with it installed its screens are where every refund happens; partial refunds that add up to the
+whole payment mark it refunded just as one full refund would. Without the refund plugin, the order
+screen's *Refund* gives back whatever has not been returned yet — a refund made in NMI's portal and
+reported by webhook is subtracted first — and refuses when nothing is left.
 
 ## Saved cards
 

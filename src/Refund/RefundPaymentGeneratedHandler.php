@@ -101,11 +101,13 @@ final class RefundPaymentGeneratedHandler
             RefundPaymentTransitions::TRANSITION_CONFIRM_GATEWAY_REFUND,
         );
 
-        // The whole payment given back through the refund plugin is the same fact the order
-        // screen's refund records on the payment itself, so the payment says so too — and stops
-        // offering a refund of money that is gone. A part leaves the payment as it is.
+        // Everything the transaction took given back — in one refund or in several — is the same
+        // fact the order screen's refund records on the payment itself, so the payment says so
+        // too. A part leaves the payment as it is.
+        // Counted here rather than read back: this refund's own row is not flushed until the
+        // refund plugin's command commits, so the record still says what it said before it.
         if (
-            $event->amount() === (int) $payment->getAmount() &&
+            $remaining === $event->amount() &&
             $this->stateMachine->can($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND)
         ) {
             $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND);

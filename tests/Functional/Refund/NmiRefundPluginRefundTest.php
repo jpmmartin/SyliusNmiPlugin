@@ -101,7 +101,7 @@ final class NmiRefundPluginRefundTest extends KernelTestCase
         self::assertCount(1, $this->creditMemosOf($order));
     }
 
-    /** The whole amount given back through the refund plugin is the same fact the order screen records. */
+    /** The whole amount given back through the refund plugin, in one go, is the same fact the order screen records. */
     public function testTheWholeAmountRefundedThereMovesThePaymentToRefundedToo(): void
     {
         $this->onlyWithTheRefundPlugin();
@@ -134,8 +134,9 @@ final class NmiRefundPluginRefundTest extends KernelTestCase
 
         $sale = $this->transactions()->findOneByTransactionIdAndType(self::SALE, NmiTransactionInterface::TYPE_SALE);
         self::assertNotNull($sale);
-        self::assertSame(0, self::getContainer()->get('jpm_martin_sylius_nmi.refund.money_taking_transaction')->remainingOn($sale), 'Nothing is left, and the order screen would now refuse.');
+        self::assertSame(0, self::getContainer()->get('jpm_martin_sylius_nmi.refund.money_taking_transaction')->remainingOn($sale), 'Nothing is left.');
         self::assertSame(OrderPaymentStates::STATE_REFUNDED, $order->getPaymentState());
+        self::assertSame(PaymentInterface::STATE_REFUNDED, $payment->getState(), 'Parts that add up to the whole are the whole: the payment says refunded too.');
     }
 
     /** The *gateway refuses the refund* scenario: nothing half done survives, and the operator hears why. */
