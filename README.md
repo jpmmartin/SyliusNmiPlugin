@@ -238,6 +238,10 @@ whatever you enter here; the host is where *your store's* calls go.
 Credentials belong to the payment method, so a store with several channels can give each one its
 own NMI account.
 
+Before the first payment on a sandbox account, read [Testing against the
+sandbox](#testing-against-the-sandbox) below: the account has to be in Test Mode, and the card
+you type decides whether authentication passes — NMI's classic test card does not pass it.
+
 ### Authorise-then-capture
 
 With the flag on, checkout leaves the payment **authorized** and the money reserved but not taken.
@@ -271,9 +275,37 @@ returned. Note that the refund plugin hides Sylius's own *Refund* button on the 
 with it installed its screens are where every refund happens; partial refunds that add up to the
 whole payment mark it refunded just as one full refund would, and its refund page — where it takes
 you after each refund — still opens for that order afterwards, as the record of what went back.
-Without the refund plugin, the order
-screen's *Refund* gives back whatever has not been returned yet — a refund made in NMI's portal and
-reported by webhook is subtracted first — and refuses when nothing is left.
+Without the refund plugin, the order screen's *Refund* gives back whatever has not been returned
+yet — a refund made in NMI's portal and reported by webhook is subtracted first — and refuses when
+nothing is left.
+
+## Testing against the sandbox
+
+An NMI sandbox account is served from `https://sandbox.nmi.com`, which is what its payment
+method's gateway host must say. A reseller account has no separate sandbox host: it is the same
+host as always, and *Test Mode* in the merchant portal is the switch.
+
+Put the account into Test Mode in the merchant portal first. Then the card decides what happens:
+every new card is authenticated with 3-D Secure, and on the sandbox only the cards NMI publishes
+under [Testing Values for Payer Authentication](https://docs.nmi.com/docs/testing) come back with
+an authentication result. Two of them show the two outcomes a shopper can meet:
+
+| Card | What happens |
+|---|---|
+| `4000 0000 0000 2701` | Authenticates without a challenge: the payment goes through with no extra screen |
+| `4000 0000 0000 2503` | Authenticates through a challenge: a dialog opens over the pay page, the sandbox's mock issuer shows the one-time code to type, and the payment goes through once it is entered |
+
+NMI's page names no expiry date and no verification value for them. On the sandbox on
+2026-09-10, a future expiry and an arbitrary three-digit value were accepted — observed there,
+not promised by NMI. The page lists nine more cards, one for each failure and error, and is the
+place to read them rather than a copy here that would drift.
+
+The classic sandbox card, `4111 1111 1111 1111`, is not in that set. With it the authentication
+widget completes without an authentication result, and the pay page says the card could not be
+authenticated and has not been charged: the plugin refusing to charge a card nobody authenticated,
+not a fault. See *Troubleshooting*.
+
+Amounts under `1.00` are declined on purpose, which is the quickest way to see the decline path.
 
 ## Saved cards
 
@@ -455,19 +487,6 @@ the host you entered. See *Troubleshooting*.
 Note that **the browser component always tokenises against NMI's hosts**, whatever the field says.
 Your tokenization key identifies your merchant account to them, so this works — but it is the
 gateway's behaviour, not something the plugin chooses.
-
-## Testing against the sandbox
-
-An NMI sandbox account is served from `https://sandbox.nmi.com`, which is what its payment
-method's gateway host must say. A reseller account has no separate sandbox host: it is the same
-host as always, and *Test Mode* in the merchant portal is the switch.
-
-Put the account into Test Mode in the merchant portal, then use NMI's published test cards. Their
-3-D Secure test cards are the set documented under *Testing Values for Payer Authentication* —
-the ones beginning `4000 0000 0000 27…`, which is a different set from the one on their
-sandbox page, and the only one this component answers with real authentication values.
-
-Amounts under `1.00` are declined on purpose, which is the quickest way to see the decline path.
 
 ## Headless
 

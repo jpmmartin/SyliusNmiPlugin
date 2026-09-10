@@ -106,6 +106,21 @@ render, so it sends the shopper onward.
 **Note this is not Sylius's default** — Sylius ships `sync://` and it is correct. Something in your
 application changed it.
 
+## The pay page says the card could not be authenticated, with a test card
+
+**What you see:** the card fields render and, a few seconds after *Pay*, the page answers *The
+card could not be authenticated, so it has not been charged. Try again or use another card.* No
+error in the browser console, and the order stays unpaid.
+
+**What was missed:** README *Testing against the sandbox* — the account is not in Test Mode, or
+the card is not one of NMI's payer-authentication test cards. The usual cause is the classic
+sandbox card, `4111 1111 1111 1111`: it tokenises, but the sandbox answers its 3-D Secure with no
+authentication result, and the plugin refuses to charge a card nobody authenticated, exactly as it
+would in production.
+
+**How to confirm:** on the same account, `4000 0000 0000 2701` authenticates without a challenge
+and pays at once.
+
 ## Every charge fails with the generic message, and the log says the key was refused
 
 **What you see:** the card fields render, the card tokenises and passes authentication, and then
