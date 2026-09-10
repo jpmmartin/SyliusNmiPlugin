@@ -5,5 +5,11 @@
     "private": true,
     "dependencies": {
         "@nmipayments/nmi-pay": "^1.0.2"
+    },
+    "scripts": {
+        "test": "node --test assets/shop/js/input-styles.test.mjs && node --import ./assets/shop/js/test/register.mjs --test assets/shop/js/nmi-payment.test.mjs"
+    },
+    "devDependencies": {
+        "jsdom": "^27"
     }
 }
