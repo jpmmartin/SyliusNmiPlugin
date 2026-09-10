@@ -22,6 +22,16 @@
             <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
         </service>
 
+        <!-- The refund plugin's refunds page is not offered for an order whose NMI payment is refunded: its template cannot render one. -->
+        <service
+                id="jpm_martin_sylius_nmi.refund.checker.order_refunds_list_availability"
+                class="JpmMartin\SyliusNmiPlugin\Refund\NmiOrderRefundsListAvailabilityChecker"
+                decorates="sylius_refund.checker.order_refunds_list_availability"
+        >
+            <argument type="service" id=".inner" />
+            <argument type="service" id="sylius.repository.order" />
+        </service>
+
         <!-- The refund plugin's manual *Complete* stays shut for NMI refund payments; the gateway's approval takes the plugin's own transition. -->
         <service id="jpm_martin_sylius_nmi.refund.listener.guard_manual_completion" class="JpmMartin\SyliusNmiPlugin\Refund\GuardManualCompletionListener">
             <tag name="kernel.event_listener" event="workflow.sylius_refund_refund_payment.guard.complete" />

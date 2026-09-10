@@ -174,6 +174,17 @@ nothing at the gateway to refund against.
 **How to confirm:** the order screen shows the payment's transaction, with the gateway's id, when
 there is one.
 
+## The refund plugin's refund page says the order cannot be refunded, after the last refund
+
+**What you see:** the whole of an NMI payment has been given back through the refund plugin, and
+opening its refund page for that order answers *order cannot be refunded* and returns you to the
+order.
+
+**What was missed:** nothing. The refund plugin keeps that page for fully refunded orders as a
+history, but its template cannot render an order whose payment is *refunded*, which is what an NMI
+payment becomes once the money is back. The plugin keeps the page off such an order, as the Adyen
+plugin does; the order's own page lists every refund payment and credit memo.
+
 ## A refund from the refund plugin's screens was refused
 
 **What you see:** the refund plugin's error message, and above it a sentence naming NMI's reason.
