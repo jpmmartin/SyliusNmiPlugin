@@ -9,9 +9,9 @@ card details tokenised in the shopper's browser so the store never handles them.
 
 ## What it does
 
-- **Card payments** on Sylius's own pay page, collected by NMI's browser component. The card
-  number, expiry and verification value are entered inside the gateway's frames; the only thing
-  the store ever receives is a single-use token.
+- **Card payments** on Sylius's own pay page, the one shown right after *Place order*, collected
+  by NMI's browser component. The card number, expiry and verification value are entered inside
+  the gateway's frames; the only thing the store ever receives is a single-use token.
 - **3-D Secure** on every payment, in the browser. A frictionless authentication shows the shopper
   nothing extra; a challenge is presented in place.
 - **Charge now, or authorise and capture later**, chosen per payment method.
@@ -259,6 +259,12 @@ whatever you enter here; the host is where *your store's* calls go.
 
 Credentials belong to the payment method, so a store with several channels can give each one its
 own NMI account.
+
+The card is typed after *Place order*, on the pay page Sylius shows for the order — the same place
+Sylius's own payment flow and the Stripe plugin put it; the checkout's *Payment* step only chooses
+the method, and shows no card fields for any gateway. A store that wants the card asked for on the
+checkout's summary step instead, the way the Adyen plugin does, has a recipe for it in
+[Extending](docs/extending.md).
 
 Before the first payment on a sandbox account, read [Testing against the
 sandbox](#testing-against-the-sandbox) below: the account has to be in Test Mode, and the card

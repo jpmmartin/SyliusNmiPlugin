@@ -23,6 +23,10 @@ registered the bundle. After the command they are new, and the labels read as te
 
 ## The payment page has no card fields
 
+**First, which page.** The card fields live on the pay page, the one Sylius shows after *Place
+order*. The checkout's *Payment* step lists the methods and shows no card fields for any of them;
+if that is where you are looking, nothing is missing — place the order.
+
 **What you see:** the pay page renders its heading, the amount to pay and the three labels —
 *Card number*, *Expiry date*, *Security code* — with nothing under them, and a greyed-out *Pay*
 button that does nothing. The button is disabled in the markup and enabled by the same script that
