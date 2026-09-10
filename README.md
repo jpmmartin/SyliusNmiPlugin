@@ -106,6 +106,15 @@ account rule is `^/(?!admin|api…)[^/]++/account`, and that first segment is th
 the account routes without it and the pages sit inside the shop firewall but outside the rule that
 requires a signed-in shopper.
 
+Then clear the cache:
+
+```bash
+bin/console cache:clear
+```
+
+A Sylius store does not rebuild its translation catalogues when a newly registered bundle brings
+translation files, so until you do this every label of the plugin shows as its key.
+
 ### 4. Run the migration
 
 The plugin adds four tables: one recording every transaction it makes at the gateway, one for the

@@ -7,6 +7,20 @@ is usually several layers away from the cause.
 If you are reading this during an install, the fastest thing you can do is re-read the README's
 install steps in order and check each one — most of what follows is a step that was skipped.
 
+## Every label of the plugin shows as a dotted key
+
+**What you see:** on the plugin's own admin screens — the gateway-notice grid, the NMI fields on
+the payment-method form — every label reads as a key beginning `jpm_martin_sylius_nmi.`, while
+Sylius's own labels around them are fine.
+
+**What was missed:** README **step 3** — `bin/console cache:clear` after importing the plugin's
+configuration. A Sylius store does not rebuild its translation catalogues when a newly registered
+bundle brings translation files: the catalogues cached before the plugin stay in use through every
+rebuild of the container, and the plugin's files are read only once the cache is cleared.
+
+**How to confirm:** the files under `var/cache/dev/translations/` are older than the moment you
+registered the bundle. After the command they are new, and the labels read as text.
+
 ## The payment page has no card fields
 
 **What you see:** the pay page renders its heading, the amount to pay and the three labels —

@@ -389,9 +389,11 @@ over to the test application's own bootstrap.
 > **Behat prompts for snippet generation** when a step is undefined, which looks exactly like a
 > hang. Always pass `--no-interaction`; the composer scripts already do.
 
-> **Symfony's translator caches the catalogue file list.** After adding a translation file,
-> `rm -rf var/cache/test` before trusting a Behat result. Note the cache lives at the repository
-> root, not under `tests/TestApplication/`.
+> **Sylius's translator does not notice a new translation file.** The theme bundle's translator
+> keys its catalogue caches by the fallback locales alone and watches only the files it loaded
+> when it dumped them, so a file added later is never read until the cache is deleted. After
+> adding a translation file, `rm -rf var/cache/test` before trusting a Behat result. Note the
+> cache lives at the repository root, not under `tests/TestApplication/`.
 
 There is **no Makefile**. Docker is available directly — `compose.yml` defines `php`, `mysql` 8.4,
 `postgres` 16, `nginx` and `mailhog`; copy `compose.override.dist.yml` to `compose.override.yml`
