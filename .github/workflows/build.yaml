@@ -108,8 +108,11 @@ jobs:
 
             # The theme-token derivation is pure JavaScript with no DOM in it, which is what lets
             # Node test it here without a browser.
+            # The style helper and the card form's public contract — its attributes, modes,
+            # events and `submit` — on Node's own runner, with jsdom for a page and the gateway's
+            # widget package routed to a stand-in, because that package needs a browser to load.
             - name: Test the front end
-              run: node --test assets/shop/js/input-styles.test.mjs
+              run: yarn test
 
             - name: Run ECS
               run: vendor/bin/ecs check src tests --no-progress-bar
