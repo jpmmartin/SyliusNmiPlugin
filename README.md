@@ -160,7 +160,7 @@ sylius_twig_hooks:
     hooks:
         'sylius_shop.base#javascripts':
             nmi:
-                template: '@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig'
+                template: '@JpmMartinSyliusNmiPlugin/shop/script.html.twig'
                 priority: -10
 ```
 
