@@ -351,6 +351,17 @@ under `src/` is either named there or carries `@internal`, and `tests/Unit/Docs/
 fails when either half drifts. A new class starts internal; making it public is a decision taken in
 the document, not by leaving the tag off. SemVer is promised about the list and nothing else.
 
+**Migrations are written once, for every engine, against the schema object.** `up(Schema $schema)`
+describes the tables; Doctrine derives each engine's statements when the migration runs, so there
+is no MySQL copy, no PostgreSQL copy and nothing that skips itself — unlike Sylius's own migrations,
+which ship in per-engine pairs. `doctrine:migrations:diff` cannot produce such a file: it emits the
+connected engine's SQL behind a platform guard, by design. The mapping is the truth, and
+`tests/Integration/Migrations/MigrationMatchesMappingTest` holds the migration to it: it compares
+the tables the migration built with the ones the ORM expects and fails on any difference, on
+PostgreSQL in the main jobs and on MySQL in a job of its own. Ids are `IDENTITY` in the mapping,
+never `AUTO`: `AUTO` resolves to a sequence on PostgreSQL under DBAL 3 and to an identity column
+everywhere else, and one migration cannot match both.
+
 **Reference implementation:** `flux-se/sylius-stripe-plugin` is the closest model on the modern
 contract — install it in a scratch project and read it. `sylius/adyen-plugin` predates
 `PaymentRequest` and uses its own command bus; useful for packaging and Twig Hooks, misleading for
@@ -412,7 +423,9 @@ docker compose up -d
 
 The `php` service is **built from this repository's `Dockerfile`**, not pulled: the published
 `ghcr.io/sylius/sylius-php` image ships `pdo_mysql` only, and the test suite runs on PostgreSQL.
-The base image is a build argument so an override can still select the xdebug variant.
+The schema alone is also built and checked on MySQL — in continuous integration in a job of its
+own, and locally against the `mysql` service. The base image is a build argument so an override
+can still select the xdebug variant.
 
 ### Composer scripts — one of them destroys data
 

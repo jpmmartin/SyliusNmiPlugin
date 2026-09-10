@@ -78,15 +78,15 @@ its default is. Defaults are chosen so that a store that ignores them keeps beha
 |---|---|
 | **PHP** | 8.2 and newer |
 | **Sylius** | 2.2 and newer. Sylius 1.x is not supported and will not be |
-| **Databases** | Whatever your Sylius version supports. Migrations ship for **MySQL and PostgreSQL**, and each skips itself on the other engine |
+| **Databases** | Whatever your Sylius version supports — MySQL, MariaDB or PostgreSQL. One migration serves all of them: it is written against Doctrine's schema representation, not an engine's SQL |
 
 A release that raises the PHP or Sylius floor is a **major** release, and its upgrade note says so.
 
-**One thing worth knowing if you run MySQL.** This plugin's continuous integration runs against
-**PostgreSQL only** — the MySQL migrations are shipped and are exercised locally, but they are not
-verified on every commit the way the PostgreSQL ones are. Nothing is known to be wrong with them;
-they simply carry less evidence. Run the migration on a copy before you run it on a live store,
-which is good practice anyway and is worth more here.
+**What the schema is verified on.** Every build runs the migration on PostgreSQL and on MySQL and
+checks, on each, that the tables it built are the ones the plugin's mapping describes; the rest of
+the test suite runs on PostgreSQL. MariaDB is the same engine family to Doctrine and is not run
+separately. Run the migration on a copy before you run it on a live store, which is good practice
+whatever the engine.
 
 ## Where to report a problem
 

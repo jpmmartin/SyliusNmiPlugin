@@ -43,6 +43,11 @@ is, and a new empty `## [Unreleased]` takes its place.
 - A record of every transaction the gateway performed, kept against the payment it belongs to and
   indexed by the gateway's own transaction identifier.
 - English and Spanish translations.
+- One migration for every engine Sylius supports — MySQL, MariaDB and PostgreSQL — written against
+  Doctrine's schema representation rather than an engine's SQL, so Doctrine derives each engine's
+  statements when it runs, nothing is skipped, and there is no copy per engine to keep in step.
+  Identifiers are declared `IDENTITY`. A test compares the tables the migration built with the
+  ones the mapping describes, on PostgreSQL and on MySQL, on every build.
 
 ### Known limitations
 

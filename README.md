@@ -29,7 +29,7 @@ card details tokenised in the shopper's browser so the store never handles them.
 |---|---|
 | PHP | 8.2 or newer |
 | Sylius | 2.2 or newer |
-| Database | MySQL or PostgreSQL. Migrations ship for both; continuous integration runs against PostgreSQL |
+| Database | MySQL, MariaDB or PostgreSQL. One migration serves all three; every build checks the schema on PostgreSQL and on MySQL |
 
 Sylius 1.x is not supported and will not be: this plugin is built on the `PaymentRequest` model
 introduced in 2.x and does not use Payum.
@@ -126,7 +126,9 @@ saved cards or webhooks on, and stay empty until you do.
 bin/console doctrine:migrations:migrate
 ```
 
-Migrations ship for MySQL and for PostgreSQL; each skips itself on the other engine.
+One migration, and it runs on whichever engine your store uses — MySQL, MariaDB or PostgreSQL.
+It is written against Doctrine's schema representation rather than an engine's SQL, so Doctrine
+derives the statements for your engine when it runs, and nothing is skipped.
 
 Skip this and the store works right up until the first payment, which fails on a missing table —
 in the middle of checkout, with a shopper watching, and **after their card has been charged**: the
