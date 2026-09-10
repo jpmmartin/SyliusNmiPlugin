@@ -23,7 +23,7 @@
         </unique-constraints>
 
         <id name="id" column="id" type="integer">
-            <generator strategy="AUTO" />
+            <generator strategy="IDENTITY" />
         </id>
 
         <field name="type" column="type" type="string" length="32" />

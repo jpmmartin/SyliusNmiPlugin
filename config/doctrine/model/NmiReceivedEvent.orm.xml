@@ -22,7 +22,7 @@
         </indexes>
 
         <id name="id" column="id" type="integer">
-            <generator strategy="AUTO" />
+            <generator strategy="IDENTITY" />
         </id>
 
         <!-- A UUID in every delivery observed and in every sample the gateway publishes; 64 leaves

@@ -22,7 +22,7 @@
         </unique-constraints>
 
         <id name="id" column="id" type="integer">
-            <generator strategy="AUTO" />
+            <generator strategy="IDENTITY" />
         </id>
 
         <field name="transactionId" column="transaction_id" type="string" length="64" />

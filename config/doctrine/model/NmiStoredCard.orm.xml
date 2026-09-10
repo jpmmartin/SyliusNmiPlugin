@@ -21,7 +21,7 @@
         </indexes>
 
         <id name="id" column="id" type="integer">
-            <generator strategy="AUTO" />
+            <generator strategy="IDENTITY" />
         </id>
 
         <field name="vaultId" column="vault_id" type="text" />
