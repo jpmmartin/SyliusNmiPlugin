@@ -3,8 +3,8 @@
 <!--
     Loaded only when `sylius/refund-plugin` is registered. It lives outside `services/` on
     purpose: `services.xml` imports that directory wholesale, and this file must not be picked
-    up by a store that does not have the refund plugin, because the parameter below would not
-    exist there.
+    up by a store that does not have the refund plugin, because every service below depends on a
+    class or a service id that only exists once that bundle has loaded its own configuration.
 -->
 <container
         xmlns="http://symfony.com/schema/dic/services"
@@ -12,9 +12,48 @@
         xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
 >
     <services>
-        <service id="jpm_martin_sylius_nmi.twig.refund_support" class="JpmMartin\SyliusNmiPlugin\Twig\NmiRefundSupportExtension">
-            <argument>%sylius_refund.supported_gateways%</argument>
-            <tag name="twig.extension" />
+        <!-- Which methods the refund plugin offers: the NMI method that took the money, once settled, and no other of ours. -->
+        <service
+                id="jpm_martin_sylius_nmi.refund.provider.refund_payment_methods"
+                class="JpmMartin\SyliusNmiPlugin\Refund\NmiRefundPaymentMethodsProvider"
+                decorates="sylius_refund.provider.refund_payment_methods"
+        >
+            <argument type="service" id=".inner" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
+        </service>
+
+        <!-- Whether the refund plugin offers refunding an order at all: not an NMI order before its transaction settles. -->
+        <service
+                id="jpm_martin_sylius_nmi.refund.checker.order_refunding_availability"
+                class="JpmMartin\SyliusNmiPlugin\Refund\NmiOrderRefundingAvailabilityChecker"
+                decorates="sylius_refund.checker.order_refunding_availability"
+        >
+            <argument type="service" id=".inner" />
+            <argument type="service" id="sylius.repository.order" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
+        </service>
+
+        <!-- The refund plugin's manual *Complete* stays shut for NMI refund payments; the gateway's approval takes the plugin's own transition. -->
+        <service id="jpm_martin_sylius_nmi.refund.listener.guard_manual_completion" class="JpmMartin\SyliusNmiPlugin\Refund\GuardManualCompletionListener">
+            <tag name="kernel.event_listener" event="workflow.sylius_refund_refund_payment.guard.complete" />
+        </service>
+
+        <!--
+            On the bus the refund plugin dispatches `RefundPaymentGenerated` on, which is where its
+            own handlers of its events sit too. Synchronous, inside the refund command's
+            transaction: a refusal rolls the credit memo back with it.
+        -->
+        <service id="jpm_martin_sylius_nmi.refund.handler.refund_payment_generated" class="JpmMartin\SyliusNmiPlugin\Refund\RefundPaymentGeneratedHandler">
+            <argument type="service" id="sylius_refund.repository.refund_payment" />
+            <argument type="service" id="sylius.repository.payment" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="request_stack" />
+            <argument type="service" id="translator" />
+            <tag name="messenger.message_handler" bus="sylius.event_bus" />
         </service>
     </services>
 </container>

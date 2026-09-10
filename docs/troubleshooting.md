@@ -158,25 +158,30 @@ routes. There is no endpoint, so the request never reaches the plugin and nothin
 import is missing. If it is present, check it has **no prefix** — not the locale, not the admin
 path.
 
-## The gateway is missing from the refund plugin's methods
+## The refund plugin will not refund an order NMI paid
 
-**What you see:** you installed `sylius/refund-plugin`, and its refund screen offers only the
-methods its own list names — *Offline*, typically — and never NMI. The gateway is not refused; it
-simply never appears.
+**What you see:** you installed `sylius/refund-plugin`, an order was paid through NMI, and the
+refund plugin's *Refund* button is not there for it — or it is there, but the list of refund
+methods does not name the NMI method.
 
-**What was missed:** the refund plugin keeps its own list of gateways it will refund through, and a
-gateway missing from it is invisible rather than rejected. Add this one:
+**What was missed:** nothing, most likely: the transaction has not settled yet. The gateway refunds
+only settled transactions, so the plugin keeps the refund plugin away from an NMI order until the
+settlement webhook has marked the transaction settled, which happens at the gateway's next
+settlement run. Until then, the order screen's own *Refund* voids the whole amount. If it has been
+more than a day, the settlement webhook is not reaching the store — see the two webhook entries
+above. There is no list entry to add: NMI is offered for the order's own method without one.
 
-```yaml
-# config/services.yaml
-parameters:
-    sylius_refund.supported_gateways:
-        - offline
-        - nmi
-```
+**How to confirm:** the payment's transaction on the order screen shows when it settled; empty
+means the store has not been told.
 
-**You may not need the refund plugin at all.** Refunding from Sylius's own order screen works
-without it; see *Limitations* in the README for what its four extra steps buy you.
+## A refund from the refund plugin's screens was refused
+
+**What you see:** the refund plugin's error message, and above it a sentence naming NMI's reason.
+No credit memo, no refund payment, nothing on the order.
+
+**What was missed:** nothing was half done — the refusal undid the credit memo with it. NMI's own
+sentence says why: an amount above what the transaction has left, a transaction that had not
+settled after all, or a key the gateway refused. Fix the cause and refund again.
 
 ## A shopper's saved card is not offered at checkout
 

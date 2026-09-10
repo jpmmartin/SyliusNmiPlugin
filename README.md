@@ -256,6 +256,17 @@ plugin decides how: it tries a void first, because a void never appears on the c
 statement, and falls back to a refund when the gateway says the transaction has settled. You do not
 have to know which applies — nothing the gateway exposes would tell you.
 
+**With `sylius/refund-plugin`**, which Sylius Standard ships, NMI is offered on that plugin's own
+refund screens too, and there is nothing to configure: an order paid with an NMI method is offered
+that method — the one that took the money, never another NMI account — as soon as the gateway has
+settled the transaction. A refund made there, for part of the order or all of it, is sent to NMI
+and the refund payment is completed only when NMI approves it; a refusal undoes the credit memo and
+tells you NMI's reason. The refund plugin's own *Complete* button never applies to an NMI refund:
+money the gateway has not returned is not marked returned. Until the transaction settles, the
+refund plugin does not offer the order at all; the order screen's *Refund* — a void, at that
+point — is the way to give the whole amount back. And the order screen keeps working afterwards:
+it refunds whatever the refund plugin has not returned yet, and refuses when nothing is left.
+
 ## Saved cards
 
 Off until you turn it on, and *off* means absent rather than dormant: no option on the pay page, no
@@ -399,21 +410,12 @@ Two things this release deliberately does not do. They are stated here rather th
 shipment. This is not only a scoping decision: the gateway closes an authorisation on the first
 capture, so a partial capture would forfeit the rest rather than leave it claimable.
 
-**The optional refund plugin needs one line.** `sylius/refund-plugin` keeps its own list of
-gateways it will refund through — `offline` alone by default — and a gateway missing from it is
-not refused, it simply never appears. Add this gateway to it:
-
-```yaml
-# config/services.yaml
-parameters:
-    sylius_refund.supported_gateways:
-        - offline
-        - nmi
-```
-
-Miss that entry and NMI is absent from the refund plugin's screens with no error anywhere, so this
-plugin puts a notice on the NMI payment method form when it finds the two installed and not
-talking to each other.
+**A refund through the refund plugin waits for settlement.** The gateway refunds only a settled
+transaction, so the refund plugin does not offer an NMI order until the settlement webhook has
+told the store the transaction settled — usually the next day. Until then, the order screen voids
+the whole amount. There is no entry to add to the refund plugin's `sylius_refund.supported_gateways`
+list; NMI is offered for the order's own method without it, and an entry a store added earlier
+changes nothing.
 
 Installing the refund plugin itself is more than the package: it needs **three** bundles
 registered, its configuration and **its routes** imported, and its migrations run.

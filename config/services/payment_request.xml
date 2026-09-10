@@ -125,7 +125,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
-            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
             <argument type="service" id="sylius_abstraction.state_machine" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>

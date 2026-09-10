@@ -117,8 +117,10 @@ jobs:
             - name: Lint the container
               run: vendor/bin/console lint:container
 
+            # The leg without the refund plugin analyses with the configuration that leaves out the
+            # four files implementing that package's interfaces; nothing else differs.
             - name: Run PHPStan
-              run: vendor/bin/phpstan analyse src/ --no-progress
+              run: vendor/bin/phpstan analyse src/ --no-progress --configuration=${{ matrix.refund_plugin && 'phpstan.neon' || 'phpstan-without-refund-plugin.neon' }}
 
             - name: Run PHPUnit
               run: vendor/bin/phpunit --colors=always

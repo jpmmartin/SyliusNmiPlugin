@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <!--
+            The transaction a refund reverses, and what has already gone back against it. Here
+            rather than in refund_plugin.xml because the order screen's own refund needs it too,
+            with or without the refund plugin.
+        -->
+        <service id="jpm_martin_sylius_nmi.refund.money_taking_transaction" class="JpmMartin\SyliusNmiPlugin\Refund\MoneyTakingTransactionProvider">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+        </service>
+    </services>
+</container>

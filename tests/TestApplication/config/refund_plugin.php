@@ -18,4 +18,9 @@ return static function (ContainerConfigurator $container): void {
     }
 
     $container->import('@SyliusRefundPlugin/config/config.yaml');
+
+    // A credit memo is generated as a PDF by an external binary the suite does not ship, and a
+    // refund that could not print its credit memo would fail for a reason that has nothing to do
+    // with the gateway. Off, so the refund plugin's flow can be driven end to end in tests.
+    $container->extension('sylius_refund', ['pdf_generator' => ['enabled' => false]]);
 };

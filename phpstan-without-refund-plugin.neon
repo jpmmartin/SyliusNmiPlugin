@@ -1,0 +1,13 @@
+# The analysis for the configuration without `sylius/refund-plugin`, which the Build workflow
+# runs beside the full one. The four files below implement that package's interfaces and handle
+# its event; they are loaded only when the package is registered, and cannot be analysed without
+# the classes they name. Everything else is analysed exactly as in phpstan.neon.
+includes:
+    - phpstan.neon
+
+parameters:
+    excludePaths:
+        - src/Refund/NmiRefundPaymentMethodsProvider.php
+        - src/Refund/NmiOrderRefundingAvailabilityChecker.php
+        - src/Refund/GuardManualCompletionListener.php
+        - src/Refund/RefundPaymentGeneratedHandler.php

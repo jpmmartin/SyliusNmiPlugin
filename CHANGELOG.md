@@ -26,6 +26,10 @@ is, and a new empty `## [Unreleased]` takes its place.
   goes out.
 - Voiding and refunding from the order screen. The plugin decides which of the two applies,
   because the gateway exposes nothing that would let a store tell them apart beforehand.
+- Refunds through `sylius/refund-plugin`, when a store has it: NMI is offered for the method that
+  took the order's money once the transaction has settled, with nothing to configure; a refund
+  made there, partial or full, is sent to the gateway and completed only on its approval, and a
+  refusal undoes the credit memo. The order screen refunds whatever is left afterwards.
 - The same flow headless, through the shop API Sylius already documents. This plugin adds no
   endpoint a headless store has to call.
 - Credentials stored per payment method and encrypted at rest, so two channels can charge two

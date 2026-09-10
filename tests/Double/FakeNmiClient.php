@@ -33,6 +33,9 @@ final class FakeNmiClient implements NmiClientInterface
     /** @var list<string> every operation asked for, in order */
     public array $operations = [];
 
+    /** @var list<int|null> the amount each refund asked for, in order; null asks for the whole transaction */
+    public array $refundAmounts = [];
+
     /** @var list<NmiGatewayConfiguration> the credentials each operation was asked with, in order */
     public array $configurations = [];
 
@@ -139,6 +142,11 @@ final class FakeNmiClient implements NmiClientInterface
 
     public function refund(NmiGatewayConfiguration $configuration, string $transactionId, ?int $amount, string $currencyCode): NmiResponse
     {
+        // What each refund asked for, in order: null is the gateway's "the whole transaction",
+        // an amount is a part of it. The refund plugin's refunds and the order screen's remainder
+        // are only distinguishable from here.
+        $this->refundAmounts[] = $amount;
+
         return $this->answer('refund', null, $configuration);
     }
 

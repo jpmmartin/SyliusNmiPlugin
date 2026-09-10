@@ -13,10 +13,6 @@ jpm_martin_sylius_nmi:
         card_needs_attention: Your bank has asked us to check this card with you. It still works for now.
     admin:
         void: Void
-        refund_plugin_notice: >-
-            The refund plugin is installed but will not offer this gateway, because its list of
-            supported gateways does not name it. Refunding from the order screen works either
-            way; only the refund plugin's own screens need this entry.
         gateway_notice:
             menu: Gateway notices
             heading: What NMI reported

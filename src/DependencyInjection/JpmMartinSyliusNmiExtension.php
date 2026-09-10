@@ -8,6 +8,7 @@ use JpmMartin\SyliusNmiPlugin\Command\NotifyCardholder;
 use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Mailer\NmiEmails;
+use JpmMartin\SyliusNmiPlugin\Refund\RefundPaymentTransitions;
 use Sylius\Bundle\CoreBundle\DependencyInjection\PrependDoctrineMigrationsTrait;
 use Sylius\Bundle\ResourceBundle\DependencyInjection\Extension\AbstractResourceExtension;
 use Symfony\Component\Config\FileLocator;
@@ -31,8 +32,9 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
         $loader->load('services.xml');
 
         // Refunding does not depend on the refund plugin — this plugin refunds from the order
-        // screen on its own. What depends on it is the notice below, and the parameter it reads,
-        // which only exists once that bundle has loaded its own configuration.
+        // screen on its own. What depends on it is offering NMI on that plugin's screens and
+        // giving the money back when they ask, whose services name ids that only exist once that
+        // bundle has loaded its own configuration.
         if (self::hasRefundPlugin($container)) {
             $loader->load('refund_plugin.xml');
         }
@@ -97,17 +99,24 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
             return;
         }
 
-        // Registered from here rather than from `config/twig_hooks/`, because that file is a YAML
-        // import in the consuming application and a YAML import cannot ask which bundles exist.
-        $notice = [
-            'template' => '@JpmMartinSyliusNmiPlugin/admin/payment_method/form/gateway_configuration/nmi_refund_notice.html.twig',
-            'priority' => 10,
-        ];
-
-        $container->prependExtensionConfig('sylius_twig_hooks', [
-            'hooks' => [
-                'sylius_admin.payment_method.create.content.form.sections.gateway_configuration.nmi' => ['nmi_refund_notice' => $notice],
-                'sylius_admin.payment_method.update.content.form.sections.gateway_configuration.nmi' => ['nmi_refund_notice' => $notice],
+        // The plugin's own transition on the refund plugin's refund-payment workflow: the one a
+        // gateway approval takes, while the plugin's manual `complete` stays guarded shut for NMI
+        // methods. Prepended from here rather than shipped as a workflow file, because a file
+        // would have to be imported by the store and could not be conditional — and declaring a
+        // transition on a workflow that does not exist breaks the container of every store
+        // without the refund plugin.
+        $container->prependExtensionConfig('framework', [
+            'workflows' => [
+                'sylius_refund_refund_payment' => [
+                    'transitions' => [
+                        // The refund plugin's own state names, written out rather than read off
+                        // its interface so that this file stays analysable in a store without it.
+                        RefundPaymentTransitions::TRANSITION_CONFIRM_GATEWAY_REFUND => [
+                            'from' => 'new',
+                            'to' => 'completed',
+                        ],
+                    ],
+                ],
             ],
         ]);
     }

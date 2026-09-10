@@ -14,7 +14,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
-use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
+use JpmMartin\SyliusNmiPlugin\Refund\MoneyTakingTransactionProvider;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -44,18 +44,12 @@ use Sylius\Component\Payment\PaymentRequestTransitions;
 final class RefundPaymentHandler
 {
     /** The transaction to reverse, newest kind first: a capture supersedes its authorisation. */
-    private const REVERSIBLE_TYPES = [
-        NmiTransactionInterface::TYPE_CAPTURE,
-        NmiTransactionInterface::TYPE_SALE,
-        NmiTransactionInterface::TYPE_AUTH,
-    ];
-
     public function __construct(
         private readonly PaymentRequestProviderInterface $paymentRequestProvider,
         private readonly NmiGatewayConfigurationProviderInterface $configurationProvider,
         private readonly NmiClientInterface $client,
         private readonly NmiTransactionRecorderInterface $recorder,
-        private readonly NmiTransactionRepositoryInterface $transactionRepository,
+        private readonly MoneyTakingTransactionProvider $transactions,
         private readonly StateMachineInterface $stateMachine,
     ) {
     }
@@ -69,17 +63,20 @@ final class RefundPaymentHandler
             throw new \LogicException(sprintf('Expected a core payment, got "%s".', $payment::class));
         }
 
-        // Money already given back is not given back twice, and the gateway is not asked in order
-        // to find that out — the store's own record answers it.
-        if (null !== $this->transactionRepository->findLatestForPayment($payment, NmiTransactionInterface::TYPE_REFUND)) {
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.already_refunded');
+        $transaction = $this->transactions->forPayment($payment);
+        if (null === $transaction || null === $transaction->getTransactionId()) {
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.nothing_to_refund');
 
             return;
         }
 
-        $transaction = $this->reversible($payment);
-        if (null === $transaction || null === $transaction->getTransactionId()) {
-            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.nothing_to_refund');
+        // What the refund plugin may already have given back is subtracted first, and the gateway
+        // is not asked in order to find that out — the store's own record answers it. Nothing
+        // left means nothing is asked.
+        $returned = $this->transactions->returnedAgainst($transaction);
+        $remaining = $this->transactions->remainingOn($transaction);
+        if (0 === $remaining) {
+            $this->fail($paymentRequest, $payment, 'jpm_martin_sylius_nmi.payment.already_refunded');
 
             return;
         }
@@ -88,7 +85,15 @@ final class RefundPaymentHandler
 
         try {
             $configuration = $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod());
-            [$response, $type, $parent] = $this->giveBack($configuration, $payment, $transactionId, null !== $transaction->getSettledAt());
+            [$response, $type, $parent] = $this->giveBack(
+                $configuration,
+                $payment,
+                $transactionId,
+                null !== $transaction->getSettledAt(),
+                // The whole transaction when nothing has gone back yet — the gateway's own
+                // meaning of a refund without an amount — and the remainder otherwise.
+                0 === $returned ? null : $remaining,
+            );
         } catch (NmiTransportException) {
             // The void that went unanswered lands here. Whether the money moved is unknown, and
             // the operator is told that rather than told it was refused.
@@ -126,12 +131,14 @@ final class RefundPaymentHandler
      *
      * @return array{NmiResponse, string, string|null}
      */
-    private function giveBack(NmiGatewayConfiguration $configuration, PaymentInterface $payment, string $transactionId, bool $hasSettled): array
+    private function giveBack(NmiGatewayConfiguration $configuration, PaymentInterface $payment, string $transactionId, bool $hasSettled, ?int $amount): array
     {
-        if ($hasSettled) {
+        // A partial refund is only ever recorded against a settled transaction, and a void is
+        // the whole transaction or nothing: money already partly returned rules the void out.
+        if ($hasSettled || null !== $amount) {
             // No void, and no request spent finding out it would be refused. The store was told.
             return [
-                $this->client->refund($configuration, $transactionId, null, (string) $payment->getCurrencyCode()),
+                $this->client->refund($configuration, $transactionId, $amount, (string) $payment->getCurrencyCode()),
                 NmiTransactionInterface::TYPE_REFUND,
                 $transactionId,
             ];
@@ -152,18 +159,6 @@ final class RefundPaymentHandler
                 $transactionId,
             ];
         }
-    }
-
-    private function reversible(PaymentInterface $payment): ?NmiTransactionInterface
-    {
-        foreach (self::REVERSIBLE_TYPES as $type) {
-            $transaction = $this->transactionRepository->findLatestForPayment($payment, $type);
-            if (null !== $transaction) {
-                return $transaction;
-            }
-        }
-
-        return null;
     }
 
     private function reasonFrom(NmiExceptionInterface $exception): ?string

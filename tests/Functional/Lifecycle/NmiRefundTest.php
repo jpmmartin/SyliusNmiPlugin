@@ -160,7 +160,28 @@ final class NmiRefundTest extends KernelTestCase
         self::assertSame(['void'], $this->gateway->operations, 'The void is tried, exactly as before.');
     }
 
-    /** The scenario: refused, and *without asking the gateway* — the store's own record answers it. */
+    /**
+     * The *order screen refunds what remains* scenario. What the refund plugin already gave back
+     * is subtracted first, and money partly returned rules the void out: the gateway only refunds
+     * a settled transaction, so a part having gone back means this one has settled.
+     */
+    public function testTheOrderScreenRefundsWhatTheRefundPluginLeft(): void
+    {
+        $payment = $this->completedPayment();
+        /** @var NmiTransactionRecorderInterface $recorder */
+        $recorder = self::getContainer()->get('test.jpm_martin_sylius_nmi.recorder.transaction');
+        $recorder->record($payment, $this->approved('12513502460', '-5.00'), NmiTransactionInterface::TYPE_REFUND, self::SALE);
+        $this->manager->flush();
+        $this->gateway->willApprove('12513502461', '-7.99');
+
+        $this->refundFromTheOrderScreen($payment);
+
+        self::assertSame(['refund'], $this->gateway->operations, 'No void: part of the money is already back, so the transaction settled.');
+        self::assertSame([799], $this->gateway->refundAmounts, 'The remainder, not the whole transaction.');
+        self::assertSame(PaymentInterface::STATE_REFUNDED, $payment->getState());
+    }
+
+    /** The *Refunding twice* scenario: nothing left, refused *without asking the gateway* — the store's own record answers it. */
     public function testRefundingTwiceIsRefusedWithoutAskingTheGateway(): void
     {
         $payment = $this->completedPayment();

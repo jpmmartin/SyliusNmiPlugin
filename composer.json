@@ -54,7 +54,7 @@
         "symfony/webpack-encore-bundle": "^2.2"
     },
     "suggest": {
-        "sylius/refund-plugin": "^2.1 — to refund from the refund plugin’s own screens as well as from the order screen. It must be told to offer this gateway: add \"nmi\" to the sylius_refund.supported_gateways parameter."
+        "sylius/refund-plugin": "^2.1 — to refund from the refund plugin’s own screens as well as from the order screen. NMI is offered there for the method that took the money, once the transaction has settled; nothing to configure."
     },
     "autoload": {
         "psr-4": {

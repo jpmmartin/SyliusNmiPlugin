@@ -12,6 +12,11 @@ jpm_martin_sylius_nmi:
         already_refunded: Este pago ya ha sido reembolsado.
         nothing_to_refund: Este pago no tiene ninguna transacción registrada que devolver.
         gateway_reported_failure: La pasarela informó de que una operación sobre este pago falló. Aquí no ha cambiado nada.
+    refund:
+        refused_by_gateway: 'NMI rechazó la devolución, así que no se ha devuelto nada: %reason%'
+        gateway_unreachable: No se ha podido contactar con NMI, así que la devolución no se ha realizado. Inténtalo de nuevo.
+        exceeds_transaction: La devolución pide más de lo que le queda por devolver a la transacción, así que no se ha realizado.
+        nothing_to_refund: El pago de este pedido no tiene ninguna transacción liquidada contra la que devolver, así que no se ha realizado.
     stored_card:
         default_changed: Esa tarjeta es ahora tu predeterminada.
         deleted: La tarjeta se ha eliminado.
