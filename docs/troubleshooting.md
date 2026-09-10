@@ -174,16 +174,20 @@ nothing at the gateway to refund against.
 **How to confirm:** the order screen shows the payment's transaction, with the gateway's id, when
 there is one.
 
-## The refund plugin's refund page says the order cannot be refunded, after the last refund
+## The refund plugin's refund page fails after the last refund, in a store that overrides its payment-method fragment
 
 **What you see:** the whole of an NMI payment has been given back through the refund plugin, and
-opening its refund page for that order answers *order cannot be refunded* and returns you to the
-order.
+its refund page for that order — where it takes you after every refund — fails on
+`order.lastPayment('completed').method`, or, with Twig's `strict_variables` off, shows an empty
+*original payment method* with nothing selected.
 
-**What was missed:** nothing. The refund plugin keeps that page for fully refunded orders as a
-history, but its template cannot render an order whose payment is *refunded*, which is what an NMI
-payment becomes once the money is back. The plugin keeps the page off such an order, as the Adyen
-plugin does; the order's own page lists every refund payment and credit memo.
+**What was missed:** the refund plugin's own fragment reads the method off the order's last
+*completed* payment, which an order whose payment is *refunded* no longer has. The plugin replaces
+that fragment with a copy that falls back to the last payment, but leaves a store's own version
+alone: one configured for the `payment_method` hookable of
+`sylius_refund.admin.order.refund.content.sections.form.fields`, or a file at
+`templates/bundles/SyliusRefundPlugin/admin/order/refund/content/sections/form/fields/payment_method.html.twig`.
+Give yours the same fallback.
 
 ## A refund from the refund plugin's screens was refused
 

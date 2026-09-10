@@ -11,7 +11,6 @@ use JpmMartin\SyliusNmiPlugin\Refund\RefundPaymentTransitions;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
-use Sylius\Component\Payment\PaymentTransitions;
 use Sylius\RefundPlugin\Checker\OrderRefundingAvailabilityCheckerInterface;
 use Sylius\RefundPlugin\Entity\RefundPaymentInterface;
 use Sylius\RefundPlugin\Factory\RefundPaymentFactoryInterface;
@@ -142,29 +141,6 @@ final class NmiRefundPluginIntegrationTest extends KernelTestCase
 
         $stateMachine->apply($viaNmi, RefundPluginTransitions::GRAPH, RefundPaymentTransitions::TRANSITION_CONFIRM_GATEWAY_REFUND);
         self::assertSame(RefundPaymentInterface::STATE_COMPLETED, $viaNmi->getState());
-    }
-
-    /**
-     * The refund plugin's refunds page is a history too, and it stays available for an order whose
-     * money went back through an offline method. For an NMI order it is not, once the payment is
-     * refunded: the refund plugin's own template fails on an order with no completed payment, so
-     * the page is declared unavailable and the refund plugin sends the operator back instead.
-     */
-    public function testTheRefundsPageIsNotOfferedOnceTheNmiPaymentIsRefunded(): void
-    {
-        $this->onlyWithTheRefundPlugin();
-        [$order, $payment] = $this->paidNmiOrder(settled: true);
-
-        /** @var OrderRefundingAvailabilityCheckerInterface $listAvailability */
-        $listAvailability = self::getContainer()->get('sylius_refund.checker.order_refunds_list_availability');
-        self::assertTrue($listAvailability($this->number($order)), 'While the payment stands, the page is the refund plugin\'s to show.');
-
-        /** @var StateMachineInterface $stateMachine */
-        $stateMachine = self::getContainer()->get('sylius_abstraction.state_machine');
-        $stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND);
-        $this->manager->flush();
-
-        self::assertFalse($listAvailability($this->number($order)), 'Its template would fail on this order, so it is not offered.');
     }
 
     /** @return list<PaymentMethodInterface> */

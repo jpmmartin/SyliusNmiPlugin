@@ -269,7 +269,9 @@ settlement — remains the way to give the whole amount back if NMI says no. The
 *Complete* button never applies to an NMI refund: money the gateway has not returned is not marked
 returned. Note that the refund plugin hides Sylius's own *Refund* button on the order screen, so
 with it installed its screens are where every refund happens; partial refunds that add up to the
-whole payment mark it refunded just as one full refund would. Without the refund plugin, the order
+whole payment mark it refunded just as one full refund would, and its refund page — where it takes
+you after each refund — still opens for that order afterwards, as the record of what went back.
+Without the refund plugin, the order
 screen's *Refund* gives back whatever has not been returned yet — a refund made in NMI's portal and
 reported by webhook is subtracted first — and refuses when nothing is left.
 

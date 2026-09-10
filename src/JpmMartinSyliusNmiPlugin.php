@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin;
 
+use JpmMartin\SyliusNmiPlugin\DependencyInjection\Compiler\RefundPagePaymentMethodFragmentPass;
 use Sylius\Bundle\CoreBundle\Application\SyliusPluginTrait;
 use Sylius\Bundle\ResourceBundle\AbstractResourceBundle;
 use Sylius\Bundle\ResourceBundle\SyliusResourceBundle;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 final class JpmMartinSyliusNmiPlugin extends AbstractResourceBundle
 {
@@ -26,6 +28,15 @@ final class JpmMartinSyliusNmiPlugin extends AbstractResourceBundle
     protected function getModelNamespace(): string
     {
         return 'JpmMartin\SyliusNmiPlugin\Entity';
+    }
+
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        // Acts on a hookable that only exists once the optional refund plugin has loaded its
+        // configuration, and does nothing otherwise — so it is registered unconditionally.
+        $container->addCompilerPass(new RefundPagePaymentMethodFragmentPass());
     }
 
     /**

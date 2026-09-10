@@ -1,0 +1,25 @@
+{#
+    The refund plugin's own payment-method fragment, with one difference: the original method is
+    read off the last completed payment when there is one, and off the last payment otherwise.
+    An order whose payment is refunded has no completed payment, and that is the order the refund
+    plugin sends the operator to after the last refund. Everything else is the refund plugin's.
+#}
+{% set order = hookable_metadata.context.order %}
+{% set completed = constant('Sylius\\Component\\Core\\Model\\PaymentInterface::STATE_COMPLETED') %}
+{% set payment_methods = hookable_metadata.context.payment_methods %}
+{% set paid_with = order.lastPayment(completed) ?: order.lastPayment %}
+{% set original_payment_method = paid_with ? paid_with.method : null %}
+
+<div class="col-12 col-md-6">
+    <div class="field">
+        <label for="payment-methods" class="form-label">{{ 'sylius.ui.payment_method'|trans }}</label>
+        <select id="payment-methods" name="sylius_refund_payment_method" class="form-select mb-1">
+            {% for payment_method in payment_methods %}
+                <option value="{{ payment_method.id }}" {{ (original_payment_method is not null and payment_method.code == original_payment_method.code) ? 'selected="selected"' : '' }}>
+                    {{ payment_method.name }}
+                </option>
+            {% endfor %}
+        </select>
+        <small id="original-payment-method">{{ 'sylius.ui.original_payment_method'|trans }}: <strong>{{ original_payment_method }}</strong></small>
+    </div>
+</div>
