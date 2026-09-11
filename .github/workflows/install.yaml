@@ -179,7 +179,8 @@ jobs:
               run: |
                   set -euo pipefail
                   (cd recipes-checker && composer install --no-interaction --no-progress --prefer-dist)
-                  mkdir recipes-tree && cp -r plugin/recipe/jpmmartin recipes-tree/
+                  # The generator writes into the output directory but does not create it.
+                  mkdir -p recipes-tree endpoint && cp -r plugin/recipe/jpmmartin recipes-tree/
                   cd recipes-tree
                   git init -q && git add -A && git -c user.email=ci@example.invalid -c user.name=ci commit -q -m 'recipe'
                   git ls-tree HEAD */*/* | php ../recipes-checker/run lint:manifests
