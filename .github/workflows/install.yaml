@@ -1,5 +1,6 @@
-# Installs this plugin into a store that has never seen it, by running the commands the README
-# publishes — not a copy of them.
+# Installs this plugin into a store that has never seen it, two ways — by running the commands the
+# README publishes, and by letting the Flex recipe in `recipe/` do the file edits — and checks
+# that both end in the same working store.
 name: Install
 
 on:
@@ -11,6 +12,7 @@ on:
         paths:
             - 'README.md'
             - 'docs/**'
+            - 'recipe/**'
             - 'config/routes/**'
             - 'config/config.yaml'
             - 'assets/**'
@@ -26,8 +28,18 @@ permissions:
 
 jobs:
     install:
-        name: A store that has never seen this plugin
+        name: "A store that has never seen this plugin, installed from the ${{ matrix.path }}"
         runs-on: ubuntu-latest
+
+        strategy:
+            fail-fast: false
+            matrix:
+                # `readme`: the README's own commands, extracted, and its file edits, mirrored.
+                # `recipe`: the Flex recipe in `recipe/`, compiled into an endpoint the store is
+                # pointed at, so that `composer require` does the file edits itself — which is what
+                # a Sylius Standard store gets once the recipe is in symfony/recipes-contrib. Both
+                # paths end in the same checks.
+                path: [readme, recipe]
 
         services:
             postgres:
@@ -108,11 +120,14 @@ jobs:
               working-directory: store
               run: bin/console doctrine:database:create --if-not-exists
 
+            # ── The README path ──────────────────────────────────────────────────────────────────
+
             # **The commands come out of the README.** A workflow carrying its own copy would prove
             # the plugin installs and say nothing about whether the documentation is right —
             # somebody changes a step, updates the workflow, forgets the README, and this stays
             # green. That is the failure this job exists to prevent.
             - name: Read the install commands out of the README
+              if: matrix.path == 'readme'
               run: |
                   php plugin/bin/extract-readme-commands \
                       --readme=plugin/README.md \
@@ -120,17 +135,20 @@ jobs:
                       | tee commands.txt
                   test -s commands.txt
 
-            # **The file edits are mirrored, not extracted, and that half is weaker.** Several
-            # steps are fragments on purpose — one line beside a `// ...`, an entry to add *inside*
-            # the shop block of webpack.config.js — and there is no honest way to turn a fragment
-            # into a file. Change one of those blocks in the README and this step must change with
-            # it. Nothing here can catch that; only a reader can.
+            # **The file edits are mirrored, not extracted, and that half is weaker.** The bundle
+            # line is a fragment beside a `// ...`, and the import is one line at the end of a file
+            # the store owns; there is no honest way to turn a fragment into a file. Change one of
+            # those blocks in the README and this step must change with it. Nothing here can catch
+            # that; only a reader can. The recipe path below is the other half of the answer: it
+            # applies the same edits from a file the bot of symfony/recipes-contrib validates.
             - name: Apply the file edits the README shows
+              if: matrix.path == 'readme'
               working-directory: store
               run: |
                   php ../plugin/bin/apply-readme-edits ../plugin/README.md .
 
             - name: Run the README's own commands, in the order it gives them
+              if: matrix.path == 'readme'
               working-directory: store
               run: |
                   set -euo pipefail
@@ -143,6 +161,72 @@ jobs:
                       eval "$command" < /dev/null
                       echo '::endgroup::'
                   done 3< ../commands.txt
+
+            # ── The recipe path ──────────────────────────────────────────────────────────────────
+
+            # The recipe is compiled the way symfony/recipes-contrib compiles its own, with the
+            # same tool, from a tree laid out the way that repository is — `recipe/` here already
+            # is — and the same two lints its bot runs on a pull request run here first.
+            - name: Check out the recipes checker
+              if: matrix.path == 'recipe'
+              uses: actions/checkout@v5
+              with:
+                  repository: symfony-tools/recipes-checker
+                  path: recipes-checker
+
+            - name: Compile the recipe into a Flex endpoint
+              if: matrix.path == 'recipe'
+              run: |
+                  set -euo pipefail
+                  (cd recipes-checker && composer install --no-interaction --no-progress --prefer-dist)
+                  mkdir recipes-tree && cp -r plugin/recipe/jpmmartin recipes-tree/
+                  cd recipes-tree
+                  git init -q && git add -A && git -c user.email=ci@example.invalid -c user.name=ci commit -q -m 'recipe'
+                  git ls-tree HEAD */*/* | php ../recipes-checker/run lint:manifests
+                  find . -name '*.yaml' | php ../recipes-checker/run lint:yaml
+                  git ls-tree HEAD */*/* | php ../recipes-checker/run generate:flex-endpoint jpmmartin/SyliusNmiPlugin main flex/main ../endpoint/
+                  test -s ../endpoint/index.json
+                  grep -q '"jpmmartin/sylius-nmi-plugin"' ../endpoint/index.json
+
+            # Composer refuses a plain-http endpoint unless told otherwise; this store is thrown
+            # away with the runner. The endpoint is served from the same step that uses it, so
+            # the server's lifetime is not a question.
+            - name: Require the package and let the recipe do the files
+              if: matrix.path == 'recipe'
+              working-directory: store
+              run: |
+                  set -euo pipefail
+                  (php -S 127.0.0.1:8765 -t ../endpoint > ../endpoint.log 2>&1 &)
+                  for i in $(seq 1 10); do curl -sf -o /dev/null http://127.0.0.1:8765/index.json && break; sleep 1; done
+                  composer config secure-http false
+                  composer config extra.symfony.endpoint --json '["http://127.0.0.1:8765/index.json", "flex://defaults"]'
+                  composer require jpmmartin/sylius-nmi-plugin --no-interaction --no-progress 2>&1 | tee require.log
+                  grep -q 'Configuring jpmmartin/sylius-nmi-plugin' require.log \
+                      || { echo 'Flex did not apply the recipe.'; exit 1; }
+                  grep -q 'Four things no recipe can do' require.log \
+                      || { echo 'The post-install instructions were not printed.'; exit 1; }
+                  composer recipes jpmmartin/sylius-nmi-plugin | grep -q 'up to date' \
+                      || { echo 'The recipe is not recorded as installed in symfony.lock.'; exit 1; }
+                  test -f config/packages/jpm_martin_sylius_nmi.yaml && test -f config/routes/jpm_martin_sylius_nmi.yaml \
+                      || { echo 'The recipe did not copy its two files.'; exit 1; }
+                  grep -q "import '@vendor/jpmmartin/sylius-nmi-plugin/assets/shop/entrypoint';" assets/shop/entrypoint.js \
+                      || { echo 'The recipe did not add the import to assets/shop/entrypoint.js.'; exit 1; }
+                  grep -q '###> jpmmartin/sylius-nmi-plugin ###' .gitignore \
+                      || { echo 'The recipe did not add its .gitignore block.'; exit 1; }
+
+            # What the recipe printed, done as printed. `cache:clear` and `assets:install` are not
+            # here because Sylius Standard's own auto-scripts ran them with the require.
+            - name: Do what the recipe said was left
+              if: matrix.path == 'recipe'
+              working-directory: store
+              run: |
+                  set -euo pipefail
+                  yarn add @nmipayments/nmi-pay && yarn build
+                  bin/console doctrine:migrations:migrate --no-interaction
+                  echo 'SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH=%kernel.project_dir%/config/encryption/payment.key' >> .env.local
+                  bin/console sylius:payment:generate-key
+
+            # ── The same store, either way ───────────────────────────────────────────────────────
 
             # Step 6's own failure, seen on a real store: the generator writes wherever the
             # environment points at the moment it runs, so generated before the path changed, the
@@ -184,29 +268,26 @@ jobs:
                       || { echo "Expected 4 plugin tables, found ${tables:-none}. Step 4 — run the migration."; exit 1; }
 
             # The step that fails most silently of all: the pay page renders and simply has no card
-            # fields, with nothing in the log and nothing in the console to say why.
-            - name: The front-end entry was built and served
+            # fields, with nothing in the log and nothing in the console to say why. The plugin's
+            # script travels inside the shop's own entry now, so that entry is what must carry it.
+            - name: The shop build carries the plugin's script
               working-directory: store
               run: |
                   test -f public/build/app/shop/entrypoints.json \
                       || { echo 'The shop assets were never built. Step 5.'; exit 1; }
-                  grep -q '"nmi-shop"' public/build/app/shop/entrypoints.json \
-                      || { echo 'The nmi-shop entry is missing from the shop manifest. Step 5 — the entry went in the wrong Encore block, or yarn build was never run.'; exit 1; }
-                  test -s public/build/app/shop/nmi-shop.js \
-                      || { echo 'nmi-shop.js was not produced. Step 5.'; exit 1; }
-                  grep -q 'data-nmi' public/build/app/shop/nmi-shop.js \
-                      || { echo 'The built bundle does not look like this plugin. Step 5 — the entry points at the wrong file.'; exit 1; }
+                  test -s public/build/app/shop/app-shop-entry.js \
+                      || { echo 'app-shop-entry.js was not produced. Step 5.'; exit 1; }
+                  grep -q 'data-nmi' public/build/app/shop/app-shop-entry.js \
+                      || { echo "The shop build does not carry the plugin's script. Step 5 — the import line in assets/shop/entrypoint.js, or yarn build was never run after adding it."; exit 1; }
 
-            # Everything above proves the parts exist. Nothing proves the hook renders — and that
-            # is the step a reader gets wrong most quietly. The shop's homepage carries the base
-            # layout's scripts hook, so a missing hook entry, a wrong template name or a wrong build
-            # name all show up on it, loudly, here. The sample data is what gives the store a
-            # channel to answer on.
+            # Everything above proves the parts exist. Nothing proves a page renders — and a wrong
+            # template name or a broken build shows up on the homepage, loudly, here. The sample
+            # data is what gives the store a channel to answer on.
             - name: Give the store something to show
               working-directory: store
               run: bin/console sylius:fixtures:load default --no-interaction
 
-            - name: The script tag reaches a real shop page
+            - name: The shop entry reaches a real shop page
               working-directory: store
               run: |
                   cat > public/router.php <<'PHP'
@@ -228,6 +309,25 @@ jobs:
                   for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8000/ && break; sleep 1; done
                   status=$(curl -s -o homepage.html -w '%{http_code}' http://localhost:8000/en_US/)
                   test "$status" = '200' \
-                      || { echo "The shop's homepage answered $status. Step 5 — the hook names a template that does not exist, or the build name is wrong."; grep -o '<title>[^<]*' homepage.html | head -1; tail -40 server.log; exit 1; }
-                  grep -q 'nmi-shop' homepage.html \
-                      || { echo 'The homepage carries no nmi-shop script tag. Step 5 — the hook entry was never added.'; exit 1; }
+                      || { echo "The shop's homepage answered $status."; grep -o '<title>[^<]*' homepage.html | head -1; tail -40 server.log; exit 1; }
+                  grep -q 'app-shop-entry' homepage.html \
+                      || { echo 'The homepage carries no app-shop-entry script tag, so nothing loads the shop build the plugin lives in.'; exit 1; }
+
+            # ── The recipe path, undone ──────────────────────────────────────────────────────────
+
+            # Flex unconfigures what it configured. A store that tries the plugin and takes it out
+            # again must be left as it was found.
+            - name: Removing the package removes what the recipe added
+              if: matrix.path == 'recipe'
+              working-directory: store
+              run: |
+                  set -euo pipefail
+                  composer remove jpmmartin/sylius-nmi-plugin --no-interaction --no-progress
+                  ! grep -q 'JpmMartinSyliusNmiPlugin' config/bundles.php \
+                      || { echo 'The bundle line survived composer remove.'; exit 1; }
+                  test ! -e config/packages/jpm_martin_sylius_nmi.yaml && test ! -e config/routes/jpm_martin_sylius_nmi.yaml \
+                      || { echo 'A copied file survived composer remove.'; exit 1; }
+                  ! grep -q 'sylius-nmi-plugin' assets/shop/entrypoint.js \
+                      || { echo 'The import survived composer remove.'; exit 1; }
+                  ! grep -q '###> jpmmartin/sylius-nmi-plugin' .gitignore \
+                      || { echo 'The .gitignore block survived composer remove.'; exit 1; }
