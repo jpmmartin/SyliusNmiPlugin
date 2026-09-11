@@ -31,6 +31,26 @@ is, and a new empty `## [Unreleased]` takes its place.
   to the gateway and completed only on its approval, and a refusal undoes the credit memo. The
   order screen refunds whatever is left afterwards, and the refund plugin's refund page still
   opens once the whole payment is back.
+- Saved cards, off until a store turns it on and absent rather than dormant while off. A signed-in
+  shopper can keep a card on file while paying, see their cards under *My account → Saved cards*,
+  add one, choose the default and remove one, and pay at checkout with a saved card, the default
+  already chosen. The store never holds a card number: it keeps the reference NMI gives back,
+  encrypted at rest, with the four digits, brand and expiry a receipt prints. Removing a card asks
+  the gateway to forget it first, and deleting a customer forgets theirs too.
+- Whether a saved card authenticates again with 3-D Secure, decided per payment method. On unless a
+  store turns it off, because the default is the answer to a liability question, not an accident.
+- Webhooks. One endpoint per payment method takes every category NMI sends, verifies each delivery
+  against the account's signing key — and refuses everything until that key is pasted — and applies
+  each event exactly once, so a retry changes nothing. A refund or void performed in NMI's own
+  portal lands on the order; settlement is recorded, and the store stops asking the gateway whether
+  a reversal must be a refund; a saved card the issuer renewed, closed or flagged is updated, and
+  the checkout stops offering a closed one.
+- Chargebacks and batches that failed to settle, recorded as gateway notices under *Sales → Gateway
+  notices* and never pruned. Two settings on the payment method, off by default: email the shopper
+  when a saved card is closed or flagged, and report transactions the store does not recognise.
+- The record of received events, which is what makes NMI's retries harmless, bounded by
+  `jpm-martin:sylius-nmi:prune-received-events`: thirty days by default, and a period inside NMI's
+  three-day retry window refused unless forced.
 - The same flow headless, through the shop API Sylius already documents. This plugin adds no
   endpoint a headless store has to call.
 - Seams for a store to build on, named in `docs/extending.md`: the charge sent to the gateway
@@ -38,8 +58,9 @@ is, and a new empty `## [Unreleased]` takes its place.
   mounts on any element by its `data-nmi-*` attributes, has a `tokenize` mode, announces what it
   does as DOM events and exports `mount`, `mountAll` and `submit`. Everything the page does not
   name is internal.
-- Credentials stored per payment method and encrypted at rest, so two channels can charge two
-  different NMI accounts.
+- Credentials, and the gateway host, stored per payment method and encrypted at rest, so two
+  channels can charge two different NMI accounts and a reseller's or white-label host is a field
+  rather than a deployment.
 - A record of every transaction the gateway performed, kept against the payment it belongs to and
   indexed by the gateway's own transaction identifier.
 - English and Spanish translations.
