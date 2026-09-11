@@ -36,6 +36,11 @@ introduced in 2.x and does not use Payum.
 
 ## Installation
 
+> A Symfony Flex recipe for steps 2, 3 and the import of step 5 is proposed at
+> [symfony/recipes-contrib#2050](https://github.com/symfony/recipes-contrib/pull/2050). Once it is
+> merged, `composer require` does those on a Sylius Standard store and prints the rest; until then,
+> the six steps below are the way in.
+
 ### 1. Require the package
 
 ```bash
