@@ -187,7 +187,10 @@ final class NmiPayPageTest extends WebTestCase
 
         $spanish = $this->client->request('GET', sprintf('/es_ES/payment-request/pay/%s', $hash));
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Pagar con tarjeta', $spanish->filter('h1')->text());
+        // The page's own heading, in the content column `nmi.html.twig` wraps the hook in: the
+        // theme's header carries an `h1` of its own for the taxon menu as soon as the store has
+        // taxons, and a plain `h1` would read that one first.
+        self::assertStringContainsString('Pagar con tarjeta', $spanish->filter('.col > h1')->text());
 
         // The message the script shows when it cannot read the card is rendered by the template,
         // not by the JavaScript, which is the only reason it can be translated. So are the labels
@@ -292,7 +295,16 @@ final class NmiPayPageTest extends WebTestCase
         return $this->manager;
     }
 
-    /** Enables one more locale on the channel this request's order belongs to. */
+    /**
+     * Enables one more locale on the channel this request's order belongs to, and points the client
+     * at that channel by a hostname of its own.
+     *
+     * `newPaymentRequest()` gives every channel it builds the hostname `localhost`, which is what the
+     * client asks for. On a database that already has a channel answering there — the fixtures'
+     * `FASHION_WEB`, once `composer database-reset` has run — Sylius resolves that one instead, it
+     * does not speak the new locale, and the shop redirects to its own default locale. CI, with no
+     * fixtures, never saw it. So the channel that learnt the locale is the one the request reaches.
+     */
     private function alsoSpeaks(PaymentRequestInterface $paymentRequest, string $code): void
     {
         $locale = $this->manager->getRepository(Locale::class)->findOneBy(['code' => $code]) ?? new Locale();
@@ -301,8 +313,13 @@ final class NmiPayPageTest extends WebTestCase
 
         /** @var OrderInterface $order */
         $order = $paymentRequest->getPayment()->getOrder();
-        $order->getChannel()?->addLocale($locale);
+        $channel = $order->getChannel();
+        self::assertNotNull($channel);
+        $channel->addLocale($locale);
+        $channel->setHostname($channel->getCode() . '.localhost');
 
         $this->manager->flush();
+
+        $this->client->setServerParameter('HTTP_HOST', (string) $channel->getHostname());
     }
 }
