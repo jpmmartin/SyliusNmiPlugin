@@ -53,11 +53,14 @@ is, and a new empty `## [Unreleased]` takes its place.
 
 Stated here as well as in the README, because they decide whether this release fits a store:
 
-- **No webhooks.** Anything done inside NMI's portal — a refund issued there, a chargeback, a card
-  the issuer replaced — is invisible to the store.
 - **No partial captures.** The gateway closes an authorisation on the first capture, so an order
   shipped in several parcels is charged in full at the first shipment.
-- **`sylius/refund-plugin` needs one line of configuration** to offer this gateway. The plugin
-  works with and without that package.
+- **Nothing NMI does outside the store reaches it until the webhook is wired.** A refund issued
+  from NMI's own portal, a batch that failed to settle, a chargeback, a card the issuer reissued or
+  closed: with the webhook configured, all of it reaches the order it belongs to; without it, none
+  of it does, and the plugin cannot import that route for you.
+- **Refunds follow the gateway's settlement rules.** Before a transaction settles, NMI's reference
+  allows a void but not a refund, so a partial refund of an unsettled payment can be refused; the
+  plugin asks either way, shows the answer, and the order screen's *Refund* voids the whole amount.
 
 [Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/commits/main

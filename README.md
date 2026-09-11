@@ -474,7 +474,8 @@ Two settings on the payment method are off by default and stay off unless you sa
 
 ## Limitations
 
-Two things this release deliberately does not do. They are stated here rather than discovered.
+One thing this release deliberately does not do, and one thing it no longer asks of you. They are
+stated here rather than discovered.
 
 **No partial captures.** An order shipped in several parcels is charged in full at the first
 shipment. This is not only a scoping decision: the gateway closes an authorisation on the first
