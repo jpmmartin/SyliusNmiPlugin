@@ -80,11 +80,11 @@ jpm_martin_sylius_nmi_admin:
     prefix: /%sylius_admin.path_name%
 
 # Required if you want NMI to tell your store what it did. Without it there is no endpoint and
-# nothing arrives. No prefix: not the locale, not the admin path. See "Webhooks" below.
+# nothing arrives. No prefix: not the locale, not the admin path. See the README's "Webhooks".
 jpm_martin_sylius_nmi_webhook:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/webhook.yaml"
 
-# Required if you turn saved cards on, and harmless if you do not. See "Saved cards" below.
+# Required if you turn saved cards on, and harmless if you do not. See the README's "Saved cards".
 jpm_martin_sylius_nmi_shop_account:
     resource: "@JpmMartinSyliusNmiPlugin/config/routes/shop_account.yaml"
     prefix: /{_locale}/account
@@ -145,39 +145,19 @@ has to be bundled with your store's assets.
 yarn add @nmipayments/nmi-pay
 ```
 
-A Sylius Standard `webpack.config.js` builds **four** Encore configurations, not one. The entry goes
-in the shop block — the one that sets `public/build/app/shop` — before its `Encore.getWebpackConfig()`:
+Then import the plugin's script from the shop's own entrypoint, which the base layout already
+loads on every shop page. `@vendor` is the alias a Sylius Standard `webpack.config.js` defines for
+the `vendor/` directory:
 
 ```js
-// webpack.config.js, inside the shop block
-Encore
-    .addEntry('app-shop-entry', './assets/shop/entrypoint.js')
-    .addEntry('nmi-shop', './vendor/jpmmartin/sylius-nmi-plugin/assets/shop/entrypoint.js')
-;
+// assets/shop/entrypoint.js — at the end
+import '@vendor/jpmmartin/sylius-nmi-plugin/assets/shop/entrypoint';
 ```
 
-The script tag comes with the plugin: point the shop's `javascripts` hook at the template it ships
-and there is no file to create. **Do not create
-`templates/bundles/SyliusShopBundle/_javascripts.html.twig`** — Sylius 2.x does not read it, so the
-page renders with no card fields and nothing to explain why. Add the entry and never run
-`yarn build`, and the page errors instead, naming `entrypoints.json`.
-
-If your store already has this file with a `sylius_twig_hooks:` key, add the `hooks:` entry to it
-rather than pasting a second one — two of the same key at the top level and the file stops parsing.
-
-```yaml
-# config/packages/twig_hooks.yaml
-sylius_twig_hooks:
-    hooks:
-        'sylius_shop.base#javascripts':
-            nmi:
-                template: '@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig'
-                priority: -10
-```
-
-That template assumes the two names above — the `nmi-shop` entry, in the `app.shop` build a Sylius
-Standard store compiles its shop assets under. If your store builds under other names, override it
-at `templates/bundles/JpmMartinSyliusNmiPlugin/shop/scripts.html.twig` and change them there.
+The script mounts the card form where the pay page puts it and does nothing on any other page.
+**Do not create `templates/bundles/SyliusShopBundle/_javascripts.html.twig`** — Sylius 2.x does not
+read it, so the page renders with no card fields and nothing to explain why. Add the import and
+never run `yarn build`, and the page renders the old bundle instead, with no card fields either.
 
 ```bash
 yarn build
@@ -186,6 +166,37 @@ bin/console assets:install
 
 Without this step the pay page renders but no card fields appear, which looks like a broken page
 rather than a missing build.
+
+**A store that builds under other names, or wants the script in an entry of its own**, has the
+other way in: an Encore entry for the plugin's entrypoint, and the script tag the plugin ships,
+pointed at by the shop's `javascripts` hook. **One way or the other, never both**: a script loaded
+twice mounts the card form twice, and the gateway's component allows one per page. The entry goes
+in the shop block of `webpack.config.js` — the one that sets `public/build/app/shop` — before its
+`Encore.getWebpackConfig()`, and the hook goes in a file of the store's; if your store already has
+one with a `sylius_twig_hooks:` key, add the `hooks:` entry to it rather than pasting a second
+top-level key, which stops the file parsing.
+
+```js
+// webpack.config.js, inside the shop block — the alternative to the import above
+Encore
+    .addEntry('app-shop-entry', './assets/shop/entrypoint.js')
+    .addEntry('nmi-shop', './vendor/jpmmartin/sylius-nmi-plugin/assets/shop/entrypoint.js')
+;
+```
+
+```yaml
+# config/packages/twig_hooks.yaml — the alternative to the import above
+sylius_twig_hooks:
+    hooks:
+        'sylius_shop.base#javascripts':
+            nmi:
+                template: '@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig'
+                priority: -10
+```
+
+That template assumes those two names — the `nmi-shop` entry, in the `app.shop` build a Sylius
+Standard store compiles its shop assets under. If your store builds under other names, override it
+at `templates/bundles/JpmMartinSyliusNmiPlugin/shop/scripts.html.twig` and change them there.
 
 ### 6. Check two things about your application
 

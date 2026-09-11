@@ -351,6 +351,16 @@ under `src/` is either named there or carries `@internal`, and `tests/Unit/Docs/
 fails when either half drifts. A new class starts internal; making it public is a decision taken in
 the document, not by leaving the tag off. SemVer is promised about the list and nothing else.
 
+**The Flex recipe is sourced here and served from contrib.** `recipe/jpmmartin/sylius-nmi-plugin/1.0/`
+is laid out exactly as `symfony/recipes-contrib` is, so the pull request there is a copy of that
+directory, and the Install workflow compiles it with `symfony-tools/recipes-checker`, serves it to
+a throwaway store and installs through it on every change — the recipe is tested here before
+contrib ever sees it. It does not touch the encryption key path: a store may already hold
+credentials encrypted with the skeleton's key. The plugin's script reaches a store one of two ways,
+never both — the import line in `assets/shop/entrypoint.js`, which is what the recipe and the
+README's step 5 do, or the shipped `scripts.html.twig` with an `nmi-shop` Encore entry; two loads
+mount the card form twice, and the gateway's component allows one.
+
 **Migrations are written once, for every engine, against the schema object.** `up(Schema $schema)`
 describes the tables; Doctrine derives each engine's statements when the migration runs, so there
 is no MySQL copy, no PostgreSQL copy and nothing that skips itself — unlike Sylius's own migrations,

@@ -1,6 +1,9 @@
 {#
-    The plugin's script tag, for the shop's `sylius_shop.base#javascripts` hook — the one thing an
-    application has to add to reach the card fields, and the file it no longer has to create.
+    The plugin's script tag, for the shop's `sylius_shop.base#javascripts` hook — the alternative
+    way to load the script, for a store that wants an Encore entry of its own. The usual way is
+    the one line the README's step 5 (and the Flex recipe) puts in `assets/shop/entrypoint.js`;
+    a store uses one or the other, never both, because a script loaded twice mounts the card
+    form twice and the gateway's component allows one per page.
 
     Two names are assumed, the ones the README gives: the Encore entry `nmi-shop`, in `app.shop`,
     the build a Sylius Standard store compiles its shop assets under. A store that named either

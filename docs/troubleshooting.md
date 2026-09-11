@@ -37,24 +37,28 @@ browser console, nothing in the log. It looks like a broken template.
 without a sound — or, less often, nothing was missed and something is blocking NMI's script, which
 is the third bullet:
 
-- The hook entry on `sylius_shop.base#javascripts` was never added, or names something other than
-  the plugin's `@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig`. The usual variant is putting the
-  tag in `templates/bundles/SyliusShopBundle/_javascripts.html.twig` instead: **Sylius 2.x does not
+- The import line was never added at the end of `assets/shop/entrypoint.js`, or `yarn build` was
+  never run after adding it, so the page runs a shop bundle that knows nothing of the card form. A
+  store on the other way in — an Encore entry of its own and the shipped script tag — gets here
+  when the hook entry on `sylius_shop.base#javascripts` is missing or names something other than
+  `@JpmMartinSyliusNmiPlugin/shop/scripts.html.twig`; the usual variant is putting the tag in
+  `templates/bundles/SyliusShopBundle/_javascripts.html.twig` instead, and **Sylius 2.x does not
   read that file**, so the tag is simply never rendered.
-- The tag is rendered but the file it points at is not there — a deployment that shipped the
-  manifest and not `public/build`, or a web server that does not serve that directory. The page
-  looks exactly the same; the difference is in the browser's Network tab, where `nmi-shop.js`
-  fails to load.
+- The build is in the manifest but not on disk — a deployment that shipped the manifest and not
+  `public/build`, or a web server that does not serve that directory. The page looks exactly the
+  same; the difference is in the browser's Network tab, where `app-shop-entry.js` — or
+  `nmi-shop.js`, on the other way in — fails to load.
 - The plugin's script ran, but Collect.js — the NMI script that draws the fields — could not be
   fetched from `https://secure.nmi.com`: a Content Security Policy without that host in
   `script-src`, or a browser extension blocking it. This one is not silent for long: after twenty
   seconds the page says the card form could not be loaded, and the browser's console names the
   blocked request. The README's step 6 lists the hosts a policy has to allow.
 
-**How to confirm:** view the page source and look for a `<script>` whose `src` contains
-`nmi-shop`. If it is absent, the hook never rendered the tag. If it is present, open the browser's
-Network tab: either the request for it is failing, or it loaded and the request for `Collect.js` is
-the one that failed.
+**How to confirm:** on the server, `grep -c data-nmi public/build/app/shop/app-shop-entry.js`.
+Zero means the shop bundle was built without the import: add the line, run `yarn build`. Otherwise
+open the browser's Network tab: either the request for that file is failing, or it loaded and the
+request for `Collect.js` is the one that failed. On the other way in, look in the page source for
+a `<script>` whose `src` contains `nmi-shop` instead: absent, the hook never rendered the tag.
 
 The other two ways of getting step 5 wrong do **not** fail silently — they are the next entry.
 
@@ -64,7 +68,10 @@ The other two ways of getting step 5 wrong do **not** fail silently — they are
 `HookRenderException` for the `nmi` hook in `sylius_shop.base#javascripts`, wrapping one of two
 messages.
 
-**What was missed:** README **step 5** again, in one of its two loud ways:
+Only a store on the other way in — an Encore entry of its own and the shipped script tag — can
+meet this one: the import line of step 5 raises no hook and reads no manifest of its own.
+
+**What was missed:** README **step 5**, on that way in, in one of its two loud ways:
 
 - *Could not find the entrypoints file from Webpack: the file …/public/build/default/entrypoints.json
   does not exist.* Only possible with an overridden template: the third argument to

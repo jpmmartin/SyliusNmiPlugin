@@ -8,6 +8,14 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Changed
+
+- Step 5 of the installation is one line: the plugin's script is imported from the store's own
+  `assets/shop/entrypoint.js`, as the Stripe, Mollie and Adyen plugins do, so no Encore entry and
+  no Twig hook are needed. The shipped `scripts.html.twig` and the `nmi-shop` entry remain the way
+  in for a store that builds under other names — one way or the other, never both. A store
+  installed from 1.0.0's README keeps working unchanged.
+
 ## [1.0.0] - 2026-09-11
 
 The first release.
