@@ -8,6 +8,16 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Added
+
+- A [Symfony Flex recipe](https://github.com/symfony/recipes-contrib/tree/main/jpmmartin/sylius-nmi-plugin),
+  merged into `symfony/recipes-contrib` on 2026-09-14. On a store that runs Flex — `sylius/sylius-standard`
+  does — `composer require jpmmartin/sylius-nmi-plugin` registers the bundle, writes the configuration
+  and route imports, adds the plugin's script to the shop entrypoint and the ignore rules for a
+  generated encryption key, then prints the four things no recipe can do: the browser component, the
+  build, the migration and the key. `composer remove` takes all of it out again. The recipe is kept in
+  this repository under `recipe/`, compiled and installed into a fresh store on every change.
+
 ### Changed
 
 - Step 5 of the installation is one line: the plugin's script is imported from the store's own

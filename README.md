@@ -36,10 +36,15 @@ introduced in 2.x and does not use Payum.
 
 ## Installation
 
-> A Symfony Flex recipe for steps 2, 3 and the import of step 5 is proposed at
-> [symfony/recipes-contrib#2050](https://github.com/symfony/recipes-contrib/pull/2050). Once it is
-> merged, `composer require` does those on a Sylius Standard store and prints the rest; until then,
-> the six steps below are the way in.
+**On a store with Symfony Flex — `sylius/sylius-standard` has it — step 1 does steps 2, 3 and the
+import of step 5 for you**, from [the plugin's
+recipe](https://github.com/symfony/recipes-contrib/tree/main/jpmmartin/sylius-nmi-plugin), and
+then prints what is left: the browser component and the build of step 5, the migration of step 4,
+and the encryption key of step 6. Read those steps anyway — they say what each thing is for and
+what skipping it costs — but the files are already written, and Composer says which.
+
+A store without Flex, or one that answered *no* when Composer offered to apply the recipe, does all
+six by hand. Either way the result is the same files.
 
 ### 1. Require the package
 
@@ -60,6 +65,8 @@ return [
     JpmMartin\SyliusNmiPlugin\JpmMartinSyliusNmiPlugin::class => ['all' => true],
 ];
 ```
+
+With Flex the line is already there, and `composer remove` takes it out again.
 
 Skip this and one of two things happens. With step 3 done, the store does not start: every page and
 every console command fails with *Bundle "JpmMartinSyliusNmiPlugin" does not exist or it is not
@@ -96,6 +103,8 @@ jpm_martin_sylius_nmi_shop_account:
     requirements:
         _locale: ^[A-Za-z]{2,4}(_([A-Za-z]{4}|[0-9]{3}))?(_([A-Za-z]{2}|[0-9]{3}))?$
 ```
+
+With Flex both files are already written, with these four route sets in them.
 
 The shop route receives the token the browser produces. The admin route adds the *Void* action to
 the payment row, which Sylius itself does not ship. The account route is the shopper's saved-cards
@@ -158,6 +167,9 @@ the `vendor/` directory:
 // assets/shop/entrypoint.js — at the end
 import '@vendor/jpmmartin/sylius-nmi-plugin/assets/shop/entrypoint';
 ```
+
+With Flex that import is already there. The two commands below are not: no recipe installs an npm
+package or builds assets.
 
 The script mounts the card form where the pay page puts it and does nothing on any other page.
 **Do not create `templates/bundles/SyliusShopBundle/_javascripts.html.twig`** — Sylius 2.x does not
@@ -225,7 +237,9 @@ changing it afterwards makes them unreadable until you re-enter them.
 
 A key of your own must stay out of the repository, and the skeleton does not arrange that: its
 `.gitignore` excludes `config/jwt/*.pem` but nothing under `config/encryption/`. So, in this order
-— the generator writes wherever the store points *at the moment it runs*:
+— the generator writes wherever the store points *at the moment it runs*. With Flex the two
+`.gitignore` lines are already there; the rest of this step is yours, because a recipe that moved
+the key path would make unreadable whatever another plugin had already encrypted with the old one:
 
 ```gitignore
 # .gitignore — the rule the skeleton already uses for its JWT keys; test.key stays tracked, .env names it

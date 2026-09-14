@@ -352,10 +352,11 @@ fails when either half drifts. A new class starts internal; making it public is 
 the document, not by leaving the tag off. SemVer is promised about the list and nothing else.
 
 **The Flex recipe is sourced here and served from contrib.** `recipe/jpmmartin/sylius-nmi-plugin/1.0/`
-is laid out exactly as `symfony/recipes-contrib` is, so the pull request there is a copy of that
+is laid out exactly as `symfony/recipes-contrib` is, so a pull request there is a copy of that
 directory, and the Install workflow compiles it with `symfony-tools/recipes-checker`, serves it to
 a throwaway store and installs through it on every change — the recipe is tested here before
-contrib ever sees it. It does not touch the encryption key path: a store may already hold
+contrib ever sees it. That workflow's `recipe_source` input switches the same job to contrib's own
+endpoint, which is how what a reader gets is checked after a merge rather than before. It does not touch the encryption key path: a store may already hold
 credentials encrypted with the skeleton's key. The plugin's script reaches a store one of two ways,
 never both — the import line in `assets/shop/entrypoint.js`, which is what the recipe and the
 README's step 5 do, or the shipped `scripts.html.twig` with an `nmi-shop` Encore entry; two loads

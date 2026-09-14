@@ -33,6 +33,10 @@ button that does nothing. The button is disabled in the markup and enabled by th
 fills the fields, so without the script neither happens. No error on the page, nothing in the
 browser console, nothing in the log. It looks like a broken template.
 
+**Installed with the Flex recipe? This is still yours to do.** The recipe adds the import line; it
+does not install the npm package and does not build anything, which is why `composer require`
+printed those two commands rather than running them.
+
 **What was missed:** README **step 5**, the front-end build, in one of the two ways it goes wrong
 without a sound — or, less often, nothing was missed and something is blocking NMI's script, which
 is the third bullet:
