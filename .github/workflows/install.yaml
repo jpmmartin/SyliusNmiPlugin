@@ -22,6 +22,18 @@ on:
             - 'bin/apply-readme-edits'
             - '.github/workflows/install.yaml'
     workflow_dispatch:
+        inputs:
+            recipe_source:
+                description: "Where the recipe job takes the recipe from"
+                type: choice
+                default: local
+                options:
+                    # `recipe/` here, compiled and served by the runner: what a change to the recipe
+                    # must pass before it is proposed.
+                    - local
+                    # symfony/recipes-contrib, through the store's own default endpoints: what a
+                    # reader actually gets. Only meaningful once the recipe is merged there.
+                    - contrib
 
 permissions:
     contents: read
@@ -56,6 +68,9 @@ jobs:
         env:
             APP_ENV: dev
             DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/store
+            # `local` on every automatic run: a push cannot wait for contrib to catch up with a
+            # recipe it is changing. `contrib` is chosen by hand, to see what a reader gets.
+            RECIPE_SOURCE: ${{ inputs.recipe_source || 'local' }}
 
         steps:
             - name: Check out the plugin
@@ -168,14 +183,14 @@ jobs:
             # same tool, from a tree laid out the way that repository is — `recipe/` here already
             # is — and the same two lints its bot runs on a pull request run here first.
             - name: Check out the recipes checker
-              if: matrix.path == 'recipe'
+              if: matrix.path == 'recipe' && env.RECIPE_SOURCE == 'local'
               uses: actions/checkout@v5
               with:
                   repository: symfony-tools/recipes-checker
                   path: recipes-checker
 
             - name: Compile the recipe into a Flex endpoint
-              if: matrix.path == 'recipe'
+              if: matrix.path == 'recipe' && env.RECIPE_SOURCE == 'local'
               run: |
                   set -euo pipefail
                   (cd recipes-checker && composer install --no-interaction --no-progress --prefer-dist)
@@ -189,21 +204,30 @@ jobs:
                   test -s ../endpoint/index.json
                   grep -q '"jpmmartin/sylius-nmi-plugin"' ../endpoint/index.json
 
-            # Composer refuses a plain-http endpoint unless told otherwise; this store is thrown
-            # away with the runner. The endpoint is served from the same step that uses it, so
-            # the server's lifetime is not a question.
+            # Where the recipe comes from is asserted, not assumed: the line Flex prints names the
+            # repository it read, and a run that took the wrong one would otherwise look green.
             - name: Require the package and let the recipe do the files
               if: matrix.path == 'recipe'
               working-directory: store
               run: |
                   set -euo pipefail
-                  (php -S 127.0.0.1:8765 -t ../endpoint > ../endpoint.log 2>&1 &)
-                  for i in $(seq 1 10); do curl -sf -o /dev/null http://127.0.0.1:8765/index.json && break; sleep 1; done
-                  composer config secure-http false
-                  composer config extra.symfony.endpoint --json '["http://127.0.0.1:8765/index.json", "flex://defaults"]'
+                  if [ "$RECIPE_SOURCE" = 'local' ]; then
+                      # Composer refuses a plain-http endpoint unless told otherwise; this store is
+                      # thrown away with the runner. The endpoint is served from the same step that
+                      # uses it, so the server's lifetime is not a question.
+                      (php -S 127.0.0.1:8765 -t ../endpoint > ../endpoint.log 2>&1 &)
+                      for i in $(seq 1 10); do curl -sf -o /dev/null http://127.0.0.1:8765/index.json && break; sleep 1; done
+                      composer config secure-http false
+                      composer config extra.symfony.endpoint --json '["http://127.0.0.1:8765/index.json", "flex://defaults"]'
+                      from='github.com/jpmmartin/SyliusNmiPlugin:main'
+                  else
+                      # Nothing configured: the store's own endpoints, which a Sylius Standard
+                      # composer.json points at contrib with `allow-contrib`.
+                      from='github.com/symfony/recipes-contrib:main'
+                  fi
                   composer require jpmmartin/sylius-nmi-plugin --no-interaction --no-progress 2>&1 | tee require.log
-                  grep -q 'Configuring jpmmartin/sylius-nmi-plugin' require.log \
-                      || { echo 'Flex did not apply the recipe.'; exit 1; }
+                  grep -q "Configuring jpmmartin/sylius-nmi-plugin (>=1.0): From $from" require.log \
+                      || { echo "Flex did not apply the recipe from $from."; exit 1; }
                   grep -q 'Four things no recipe can do' require.log \
                       || { echo 'The post-install instructions were not printed.'; exit 1; }
                   composer recipes jpmmartin/sylius-nmi-plugin | grep -q 'up to date' \
