@@ -18,8 +18,8 @@ use Sylius\Component\Core\Repository\PaymentMethodRepositoryInterface;
  *
  * **It answers only when the channel has exactly one NMI method that accepts saved cards.** With
  * two, picking one silently would file the card against an account the shopper never chose, and
- * choosing properly means asking them before the card form is mounted rather than after. That is a
- * page this change never specified, so the honest behaviour is to offer nothing rather than guess.
+ * choosing properly means asking them before the card form is mounted rather than after. The
+ * plugin has no such page, so the honest behaviour is to offer nothing rather than guess.
  *
  * @internal
  */

@@ -32,9 +32,8 @@ use Symfony\Component\HttpFoundation\Response;
  * **Why not the framework's notify route.** Half of these events name no payment at all, the
  * provider list carries no gateway discriminator so a plugin can answer another gateway's
  * deliveries, its response provider is `final` and shared with every payment plugin, the whole
- * contract is `@experimental`, and nothing on that path deduplicates. Those five reasons are
- * recorded in the change's design; a sixth, about the response status forcing retries, was
- * withdrawn after the gateway was observed accepting a `204`.
+ * contract is `@experimental`, and nothing on that path deduplicates. A sixth reason, that the
+ * response status would force retries, was dropped once the gateway was seen accepting a `204`.
  *
  * @internal
  */

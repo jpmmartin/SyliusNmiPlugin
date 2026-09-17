@@ -57,7 +57,7 @@ final class NmiRefundPluginScreenTest extends WebTestCase
         parent::tearDown();
     }
 
-    /** The *The refund page still opens after the last refund* scenario, from the screen to the screen. */
+    /** The refund page still opens after the last refund, from the screen to the screen. */
     public function testTheWholeAmountRefundedFromTheScreenLandsOnThePageWithOneMessage(): void
     {
         $this->onlyWithTheRefundPlugin();

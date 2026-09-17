@@ -19,7 +19,7 @@ use Tests\JpmMartin\SyliusNmiPlugin\Functional\Webhook\BuildsAnNmiWebhookDeliver
  *
  * **This endpoint is the largest attack surface the plugin has**: unauthenticated by construction,
  * reachable by anyone, and the only thing between it and the database is a signature check. It is
- * also demonstrably findable — the capture endpoint used to settle this change's unknowns was
+ * also demonstrably findable — an endpoint set up during development to capture real deliveries was
  * crawled by Googlebot within hours of existing, without its address being published anywhere. So
  * nothing here may rest on the URL being obscure.
  *

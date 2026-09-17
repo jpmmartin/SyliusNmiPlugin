@@ -51,7 +51,7 @@ final class NmiRefundPluginIntegrationTest extends KernelTestCase
         parent::tearDown();
     }
 
-    /** The *With the optional refund plugin* scenario: the method that took the money, and nothing configured. */
+    /** With the optional refund plugin installed: the method that took the money is offered, with nothing configured. */
     public function testTheMethodThatTookTheMoneyIsOffered(): void
     {
         $this->onlyWithTheRefundPlugin();
@@ -64,7 +64,7 @@ final class NmiRefundPluginIntegrationTest extends KernelTestCase
     }
 
     /**
-     * The *Offered as soon as the money was taken* scenario. Settlement is not waited for: the
+     * Offered as soon as the money was taken. Settlement is not waited for: the
      * sandbox refunded an unsettled sale when asked, and a store with no webhooks would never
      * record a settlement anyway. Whether the gateway refunds is the gateway's answer to give.
      */
@@ -117,7 +117,7 @@ final class NmiRefundPluginIntegrationTest extends KernelTestCase
     }
 
     /**
-     * The *Manual completion is refused* scenario, at the workflow: the refund plugin's own
+     * Manual completion is refused, at the workflow: the refund plugin's own
      * `complete` is guarded shut for a refund payment whose method is NMI, the plugin's own
      * transition is open, and an offline refund payment keeps its manual completion.
      */

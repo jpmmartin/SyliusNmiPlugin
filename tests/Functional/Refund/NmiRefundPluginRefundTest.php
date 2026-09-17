@@ -74,7 +74,7 @@ final class NmiRefundPluginRefundTest extends KernelTestCase
         parent::tearDown();
     }
 
-    /** The *Partial refund through the refund plugin* scenario. */
+    /** A partial refund through the refund plugin. */
     public function testAPartOfTheOrderIsRefundedAtTheGatewayRecordedAndCompleted(): void
     {
         $this->onlyWithTheRefundPlugin();
@@ -116,7 +116,7 @@ final class NmiRefundPluginRefundTest extends KernelTestCase
         self::assertSame(RefundPaymentInterface::STATE_COMPLETED, $this->refundPaymentsOf($order)[0]->getState());
     }
 
-    /** The *A further partial refund* scenario: its own refund, for its own amount, and the sum never exceeds the transaction. */
+    /** A further partial refund: its own refund, for its own amount, and the sum never exceeds the transaction. */
     public function testAFurtherPartIsItsOwnRefund(): void
     {
         $this->onlyWithTheRefundPlugin();

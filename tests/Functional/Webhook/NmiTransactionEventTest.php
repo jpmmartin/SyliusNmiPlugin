@@ -111,7 +111,7 @@ final class NmiTransactionEventTest extends WebTestCase
     /**
      * The gateway's own retry. The guard that makes this true is the unique index, and this is
      * where "changes state exactly once" stops being a claim about a row count and becomes one
-     * about the payment — which is what task 2.3 could not assert when it was written.
+     * about the payment — which a test of the index alone cannot show.
      */
     public function testReplayingASuccessEventAppliesItOnlyOnce(): void
     {

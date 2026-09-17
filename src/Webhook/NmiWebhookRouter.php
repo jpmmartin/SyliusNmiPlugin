@@ -28,7 +28,8 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  * the store in one list, told apart by the action.
  *
  * Settlement, chargebacks and card-updater summaries do not travel this way, because none of them
- * is about one payment. They arrive as the change proceeds.
+ * is about one payment: card-updater summaries go to the card update applier, and settlement and
+ * chargebacks are recorded by this class's own methods below.
  *
  * @internal
  */

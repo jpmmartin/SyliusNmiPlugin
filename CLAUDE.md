@@ -239,6 +239,12 @@ Refs: nmi-payment-gateway 4.3
 
 Rule 3 already states why this resolves only in the author's working copy. Write it anyway.
 
+**The footer is the only place such a reference goes.** Code comments, docblocks, tests,
+templates, configuration and published documentation are read by people who cannot see
+`openspec/`, so none of them names a task number, a change, a spec scenario or a planning file.
+Keep what the comment explains and drop the pointer: *the same hole already closed on the pay
+page*, not *the same hole 3.4 closed*.
+
 ### SemVer is binding here
 
 > This is a **published package**. Consumers install it with a caret constraint, so the commit type

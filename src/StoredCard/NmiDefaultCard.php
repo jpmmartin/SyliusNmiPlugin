@@ -16,7 +16,7 @@ use Sylius\Component\Core\Model\PaymentMethodInterface;
  * copy of the rule: a first card being saved, a customer choosing a different one, and the default
  * being deleted. Three copies of an invariant is three chances to disagree.
  *
- * **Scoped to the payment method as well as the customer**, as `design.md` requires: a card stored
+ * **Scoped to the payment method as well as the customer**: a card stored
  * against one NMI account cannot be charged against another, so "the default" only means anything
  * within one account.
  *

@@ -181,7 +181,7 @@ final class NmiRefundTest extends KernelTestCase
         self::assertSame(PaymentInterface::STATE_REFUNDED, $payment->getState());
     }
 
-    /** The *Refunding twice* scenario: nothing left, refused *without asking the gateway* — the store's own record answers it. */
+    /** Refunding twice: nothing left, refused *without asking the gateway* — the store's own record answers it. */
     public function testRefundingTwiceIsRefusedWithoutAskingTheGateway(): void
     {
         $payment = $this->completedPayment();

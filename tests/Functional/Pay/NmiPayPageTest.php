@@ -263,7 +263,7 @@ final class NmiPayPageTest extends WebTestCase
     }
 
     /**
-     * The *Card saving left disabled* scenario. A signed-in shopper on a gateway whose operator
+     * Card saving left disabled. A signed-in shopper on a gateway whose operator
      * never turned it on sees the page exactly as it was before this feature existed.
      */
     public function testNothingIsOfferedWhileTheSettingIsOff(): void

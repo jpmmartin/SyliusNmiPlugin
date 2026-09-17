@@ -21,7 +21,7 @@ use Tests\JpmMartin\SyliusNmiPlugin\Functional\CreatesAShopChannel;
 use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
 
 /**
- * The four questions this change's security review has to answer, each answered by making the
+ * The four questions a security review of stored cards has to answer, each answered by making the
  * thing happen rather than by reading the code that is supposed to prevent it.
  *
  * Most of the ownership question is answered elsewhere, and deliberately: it takes four attacks on

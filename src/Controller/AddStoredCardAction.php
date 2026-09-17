@@ -47,8 +47,8 @@ final class AddStoredCardAction
      *
      * Letters, spaces and a little punctuation, and short — **no digits at all**. Every card
      * network is a word: visa, mastercard, amex, discover, jcb, diners, unionpay, maestro. Allowing
-     * digits let sixteen of them through as a "brand" and into the column, which a test caught; it
-     * is the same hole 3.4 closed on the paying side, in a field added later.
+     * digits let sixteen of them through as a "brand" and into the column, which a test caught: the
+     * same hole already closed on the pay page, reopened in a field added later.
      *
      * This is the only thing the browser is trusted for on this page, and it is trusted for it
      * because the gateway does not answer with it — while the digits and the expiry, which are what

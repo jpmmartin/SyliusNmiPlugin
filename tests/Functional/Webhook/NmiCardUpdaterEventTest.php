@@ -21,8 +21,8 @@ use Tests\JpmMartin\SyliusNmiPlugin\Double\RecordingLogger;
  *
  * **These payloads are built from the gateway's published samples and could not be otherwise.**
  * A card-updater summary is raised by the card networks, not by anything a store can do, so no
- * amount of sandbox work produces one. What the sandbox did settle is the shape: task 1.2
- * established that every entry carries `customer_vault_id` and `billing_id`, and that the expiry
+ * amount of sandbox work produces one. What the sandbox did settle is the shape: every entry
+ * carries `customer_vault_id` and `billing_id`, and the expiry
  * comes as `01/50` where the rest of the gateway says `1030`.
  *
  * **The lookup they need is the interesting part.** The vault reference is encrypted with a

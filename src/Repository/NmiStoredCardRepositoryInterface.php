@@ -38,7 +38,7 @@ interface NmiStoredCardRepositoryInterface extends RepositoryInterface
     /**
      * The card this customer already has, if any.
      *
-     * A heuristic, and documented as one in `design.md`: the store never sees a card number, so
+     * A heuristic, deliberately: the store never sees a card number, so
      * "the same card" can only mean the same brand, last four digits and expiry on the same
      * gateway account. Two genuinely different cards can collide, and the consequence of a
      * collision is that the shopper is told they already have it.
