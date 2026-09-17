@@ -263,6 +263,36 @@ page*, not *the same hole 3.4 closed*.
 >
 > This obligation starts at the first tagged release and never relaxes.
 
+## Rule 5 — Which test proves what
+
+Sylius's own answer, from *Architectural Drivers*: **all of the functionality it provides is
+described as user stories using Behat scenarios.** Its plugins follow it. `sylius/refund-plugin`
+carries 71 scenarios across 37 feature files, every one named for the goal —
+`refunding_order_units.feature`, `browsing_list_of_all_credit_memos.feature` — and none for a
+class; `Sylius/PayPalPlugin` reads the same. Neither ships phpspec any more, and PayPalPlugin
+keeps `tests/{Unit,Functional,Behat}` side by side, so PHPUnit at the HTTP level is normal in an
+official plugin too.
+
+So, here: **a functionality earns a Behat scenario when a person performs it through a page, and
+it can be driven without a real browser.** Both halves are required.
+
+- The first decides how the file reads: the role's own words, `Feature` / `In order to` / `As a` /
+  `I want`, one file per goal, `snake_case` — Sylius's naming convention, not ours.
+- The second is why the money path is not in Behat. The card fields and 3-D Secure live in
+  frames served by the gateway, and `composer check` runs Behat with `~@javascript`, so a
+  scenario that needs Chrome proves nothing in the gate. `@javascript` scenarios are allowed —
+  tag them `@ui @javascript`, as Sylius does — but they belong to `composer behat-js`, which the
+  gate does not run.
+
+Everything else is PHPUnit: `Functional` for what a request does — endpoints, forms, pages,
+security probes — `Integration` for what reaches the database, `Unit` for a decision inside one
+class. The shop JavaScript has its own `node --test` files, and the documented installation is
+proven by the Install workflow rather than by any of these.
+
+A scenario nobody can fail is worse than no scenario: if the interesting part cannot be reached
+without a browser, write the PHPUnit test that can be reached and say so, rather than a Behat
+scenario that asserts the easy half.
+
 ---
 
 # Project reference
