@@ -495,8 +495,13 @@ Scaffolded from `sylius/plugin-skeleton` v2.2.0. The greeting demo, the three sk
 the two one-shot `bin/` scripts are gone; what remains of the scaffold is the directory layout,
 which is the part worth keeping.
 
-One piece is still there and is **not** this plugin's own:
-`features/running_a_sylius_feature.feature` is a copy of Sylius's channel-management feature,
-shipped by the skeleton to show that a plugin can run the framework's scenarios. It exercises
-Sylius rather than this plugin, so every one of its steps is a way for this suite to break for
-reasons that have nothing to do with the gateway. Removing it is a decision nobody has taken yet.
+One piece is still there, and staying is a decision that was taken rather than a leftover nobody
+looked at. `features/core_features_still_pass.feature` — renamed from
+`running_a_sylius_feature.feature` when the decision was made — is a copy of Sylius's
+channel-management feature, shipped by the skeleton to show that a plugin can run the framework's
+scenarios. **It is kept because it is the only place the "no effect until configured" requirement
+is exercised through the interface:** it runs under Sylius's own imported suite, and it passes
+only while registering this plugin leaves a core admin flow alone. The cost is real and accepted —
+its steps are Sylius's, so it can break for reasons that have nothing to do with the gateway, and
+when it does, this plugin's registration is the first suspect, not the gateway. The file says all
+of this at its top, so nobody deletes it as scaffolding.

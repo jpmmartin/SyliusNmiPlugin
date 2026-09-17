@@ -1,4 +1,13 @@
-# Sylius/Sylius:features/admin/channel/managing_channels/adding_channel.feature
+# Copied verbatim from Sylius/Sylius: features/admin/channel/managing_channels/adding_channel.feature
+#
+# **It says nothing about NMI, and that is the point.** This is one of Sylius's own admin features,
+# kept here so the suite demonstrates that registering this plugin changes nothing about how the
+# store behaves until an NMI payment method is configured. That is a requirement of this plugin,
+# and this file is the only place it is exercised through the interface.
+#
+# It runs under Sylius's own imported suite rather than either of the plugin's, because of the
+# `@managing_channels` tag below: do not retag it, rename its scenarios or edit its steps. When it
+# fails, suspect this plugin's registration or its configuration — never the gateway.
 
 @managing_channels
 Feature: Adding a new channel
