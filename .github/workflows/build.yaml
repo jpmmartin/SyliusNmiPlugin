@@ -202,7 +202,7 @@ jobs:
                   vendor/bin/console dbal:run-sql "SELECT VERSION()"
                   php -r 'require "vendor/autoload.php"; $_SERVER["APP_ENV"] = $_ENV["APP_ENV"] = "test"; require "vendor/sylius/test-application/config/bootstrap.php"; $kernel = new Sylius\TestApplication\Kernel("test", false); $kernel->boot(); echo get_class($kernel->getContainer()->get("doctrine.dbal.default_connection")->getDatabasePlatform()), PHP_EOL;'
 
-            # The migration must build the four tables here as it does on PostgreSQL, and nothing of
+            # The migration must build the five tables here as it does on PostgreSQL, and nothing of
             # the plugin's may be skipped: skipping is what the old per-engine halves did.
             - name: Build the schema with the migration
               run: |
