@@ -85,7 +85,7 @@ or nothing reaches the store at all. The README's *Webhooks* section covers both
 
 ## What you decide
 
-Five switches. Four are off by default; one is on. None of them has to be touched for card
+Six switches. Five are off by default; one is on. None of them has to be touched for card
 payments to work.
 
 ### Authorize first, capture later — off
@@ -101,6 +101,25 @@ hand from the order screen.
 your acquirer's, not this plugin's — and an expired one cannot be captured. It also cannot be
 captured *in parts*: NMI closes the authorisation on the first capture, so an order shipped in two
 parcels is charged in full at the first shipment.
+
+### Take payment later — off
+
+**Off:** the shopper's card is charged at checkout, or authorised if the switch above is on.
+
+**On:** checkout authenticates the card with 3-D Secure for the order total and puts it on file at
+NMI for that order, **charging and reserving nothing**. The payment waits, and the order reads
+*awaiting payment*, until you charge it — with *Complete* on the order screen, or from your own
+code. See the README's *Taking payment later*.
+
+**Why you might turn it on:** you decide on an order after the shopper has left — an age or
+compliance check, made-to-order goods, a credit check — and do not want to take money you may have
+to give back.
+
+**What it costs:** nothing is reserved, so the later charge can be declined like any other. Your
+terms have to tell shoppers, before they pay, that their card will be charged later without them.
+It cannot be combined with *Authorize first, capture later*, and the form refuses the two together.
+Turning it off later stops new checkouts from putting cards on file; orders already waiting can
+still be charged.
 
 ### Let shoppers save their card — off
 

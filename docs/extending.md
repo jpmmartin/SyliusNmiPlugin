@@ -44,6 +44,7 @@ aliased to. The implementation behind each is internal.
 |---|---|---|
 | `JpmMartin\SyliusNmiPlugin\Gateway\Request\ChargeFactoryInterface` | `jpm_martin_sylius_nmi.gateway.charge_factory` | the charge sent to the gateway for a token or a stored card — see below |
 | `JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface` | `jpm_martin_sylius_nmi.gateway.client` | every call to the gateway's API |
+| `JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface` | `jpm_martin_sylius_nmi.card_on_file.charger` | charging the card put on file for a payment, from the store's own code — see below |
 | `JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface` | `jpm_martin_sylius_nmi.gateway.configuration_provider` | the keys and host read off a payment method |
 | `JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface` | `jpm_martin_sylius_nmi.recorder.transaction` | how a gateway transaction is written to the log |
 | `JpmMartin\SyliusNmiPlugin\Recorder\NmiGatewayNoticeRecorderInterface` | `jpm_martin_sylius_nmi.recorder.gateway_notice` | how a chargeback or settlement failure becomes a notice |
@@ -113,6 +114,50 @@ plugin's `id`. The plugin validates none of it. A field the gateway refuses is r
 other charge: the payment stays retryable, the shopper sees the generic failure, and the log
 carries the gateway's reason.
 
+### Charging a card on file: the charger
+
+On a payment method that takes payment later, checkout puts the shopper's card on file and charges
+nothing, and the payment waits. The order screen's *Complete* charges it. So does
+`NmiCardOnFileChargerInterface::charge()`, for a store whose decision is taken in code — a message
+worker once an order is approved, a console command, a cron:
+
+```php
+use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface;
+use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiChargeOutcome;
+
+final class ChargeApprovedOrderHandler
+{
+    public function __construct(private readonly NmiCardOnFileChargerInterface $charger)
+    {
+    }
+
+    public function __invoke(OrderApproved $message): void
+    {
+        $outcome = $this->charger->charge($message->payment());
+
+        match ($outcome->status) {
+            NmiChargeOutcome::APPROVED => null,                  // the payment is completed
+            NmiChargeOutcome::DECLINED => $this->askForAnotherCard(), // still waiting, card still on file
+            NmiChargeOutcome::REFUSED => $this->alert($outcome),      // nothing was sent; the key says why
+            NmiChargeOutcome::UNKNOWN => $this->reconcile($outcome),  // check the portal before retrying
+        };
+    }
+}
+```
+
+What it charges is not the caller's to choose: the card put on file for that payment, under the
+method it still uses, for that payment's own amount, while the payment still waits — declared to
+the card networks as merchant-initiated. The second argument carries fields of the gateway's API the
+plugin does not model, merged beneath its own exactly as on any charge. It answers synchronously,
+which needs the payment-request bus to be synchronous, as the pay page already requires.
+
+**An unknown outcome is not a decline.** The gateway did not answer, so the card may have been
+charged. Look the order up in the gateway's portal by its number before charging again.
+
+The charge is recorded as a payment request with the action `NmiCardOnFileChargerInterface::ACTION`.
+That action only names the record: a request created with it any other way — through the shop API,
+which lets a client name any action — fails, and nothing is charged.
+
 ### Value objects, exceptions and constants you may use
 
 `JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge`,
@@ -123,7 +168,8 @@ carries the gateway's reason.
 `JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse`, `JpmMartin\SyliusNmiPlugin\Gateway\NmiErrorResponse`
 and `JpmMartin\SyliusNmiPlugin\Gateway\NmiVaultRecord` are what the gateway answers;
 `JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration` is a payment method's credentials and
-`JpmMartin\SyliusNmiPlugin\Gateway\NmiCardDetails` a card as the browser described it. The client
+`JpmMartin\SyliusNmiPlugin\Gateway\NmiCardDetails` a card as the browser described it;
+`JpmMartin\SyliusNmiPlugin\CardOnFile\NmiChargeOutcome` what a charge of a card on file came to. The client
 throws `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException`,
 `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException` and
 `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException`, all of them
@@ -131,7 +177,7 @@ throws `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException`,
 throws `JpmMartin\SyliusNmiPlugin\Refund\Exception\RefundNotPerformed`.
 
 `JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory` holds the gateway factory name, `nmi`, and
-the keys of the gateway configuration as stored; `JpmMartin\SyliusNmiPlugin\Refund\RefundPaymentTransitions`
+the keys of the gateway configuration as stored — `take_payment_later` among them; `JpmMartin\SyliusNmiPlugin\Refund\RefundPaymentTransitions`
 the `confirm_gateway_refund` transition the plugin adds to the refund plugin's refund-payment
 workflow; `JpmMartin\SyliusNmiPlugin\Mailer\NmiEmails` the code of the email it sends.
 
@@ -160,7 +206,10 @@ publishes events for, so react where every other listener reacts:
 
 It listens on `sylius.payment.pre_complete`, `sylius.payment.pre_cancel` and
 `sylius.payment.pre_refund` to perform the capture, the void and the refund, and on
-`workflow.sylius_shipment.completed.ship` to capture when a shipment goes out. The transaction log
+`workflow.sylius_shipment.completed.ship` to capture when a shipment goes out. On a payment holding a
+card on file, `sylius.payment.pre_complete` charges that card instead, and
+`sylius.payment.post_complete` and `sylius.payment.post_cancel` let it go at the gateway once the
+payment's new state is committed. The transaction log
 is written through the recorder above; decorate it to react to a transaction being recorded.
 
 ## Integrating: routes, the API and the console

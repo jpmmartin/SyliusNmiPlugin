@@ -22,6 +22,9 @@ card details tokenised in the shopper's browser so the store never handles them.
 - **The same flow headless**, through the shop API Sylius already documents. No endpoint of this
   plugin is required.
 - **Per payment method credentials**, so two channels can charge two different NMI accounts.
+- **Take payment later**, off until you turn it on. Checkout authenticates the card and puts it on
+  file for that order with nothing charged; you charge it once you have decided to, from the order
+  screen or from your own code.
 
 ## Requirements
 
@@ -414,6 +417,65 @@ payment is the more common trade. The form says the same thing, so nobody has to
 > liability in two jurisdictions. They have not been reviewed by anyone qualified to make them.
 > Treat them as a prompt to check your own position, not as advice.
 
+## Taking payment later
+
+For an order you decide on after the shopper has left: age or compliance checks, made-to-order goods,
+a credit check. Checkout authenticates the card with 3-D Secure **for the order total** and puts it
+on file at NMI for that order, **with nothing charged and nothing reserved**. The payment waits in
+*processing* and the order reads *awaiting payment* until you charge it.
+
+Turn it on per payment method with **Take payment later** in the gateway configuration. It cannot
+be combined with *Authorize first, capture later* — a card on file has nothing authorised to
+capture — and the form refuses the two together.
+
+**What the shopper sees.** The pay page as usual, with a button that says *Save card for this
+order* instead of *Pay*. After authenticating they land on the order's confirmation page, told that
+their card has been saved for this order and nothing has been charged yet. Neither the option to
+save a card for next time nor their saved cards are offered on this method: what they are agreeing
+to is this order being charged later, which is a different promise from a card kept for their own
+use.
+
+**What your terms have to say.** That the card will be charged later, for the order total, without
+the shopper present — and they have to say it before the shopper pays. Nothing here can check your
+terms for you, and the card networks treat a charge made without the cardholder as resting on that
+agreement.
+
+> Like the paragraph on authenticating saved cards, this makes a claim about card network rules
+> that has not been reviewed by anyone qualified to make it. Treat it as a prompt to check your own
+> position, not as advice.
+
+**Charging it.** From the order screen, *Complete* charges the card first and completes the payment
+only when the gateway approves; a decline or a refusal stops it and shows why, and the payment keeps
+waiting with its card on file. From your own code — a worker once an order is approved, a console
+command — call `NmiCardOnFileChargerInterface::charge()`; [docs/extending.md](docs/extending.md)
+shows how. Either way the charge is the order's own amount, declared to the card networks as
+merchant-initiated and citing the verification made at checkout, with no 3-D Secure — the shopper
+is not there to be asked.
+
+**Before trying again after no answer.** A charge the gateway did not answer is reported as
+*unknown*, never as declined: the card may have been charged. Look the order up in NMI's portal by
+its number before charging again. The plugin does not retry on its own.
+
+A charge is refused, **without asking the gateway**, when the payment is no longer waiting, holds no
+card on file, has moved to another payment method, or when the card's account has been closed, the
+card has expired, or it carries no record of the verification that put it on file. The reason is
+named in each case.
+
+**Cancelling** the payment from the order screen lets the card go, and so does an approved charge:
+the record is removed from NMI's vault, and the removal is retried until NMI has done it. Turning the
+setting off later stops new checkouts from putting cards on file; it does not strand the orders
+already waiting.
+
+**What it does not do.** It does not charge a card a shopper saved for themselves without them —
+that card was kept on a different promise. It does not schedule recurring charges, authorise
+instead of charging, or charge a part of the order. And because nothing is reserved at checkout, the
+later charge can be declined like any other.
+
+**The sandbox is more lenient than the rule.** On 2026-09-21 the sandbox charged a card on file
+whose expiry had passed, and accepted a merchant-initiated charge that cited no verification. The
+plugin refuses both itself. A sandbox accepting a declaration is also not the card networks
+accepting it, and no test here can show the second.
+
 ## Webhooks
 
 Everything NMI does outside your store is invisible to it until you wire this up: a refund issued
@@ -637,6 +699,15 @@ server. In step 2, add `"store_card": "1"` to keep the card being paid with, or 
 `"stored_card": "42"` **instead of** `payment_token` to pay with one already saved. An expired card,
 another shopper's, or one saved under a different payment method is refused there rather than
 charged.
+
+**Taking payment later, headlessly.** On a method that takes payment later, step 1 answers with
+`"card_on_file": true` — and without `can_store_card` or `stored_cards`, which do not apply there.
+Step 2 is the same token and 3-D Secure result; the request comes back `completed` with
+`"card_on_file": true` in `responseData`, the payment is `processing`, and nothing has been charged.
+Here, do the 3-D Secure. Step 2 accepts a token without it, as it does for a charge, and the card
+is put on file anyway — but in regions that require strong customer authentication every later
+charge relies on this first one, so a card put on file without it can be declined when the store
+charges it, with the shopper long gone.
 
 ## What the pay page carries
 
