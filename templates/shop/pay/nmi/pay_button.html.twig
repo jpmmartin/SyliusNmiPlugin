@@ -8,6 +8,14 @@
     it away — that path has a button of its own. `label` is optional: the account's add-a-card
     page includes this file with a label of its own.
 #}
+{#
+    On a method that takes payment later the button does not pay: it saves the card for this
+    order, and saying "Pay" there would tell the shopper the opposite of what happens. Read off
+    the pay page's context when there is one; the account page includes this file directly, with
+    no hook around it and a label of its own.
+#}
+{% set card_on_file = hookable_metadata is defined ? hookable_metadata.context.nmi.card_on_file|default(false) : false %}
+{% set default_label = card_on_file ? 'jpm_martin_sylius_nmi.shop.pay.put_card_on_file'|trans : 'jpm_martin_sylius_nmi.shop.pay.pay_now'|trans %}
 <button
     type="button"
     data-nmi-pay-button
@@ -16,5 +24,5 @@
     disabled
     {{ sylius_test_html_attribute('nmi-card-pay') }}
 >
-    {{ label|default('jpm_martin_sylius_nmi.shop.pay.pay_now'|trans) }}
+    {{ label|default(default_label) }}
 </button>

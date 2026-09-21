@@ -25,4 +25,8 @@ interface NmiGatewayConfigurationPageInterface
     public function isStoredCardAuthenticationEnabled(): bool;
 
     public function getStoredCardAuthenticationHelp(): string;
+
+    public function enableTakingPaymentLater(): void;
+
+    public function isTakingPaymentLaterEnabled(): bool;
 }

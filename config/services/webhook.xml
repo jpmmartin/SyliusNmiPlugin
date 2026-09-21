@@ -48,6 +48,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
             <argument type="service" id="sylius.event_bus" />
             <argument type="service" id="logger" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
         </service>
 
         <!--

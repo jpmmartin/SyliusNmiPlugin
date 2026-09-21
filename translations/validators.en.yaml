@@ -8,3 +8,5 @@ jpm_martin_sylius_nmi:
             not_blank: Please enter the gateway host.
             invalid: The gateway host must be an https address.
             host_only: The gateway host must end at the host name — no path, query string or fragment.
+        take_payment_later:
+            not_with_authorize: Taking payment later cannot be used with authorize first, capture later — a card put on file has nothing authorized to capture. Turn one of them off.

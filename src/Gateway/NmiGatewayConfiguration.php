@@ -51,6 +51,13 @@ final class NmiGatewayConfiguration
          * arrives here and would fill the page with things nobody can act on.
          */
         public readonly bool $notifyUnknownTransactions = false,
+        /**
+         * Whether checkout puts the card on file instead of charging it.
+         *
+         * Defaults to off, which is every configuration stored before the setting existed: those
+         * stores charge at checkout exactly as they always did.
+         */
+        public readonly bool $takePaymentLater = false,
     ) {
     }
 }

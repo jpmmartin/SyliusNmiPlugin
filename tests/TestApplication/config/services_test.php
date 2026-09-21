@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingChargeFactory;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiCardVerifier;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
 return function (ContainerConfigurator $container) {
@@ -20,6 +21,9 @@ return function (ContainerConfigurator $container) {
         // wants particular behaviour prepares it on the instance it fetches.
         $container->services()
             ->set('jpm_martin_sylius_nmi.gateway.client', FakeNmiClient::class)
+            // The same rule for the verification that puts a card on file, which has a service of
+            // its own so that a store's decorator of the client can never be handed to it.
+            ->set('jpm_martin_sylius_nmi.gateway.card_verifier', FakeNmiCardVerifier::class)
         ;
 
         // A store's decorator of the charge factory, as a store would register one. Dormant until
@@ -41,6 +45,8 @@ return function (ContainerConfigurator $container) {
             ->alias('test.jpm_martin_sylius_nmi.gateway.client', 'jpm_martin_sylius_nmi.gateway.client')
             ->public()
             ->alias('test.sylius.announcer.payment_request', 'sylius.announcer.payment_request')
+            ->public()
+            ->alias('test.jpm_martin_sylius_nmi.card_on_file.charger', 'jpm_martin_sylius_nmi.card_on_file.charger')
             ->public()
         ;
     }

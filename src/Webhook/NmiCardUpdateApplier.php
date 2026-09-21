@@ -6,9 +6,11 @@ namespace JpmMartin\SyliusNmiPlugin\Webhook;
 
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Command\NotifyCardholder;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFileInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiCardDetails;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
@@ -63,6 +65,7 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
         private readonly NmiGatewayConfigurationProviderInterface $configurationProvider,
         private readonly MessageBusInterface $eventBus,
         private readonly LoggerInterface $logger,
+        private readonly ?NmiCardOnFileRepositoryInterface $cardsOnFile = null,
     ) {
     }
 
@@ -81,19 +84,24 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
         $seen = 0;
         /** @var list<NmiStoredCardInterface> $touched */
         $touched = [];
+        $cardsOnFileTouched = 0;
 
         foreach ($summary['arrays'] as $arrayName) {
             foreach (self::entriesIn($envelope, $arrayName) as $entry) {
                 ++$seen;
 
                 $card = $this->applyEntry($entry, $summary['status'], $paymentMethod);
-                if (null !== $card) {
+                if ($card instanceof NmiStoredCardInterface) {
                     $touched[] = $card;
+                } elseif ($card instanceof NmiCardOnFileInterface) {
+                    // Updated, and deliberately not emailed about: the email tells a shopper about a
+                    // card they saved with the store, and a card put on file for one order is not one.
+                    ++$cardsOnFileTouched;
                 }
             }
         }
 
-        $applied = count($touched);
+        $applied = count($touched) + $cardsOnFileTouched;
 
         if ($applied > 0) {
             $this->manager->flush();
@@ -118,7 +126,7 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
      *
      * @param array<string, mixed> $entry
      */
-    private function applyEntry(array $entry, ?string $status, PaymentMethodInterface $paymentMethod): ?NmiStoredCardInterface
+    private function applyEntry(array $entry, ?string $status, PaymentMethodInterface $paymentMethod): NmiStoredCardInterface|NmiCardOnFileInterface|null
     {
         $vaultId = self::text($entry['customer_vault_id'] ?? null);
         if (null === $vaultId) {
@@ -127,7 +135,7 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
 
         $card = $this->storedCardLocator->locate($vaultId, $paymentMethod);
         if (null === $card) {
-            return null;
+            return $this->applyToCardOnFile($vaultId, $entry, $status, $paymentMethod);
         }
 
         if (null !== $status) {
@@ -137,6 +145,54 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
         // The number and the expiry, when the entry carries them. A closure names them too, and
         // taking them costs nothing: a card that cannot be used is still a card the shopper should
         // recognise in the list where it now says it is unusable.
+        $details = NmiCardDetails::fromPaymentDetails(
+            ['card_number' => $entry['cc_number'] ?? null, 'card_exp' => $entry['cc_exp'] ?? null],
+            $card->getBrand(),
+        );
+
+        if (null !== $details) {
+            $card->setLastFour($details->lastFour);
+            $card->setExpiryMonth($details->expiryMonth);
+            $card->setExpiryYear($details->expiryYear);
+        }
+
+        $card->setUpdatedAt(new \DateTimeImmutable());
+
+        return $card;
+    }
+
+    /**
+     * The same entry, for a card put on file for one payment rather than saved by a shopper.
+     *
+     * Only the two things the specification names: a closed account marks the card closed, so the
+     * charge is refused before the gateway is asked, and a renewal brings the expiry — and the last
+     * four digits, when the number changed — up to date. A request to contact the cardholder changes
+     * nothing here: the card can still be charged, and who the cardholder is belongs to the order.
+     *
+     * Found by comparing the decrypted reference of each held card under this method: they are few
+     * — released once their payment is charged or cancelled — and a reference cannot be queried.
+     *
+     * @param array<string, mixed> $entry
+     */
+    private function applyToCardOnFile(string $vaultId, array $entry, ?string $status, PaymentMethodInterface $paymentMethod): ?NmiCardOnFileInterface
+    {
+        $card = null;
+        foreach ($this->cardsOnFile?->findHeldUnder($paymentMethod) ?? [] as $candidate) {
+            if (hash_equals((string) $candidate->getVaultId(), $vaultId)) {
+                $card = $candidate;
+
+                break;
+            }
+        }
+
+        if (null === $card) {
+            return null;
+        }
+
+        if (NmiStoredCardInterface::STATUS_CLOSED === $status) {
+            $card->setStatus(NmiCardOnFileInterface::STATUS_CLOSED);
+        }
+
         $details = NmiCardDetails::fromPaymentDetails(
             ['card_number' => $entry['cc_number'] ?? null, 'card_exp' => $entry['cc_exp'] ?? null],
             $card->getBrand(),

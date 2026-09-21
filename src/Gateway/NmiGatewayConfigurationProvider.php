@@ -46,6 +46,8 @@ final class NmiGatewayConfigurationProvider implements NmiGatewayConfigurationPr
             emailCardholder: (bool) ($config[NmiGatewayFactory::CONFIG_EMAIL_CARDHOLDER] ?? false),
             // Absent means off, and on a shared account that default is what keeps the page usable.
             notifyUnknownTransactions: (bool) ($config[NmiGatewayFactory::CONFIG_NOTIFY_UNKNOWN_TRANSACTIONS] ?? false),
+            // Absent means off: a store that never chose to defer its charges charges at checkout.
+            takePaymentLater: (bool) ($config[NmiGatewayFactory::CONFIG_TAKE_PAYMENT_LATER] ?? false),
         );
     }
 

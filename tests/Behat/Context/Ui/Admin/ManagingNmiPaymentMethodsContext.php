@@ -79,6 +79,43 @@ final class ManagingNmiPaymentMethodsContext implements Context
     }
 
     /**
+     * @When I take payment later
+     */
+    public function iTakePaymentLater(): void
+    {
+        $this->createPage->enableTakingPaymentLater();
+    }
+
+    /**
+     * @Then taking payment later should be offered off
+     */
+    public function takingPaymentLaterShouldBeOfferedOff(): void
+    {
+        Assert::false($this->createPage->isTakingPaymentLaterEnabled());
+    }
+
+    /**
+     * @Then this payment method should take payment later
+     */
+    public function thisPaymentMethodShouldTakePaymentLater(): void
+    {
+        Assert::true($this->updatePage->isTakingPaymentLaterEnabled());
+    }
+
+    /**
+     * On the setting that was refused, not merely somewhere on the page.
+     *
+     * @Then I should be notified that taking payment later cannot be used with authorize-then-capture
+     */
+    public function iShouldBeNotifiedThatTakingPaymentLaterExcludesAuthorizeFirst(): void
+    {
+        Assert::contains(
+            $this->createPage->getValidationMessage('take_payment_later'),
+            'Taking payment later cannot be used with authorize first, capture later',
+        );
+    }
+
+    /**
      * @Then NMI should be available as a gateway factory
      */
     public function nmiShouldBeAvailableAsAGatewayFactory(): void

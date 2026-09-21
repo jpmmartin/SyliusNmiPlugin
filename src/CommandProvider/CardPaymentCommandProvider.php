@@ -7,6 +7,8 @@ namespace JpmMartin\SyliusNmiPlugin\CommandProvider;
 use JpmMartin\SyliusNmiPlugin\Command\CapturePayment;
 use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
 use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
+use JpmMartin\SyliusNmiPlugin\Command\PutCardOnFile;
+use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
 use Sylius\Bundle\PaymentBundle\CommandProvider\PaymentRequestCommandProviderInterface;
 use Sylius\Component\Payment\Model\PaymentInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
@@ -45,9 +47,23 @@ final class CardPaymentCommandProvider implements PaymentRequestCommandProviderI
         }
 
         if (PaymentRequestInterface::STATE_PROCESSING === $paymentRequest->getState()) {
-            return new CompleteCardPayment($paymentRequest->getId());
+            // The one branch this change adds, and it is taken only when the payment method says
+            // so. Read from the method's configuration rather than from the action: a client of
+            // the shop API chooses the action, and must not be able to be charged on the spot on a
+            // method whose merchant asked to take payment later.
+            return self::takesPaymentLater($paymentRequest)
+                ? new PutCardOnFile($paymentRequest->getId())
+                : new CompleteCardPayment($paymentRequest->getId());
         }
 
         return new PrepareCardPayment($paymentRequest->getId());
+    }
+
+    /** Absent means off, which is every configuration stored before the setting existed. */
+    private static function takesPaymentLater(PaymentRequestInterface $paymentRequest): bool
+    {
+        $config = $paymentRequest->getMethod()->getGatewayConfig()?->getConfig() ?? [];
+
+        return (bool) ($config[NmiGatewayFactory::CONFIG_TAKE_PAYMENT_LATER] ?? false);
     }
 }

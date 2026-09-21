@@ -5,6 +5,18 @@ jpm_martin_sylius_nmi:
         unreachable: No se ha podido contactar con la pasarela de pago. No se ha cobrado nada; inténtalo de nuevo.
         card_already_saved: Ya tienes esta tarjeta guardada, así que no se ha añadido otra vez.
         card_unavailable: Esa tarjeta guardada no se puede usar. Elige otra o introduce una nueva.
+        card_put_on_file: 'Tu tarjeta ha quedado guardada para este pedido. Todavía no se ha cobrado nada: se cobrará cuando se confirme tu pedido.'
+        card_already_on_file: Ya hay una tarjeta guardada para este pedido, así que no se ha tomado ninguna otra.
+        card_on_file_charged: 'Se ha cobrado la tarjeta guardada.'
+        card_on_file_declined: 'La tarjeta guardada ha sido rechazada, así que el pago no se ha completado. Sigue abierto y con la tarjeta guardada.'
+        card_on_file_charge_unknown: 'La pasarela no ha respondido, así que no se sabe si se cobró la tarjeta guardada. Revisa el pedido en el portal de la pasarela antes de volver a intentarlo.'
+        card_on_file_not_waiting: 'Este pago no está pendiente de cobro, así que no se ha enviado nada a la pasarela.'
+        no_card_on_file: 'Este pago no tiene ninguna tarjeta guardada, así que no se ha enviado nada a la pasarela.'
+        card_on_file_other_method: 'Este pago no tiene ninguna tarjeta guardada para su método de pago actual, así que no se ha enviado nada a la pasarela.'
+        card_on_file_closed: 'La cuenta de la tarjeta guardada ha sido cerrada, así que no se ha enviado nada a la pasarela.'
+        card_on_file_expired: 'La tarjeta guardada ha caducado, así que no se ha enviado nada a la pasarela.'
+        card_on_file_without_initial_transaction: 'La tarjeta guardada no se puede cobrar sin el comprador: no consta la verificación con la que se guardó. No se ha enviado nada a la pasarela.'
+        card_on_file_charge_not_available_here: 'Una tarjeta guardada sólo la puede cobrar la propia tienda.'
         capture_refused: La pasarela rechazó la captura, así que el pago no se ha completado.
         no_authorisation: Este pago no tiene ninguna autorización registrada que capturar.
         void_refused: La pasarela rechazó la anulación, así que el pago no se ha cancelado.

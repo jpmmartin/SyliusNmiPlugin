@@ -63,13 +63,32 @@ final class PrepareCardPaymentHandler
             // Which of the two ways this payment is taken was decided upstream from the payment
             // method's configuration; the browser is told so it can label its own button.
             'action' => $paymentRequest->getAction(),
-        ] + $this->cardholderFrom($payment) + $this->cardSavingFrom($payment, $configuration) + $this->storedCardsFrom($payment, $configuration));
+        ] + $this->cardholderFrom($payment) + $this->whatHappensToTheCard($payment, $configuration));
 
         $this->stateMachine->apply(
             $paymentRequest,
             PaymentRequestTransitions::GRAPH,
             PaymentRequestTransitions::TRANSITION_PROCESS,
         );
+    }
+
+    /**
+     * On a method that takes payment later the card is put on file for this one order and nothing
+     * is charged, and the client is told so. Neither the option to save the card for later purchases
+     * nor the shopper's saved cards are offered there: what the shopper is agreeing to is this order
+     * being charged later, and a saved card was stored for a different promise.
+     *
+     * Everywhere else the response is exactly what it was before the setting existed.
+     *
+     * @return array<string, mixed>
+     */
+    private function whatHappensToTheCard(mixed $payment, NmiGatewayConfiguration $configuration): array
+    {
+        if ($configuration->takePaymentLater) {
+            return ['card_on_file' => true];
+        }
+
+        return $this->cardSavingFrom($payment, $configuration) + $this->storedCardsFrom($payment, $configuration);
     }
 
     /**

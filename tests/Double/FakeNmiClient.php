@@ -41,6 +41,19 @@ final class FakeNmiClient implements NmiClientInterface
 
     private ?NmiResponse $response = null;
 
+    /**
+     * What every instance answers when it was told nothing itself — for a scenario whose requests
+     * reach a client the scenario never holds.
+     *
+     * The browser's kernel is rebooted between requests, and each boot builds a new client, so an
+     * answer prepared on one instance is gone by the time the page asks. The process outlives the
+     * kernels, which is why this is static. It is empty unless a Behat step fills it and is emptied
+     * around every scenario, and whatever an instance was told itself still comes first.
+     */
+    private static ?NmiResponse $answerForEveryInstance = null;
+
+    private static ?\Throwable $failureForEveryInstance = null;
+
     private ?NmiVaultRecord $vaultRecord = null;
 
     /** @var list<string> every vault id the caller asked to forget */
@@ -196,6 +209,29 @@ final class FakeNmiClient implements NmiClientInterface
         $this->vaultRecord = $record;
     }
 
+    /** Every instance approves, including those built after this call. */
+    public static function everyInstanceWillApprove(string $transactionId = '12513506464', string $amount = '12.99'): void
+    {
+        $prepared = new self();
+        $prepared->willApprove($transactionId, $amount);
+
+        self::$answerForEveryInstance = $prepared->response;
+        self::$failureForEveryInstance = null;
+    }
+
+    /** Every instance fails, including those built after this call. */
+    public static function everyInstanceWillFail(\Throwable $failure): void
+    {
+        self::$failureForEveryInstance = $failure;
+        self::$answerForEveryInstance = null;
+    }
+
+    public static function forgetWhatEveryInstanceWasTold(): void
+    {
+        self::$answerForEveryInstance = null;
+        self::$failureForEveryInstance = null;
+    }
+
     private function answer(string $operation, ?Charge $charge, ?NmiGatewayConfiguration $configuration = null): NmiResponse
     {
         $this->lastOperation = $operation;
@@ -214,6 +250,16 @@ final class FakeNmiClient implements NmiClientInterface
 
         if (null !== $this->failure) {
             throw $this->failure;
+        }
+
+        if (null === $this->response) {
+            if (null !== self::$failureForEveryInstance) {
+                throw self::$failureForEveryInstance;
+            }
+
+            if (null !== self::$answerForEveryInstance) {
+                return self::$answerForEveryInstance;
+            }
         }
 
         return $this->response ?? throw new \LogicException('No gateway answer was prepared.');

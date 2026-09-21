@@ -28,6 +28,35 @@ final class ThreeDSecureResult
     ) {
     }
 
+    /**
+     * The result as the browser posts it into a payment request's payload, or null when it posted
+     * none — the gateway rejects a body carrying fields it does not expect, so an empty
+     * authentication object is omitted rather than sent.
+     *
+     * One reading for every request that carries a result, so that a charge and a card put on file
+     * cannot come to disagree about which key holds which value.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public static function fromPayload(array $payload): ?self
+    {
+        $result = new self(
+            status: self::text($payload['cardholder_auth'] ?? null),
+            cavv: self::text($payload['cavv'] ?? null),
+            xid: self::text($payload['xid'] ?? null),
+            eci: self::text($payload['eci'] ?? null),
+            threeDsVersion: self::text($payload['three_ds_version'] ?? null),
+            directoryServerId: self::text($payload['directory_server_id'] ?? null),
+        );
+
+        return [] === $result->toArray() ? null : $result;
+    }
+
+    private static function text(mixed $value): ?string
+    {
+        return is_string($value) && '' !== trim($value) ? trim($value) : null;
+    }
+
     /** @return array<string, string> */
     public function toArray(): array
     {

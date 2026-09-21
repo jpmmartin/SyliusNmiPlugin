@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                                      http://doctrine-project.org/schemas/orm/doctrine-mapping.xsd"
+>
+    <!--
+        A card put on file for one payment. Its own table rather than a kind of stored card: every
+        read of the stored cards — the account listing, the pay-page offer, the default, the
+        duplicate check — would otherwise need a filter, and one missed filter puts an order's
+        credential in a shopper's wallet without anybody noticing.
+
+        The three identifier columns hold ciphertext and are sized for it. The four display
+        columns may be empty, unlike a stored card's: the verification has already created a vault
+        record by the time its answer is read, and refusing to record a card the gateway failed to
+        describe would strand that record with nothing pointing at it.
+    -->
+    <mapped-superclass name="JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFile" table="jpm_martin_sylius_nmi_card_on_file">
+        <unique-constraints>
+            <!-- One card per payment, held by the database rather than by a query: two simultaneous
+                 submissions of the pay page would both pass a select-then-insert. -->
+            <unique-constraint name="uniq_jpm_martin_sylius_nmi_card_on_file_payment" columns="payment_id" />
+        </unique-constraints>
+
+        <id name="id" column="id" type="integer">
+            <generator strategy="IDENTITY" />
+        </id>
+
+        <field name="vaultId" column="vault_id" type="text" />
+        <!-- The verification reports none, as a sale that stores a card reports none. -->
+        <field name="billingId" column="billing_id" type="text" nullable="true" />
+        <field name="initialTransactionId" column="initial_transaction_id" type="text" nullable="true" />
+
+        <field name="brand" column="brand" type="string" length="32" nullable="true" />
+        <field name="lastFour" column="last_four" type="string" length="4" nullable="true" />
+        <field name="expiryMonth" column="expiry_month" type="smallint" nullable="true" />
+        <field name="expiryYear" column="expiry_year" type="smallint" nullable="true" />
+
+        <field name="status" column="status" type="string" length="16" />
+        <field name="releasedAt" column="released_at" type="datetime_immutable" nullable="true" />
+        <field name="createdAt" column="created_at" type="datetime_immutable" />
+        <field name="updatedAt" column="updated_at" type="datetime_immutable" nullable="true" />
+
+        <!-- Cascaded, as the transaction log is. The only orders the platform deletes are carts —
+             expired ones by its cleanup command, and a shopper's own through the shop API, whose
+             delete is limited to the cart state — and a cart never holds a card on file, because a
+             card is put on file only after the order has been placed. -->
+        <one-to-one field="payment" target-entity="Sylius\Component\Core\Model\PaymentInterface">
+            <join-column name="payment_id" referenced-column-name="id" nullable="false" on-delete="CASCADE" />
+        </one-to-one>
+
+        <!-- Restricted rather than cascaded, as a stored card's is: deleting a payment method that
+             still holds cards on file would strand vault records at the gateway. -->
+        <many-to-one field="paymentMethod" target-entity="Sylius\Component\Core\Model\PaymentMethodInterface">
+            <join-column name="payment_method_id" referenced-column-name="id" nullable="false" on-delete="RESTRICT" />
+        </many-to-one>
+    </mapped-superclass>
+</doctrine-mapping>
