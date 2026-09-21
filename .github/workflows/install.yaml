@@ -283,14 +283,14 @@ jobs:
             - name: The migrations created the plugin's tables
               working-directory: store
               run: |
-                  # Counted exactly. `grep -q 4` would match a 4 anywhere in the table the console
-                  # draws — including in 14, in 40, or in a column width — and pass while three of
-                  # the four tables were missing.
+                  # Counted exactly. `grep -q 5` would match a 5 anywhere in the table the console
+                  # draws — including in 15, in 50, or in a column width — and pass while four of
+                  # the five tables were missing.
                   tables=$(bin/console dbal:run-sql \
                       "SELECT count(*) AS n FROM information_schema.tables WHERE table_name LIKE 'jpm_martin%'" \
                       | grep -oE '[0-9]+' | tail -1)
-                  test "$tables" = '4' \
-                      || { echo "Expected 4 plugin tables, found ${tables:-none}. Step 4 — run the migration."; exit 1; }
+                  test "$tables" = '5' \
+                      || { echo "Expected 5 plugin tables, found ${tables:-none}. Step 4 — run the migration."; exit 1; }
 
             # The step that fails most silently of all: the pay page renders and simply has no card
             # fields, with nothing in the log and nothing in the console to say why. The plugin's
