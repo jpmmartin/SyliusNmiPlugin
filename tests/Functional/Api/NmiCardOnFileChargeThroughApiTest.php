@@ -8,11 +8,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface;
 use JpmMartin\SyliusNmiPlugin\CommandHandler\RefuseCardOnFileChargeHandler;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Sylius\Bundle\PaymentBundle\Announcer\PaymentRequestAnnouncerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\Payment;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\OrderCheckoutStates;
+use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -79,15 +81,50 @@ final class NmiCardOnFileChargeThroughApiTest extends WebTestCase
         return $this->manager;
     }
 
-    /** The charge's own action, named by a client: the request fails and says why. */
+    /**
+     * The charge's own action, named by a client, is refused by whichever layer meets it first.
+     * From Sylius 2.2.9 the platform keeps a list of the actions a shop client may name, and this one
+     * is not on it, so no request is created at all. Before that — and on a store that widens the
+     * list — the request is created and this plugin's provider for the action fails it, saying why.
+     */
     public function testTheChargesOwnActionIsRefused(): void
     {
         [$order, $payment] = $this->anOrderWhosePaymentHoldsACard();
 
         $created = $this->createPaymentRequest($order, $payment, NmiCardOnFileChargerInterface::ACTION);
 
-        self::assertSame(PaymentRequestInterface::STATE_FAILED, $created['state'] ?? null);
-        self::assertSame(RefuseCardOnFileChargeHandler::NOT_HERE, $created['responseData']['message_key'] ?? null);
+        $response = $this->client->getResponse();
+        if (422 === $response->getStatusCode()) {
+            self::assertStringContainsString(NmiCardOnFileChargerInterface::ACTION, (string) $response->getContent(), 'Refused, but not for naming this action.');
+        } else {
+            self::assertSame(PaymentRequestInterface::STATE_FAILED, $created['state'] ?? null, sprintf('Neither refusal: HTTP %d.', $response->getStatusCode()));
+            self::assertSame(RefuseCardOnFileChargeHandler::NOT_HERE, $created['responseData']['message_key'] ?? null);
+        }
+        $this->assertNothingWasCharged($payment);
+    }
+
+    /**
+     * This plugin's own layer, reached whatever the platform lets a shop client name: a request for
+     * the charge's action, announced the way the platform announces every request, fails and charges
+     * nothing — which is what a store that widened its list of shop actions would meet.
+     */
+    public function testARequestForTheChargesActionAnnouncedLikeAnyOtherIsRefused(): void
+    {
+        [, $payment] = $this->anOrderWhosePaymentHoldsACard();
+        $method = $payment->getMethod();
+        self::assertInstanceOf(PaymentMethodInterface::class, $method);
+        $paymentRequest = new PaymentRequest($payment, $method);
+        $paymentRequest->setAction(NmiCardOnFileChargerInterface::ACTION);
+        $this->manager->persist($paymentRequest);
+        $this->manager->flush();
+
+        /** @var PaymentRequestAnnouncerInterface $announcer */
+        $announcer = self::getContainer()->get('sylius.announcer.payment_request');
+        $announcer->dispatchPaymentRequestCommand($paymentRequest);
+
+        $this->manager->refresh($paymentRequest);
+        self::assertSame(PaymentRequestInterface::STATE_FAILED, $paymentRequest->getState());
+        self::assertSame(RefuseCardOnFileChargeHandler::NOT_HERE, $paymentRequest->getResponseData()['message_key'] ?? null);
         $this->assertNothingWasCharged($payment);
     }
 
