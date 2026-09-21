@@ -280,6 +280,43 @@ the shopper before the card form is mounted, and that page does not exist yet.
 
 A channel with exactly one card-saving NMI method does not hit this.
 
+## *Complete* on a held order is refused, or charging it from code is
+
+**What you see:** on a method that takes payment later, the order screen's *Complete* stops with one
+of the sentences below, or `NmiCardOnFileChargerInterface::charge()` answers with the key beside it.
+The payment keeps waiting, and in every case but *no answer* nothing has been charged.
+
+**What each one means:**
+
+- *The card on file was declined …* (`card_on_file_declined`) — NMI asked the issuer and the answer
+  was no. The card is still on file; ask the shopper for another card or cancel the order.
+- *The gateway did not answer …* (`card_on_file_charge_unknown`) — **the card may have been
+  charged.** Look the order up in NMI's portal by its number before charging again.
+- *This payment is not waiting to be charged …* (`card_on_file_not_waiting`) — it was charged or
+  cancelled already. A second charge is refused rather than sent.
+- *This payment holds no card on file …* (`no_card_on_file`) — checkout never put one on file: the
+  method was not taking payment later when the shopper paid, or the verification at checkout failed.
+- *… no card on file for its current payment method …* (`card_on_file_other_method`) — the payment
+  was moved to another method by code; the card belongs to the NMI account it was put on file under.
+- *The account behind the card on file has been closed …* (`card_on_file_closed`) — NMI's card
+  updater reported it. Only reachable with webhooks wired.
+- *The card on file has expired …* (`card_on_file_expired`) — by the expiry the store was last told.
+  With webhooks wired, a renewal corrects it.
+- *… no record of the verification that put it on file …*
+  (`card_on_file_without_initial_transaction`) — the verification's identifier is missing, and a
+  charge without the shopper has to cite it. The card cannot be charged without the shopper.
+- *A card on file can only be charged by the store itself.* (`card_on_file_charge_not_available_here`)
+  — something created a payment request with the charge's action — through the shop API, say. That
+  path never charges; use the charger.
+
+## The pay page refused a second card: *A card is already saved for this order*
+
+**What you see:** the shopper, or a headless client, tried to pay an order that already holds a card
+on file.
+
+**What was missed:** nothing — one card per order, by design. The order is waiting to be charged;
+cancel its payment first if the shopper needs to use another card.
+
 ## Credentials read as plain text in the database
 
 **What was missed:** README **step 6** — the encryption key. Your store is almost certainly still

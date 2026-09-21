@@ -8,6 +8,31 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Added
+
+- **Take payment later**, a switch per payment method, off by default. On a method that has it,
+  checkout authenticates the shopper's card with 3-D Secure for the order total and puts it on file
+  at NMI for that order, **with nothing charged and nothing reserved** — a zero-amount verification
+  that keeps the card. The payment waits and the order reads *awaiting payment*; the shopper lands on
+  the order's confirmation, told that nothing has been charged yet, and the pay button says it saves
+  the card. The option to save a card for next time and the shopper's saved cards are not offered
+  there. The switch cannot be combined with *Authorize first, capture later*. The same flow works
+  through the shop API, which is told `card_on_file` rather than a charge.
+- **Charging a card on file without the shopper.** *Complete* on the order screen charges it first
+  and completes the payment only on approval; a decline or a refusal stops it and says why. A store's
+  own code charges it through `NmiCardOnFileChargerInterface`, which answers approved, declined,
+  refused or unknown. Either way the charge is the payment's own amount, declared to the card
+  networks as merchant-initiated and citing the verification made at checkout, with no 3-D Secure.
+  It is refused before the gateway is asked when the payment is no longer waiting, holds no card on
+  file, has moved to another payment method, or when the card is closed, expired or carries no
+  record of that verification. A charge the gateway does not answer is reported as unknown, never as
+  declined. No payment-request action can cause a charge, so the shop API — which lets a client name
+  any action — cannot.
+- A card on file is **let go at the gateway** once its payment is charged or cancelled, through the
+  same queued purge that forgets a deleted customer's cards, and **NMI's card updater reaches it**: a
+  closed account marks it closed, a renewal updates its expiry and number.
+- **A new table.** Run your migrations when you upgrade; the migration only adds.
+
 ## [1.1.0] - 2026-09-15
 
 ### Added
