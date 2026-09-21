@@ -155,8 +155,10 @@ which needs the payment-request bus to be synchronous, as the pay page already r
 charged. Look the order up in the gateway's portal by its number before charging again.
 
 The charge is recorded as a payment request with the action `NmiCardOnFileChargerInterface::ACTION`.
-That action only names the record: a request created with it any other way — through the shop API,
-which lets a client name any action — fails, and nothing is charged.
+That action only names the record: a request created with it any other way fails, and nothing is
+charged. Through the shop API, Sylius 2.2.9 and later refuse it before any request exists, because it
+is not among the actions a shop client may name (`sylius_api.shop_payment_request.allowed_actions`);
+on 2.2.8, or on a store that adds it to that list, the request is created and this plugin fails it.
 
 ### Value objects, exceptions and constants you may use
 
