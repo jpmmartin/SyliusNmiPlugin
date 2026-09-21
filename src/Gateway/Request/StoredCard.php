@@ -14,6 +14,12 @@ namespace JpmMartin\SyliusNmiPlugin\Gateway\Request;
  */
 final class StoredCard
 {
+    /** The shopper is present and chose to pay with the card. */
+    public const INITIATED_BY_CUSTOMER = 'customer';
+
+    /** The store is charging the card with nobody present, on the strength of the shopper's agreement. */
+    public const INITIATED_BY_MERCHANT = 'merchant';
+
     public function __construct(
         public readonly string $vaultId,
         /**
@@ -33,6 +39,17 @@ final class StoredCard
          * transaction to cite, and the gateway accepts the charge without one.
          */
         public readonly ?string $initialTransactionId = null,
+        /**
+         * Who is asking for the money, as the card networks are told it.
+         *
+         * The customer unless said otherwise, which is what every charge before this argument
+         * existed declared: a shopper paying with a saved card at the checkout. The gateway takes
+         * only the two values below and names them in its refusal of anything else.
+         */
+        public readonly string $initiatedBy = self::INITIATED_BY_CUSTOMER,
     ) {
+        if (!in_array($initiatedBy, [self::INITIATED_BY_CUSTOMER, self::INITIATED_BY_MERCHANT], true)) {
+            throw new \InvalidArgumentException(sprintf('A stored card is charged on the initiative of the customer or of the merchant, not "%s".', $initiatedBy));
+        }
     }
 }

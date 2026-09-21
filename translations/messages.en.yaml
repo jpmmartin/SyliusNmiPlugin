@@ -70,6 +70,15 @@ jpm_martin_sylius_nmi:
                 a chargeback stays with you rather than moving to the issuer. Selling into North
                 America that pressure does not apply the same way, and the one-click payment is the
                 more common trade.
+            take_payment_later: Take payment later — put the card on file at checkout, charge it afterwards
+            take_payment_later_help: >-
+                When enabled, checkout authenticates the shopper's card and puts it on file with
+                NMI, and nothing is charged or reserved. The order waits for you: completing its
+                payment from the order page, or from your own code, charges the card then, without
+                the shopper present. Because nothing was reserved, that later charge can be
+                declined. Your own terms have to tell shoppers, before they pay, that their card
+                will be charged later without them. Cannot be used with authorize first, capture
+                later.
             email_cardholder: Email the shopper when a saved card is closed or flagged
             email_cardholder_help: >-
                 When enabled, a shopper is emailed if their bank closes a card they saved with
@@ -104,3 +113,10 @@ jpm_martin_sylius_nmi:
             use_saved_card: Pay with a saved card
             new_card: Use a new card
             pay_now: Pay
+            put_card_on_file: Save card for this order
+
+# The platform's own list of payment requests labels an action as `sylius.ui.<action>`, so the one
+# action this plugin adds is named there, where an operator reads what happened to a payment.
+sylius:
+    ui:
+        nmi_charge_card_on_file: Charge card on file

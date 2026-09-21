@@ -38,6 +38,15 @@
 </div>
 
 {#
+    A third answer to when the money is taken. Full width, like the one above, because its help
+    text is a paragraph: it has to say what the store's own terms must tell a shopper, and an
+    operator should not be able to switch it on without reading that.
+#}
+<div class="col-12 mt-5">
+    {{ form_row(config.take_payment_later, sylius_test_form_attribute('nmi-take-payment-later')|merge({ label_attr: { class: 'checkbox-switch' } })) }}
+</div>
+
+{#
     Off by default, and about outbound mail rather than about money, so it sits with the other
     switches rather than with the credentials.
 #}

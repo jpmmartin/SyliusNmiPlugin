@@ -5,6 +5,18 @@ jpm_martin_sylius_nmi:
         unreachable: The payment gateway could not be reached. Nothing has been charged; please try again.
         card_already_saved: You already have this card saved, so it has not been added again.
         card_unavailable: That saved card cannot be used. Choose another card or enter a new one.
+        card_put_on_file: Your card has been saved for this order. Nothing has been charged yet — it will be charged when your order is confirmed.
+        card_already_on_file: A card is already saved for this order, so no other card has been taken.
+        card_on_file_charged: 'The card on file has been charged.'
+        card_on_file_declined: 'The card on file was declined, so the payment has not been completed. It stays open with the card on file.'
+        card_on_file_charge_unknown: 'The gateway did not answer, so whether the card on file was charged is not known. Check the order in the gateway''s portal before trying again.'
+        card_on_file_not_waiting: 'This payment is not waiting to be charged, so nothing was sent to the gateway.'
+        no_card_on_file: 'This payment holds no card on file, so nothing was sent to the gateway.'
+        card_on_file_other_method: 'This payment holds no card on file for its current payment method, so nothing was sent to the gateway.'
+        card_on_file_closed: 'The account behind the card on file has been closed, so nothing was sent to the gateway.'
+        card_on_file_expired: 'The card on file has expired, so nothing was sent to the gateway.'
+        card_on_file_without_initial_transaction: 'The card on file cannot be charged without the shopper: it has no record of the verification that put it on file. Nothing was sent to the gateway.'
+        card_on_file_charge_not_available_here: 'A card on file can only be charged by the store itself.'
         capture_refused: The gateway refused the capture, so the payment has not been completed.
         no_authorisation: This payment has no recorded authorisation to capture.
         void_refused: The gateway refused the void, so the payment has not been cancelled.

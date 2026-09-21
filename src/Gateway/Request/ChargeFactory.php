@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\Gateway\Request;
 
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
-use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
 
 /**
@@ -21,9 +20,6 @@ use Sylius\Component\Core\Model\PaymentInterface;
  */
 final class ChargeFactory implements ChargeFactoryInterface
 {
-    /** The most the gateway keeps of an order reference: its rule is "fewer than 50 characters". */
-    private const ORDER_REFERENCE_LENGTH = 49;
-
     public function forToken(PaymentInterface $payment, string $token, array $payload, bool $storeCard): Charge
     {
         return new Charge(
@@ -33,9 +29,9 @@ final class ChargeFactory implements ChargeFactoryInterface
             // Sent on every charge so a merchant can find the transaction in the gateway's own
             // portal after a lost response. It is not a reconciliation mechanism: nothing in the
             // API looks a payment up by it.
-            orderId: $this->orderReference($payment->getOrder()),
+            orderId: OrderReference::of($payment->getOrder()),
             ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
-            threeDSecure: $this->threeDSecureFrom($payload),
+            threeDSecure: ThreeDSecureResult::fromPayload($payload),
             storeCard: $storeCard,
         );
     }
@@ -53,9 +49,9 @@ final class ChargeFactory implements ChargeFactoryInterface
             paymentToken: null,
             amount: (int) $payment->getAmount(),
             currencyCode: (string) $payment->getCurrencyCode(),
-            orderId: $this->orderReference($payment->getOrder()),
+            orderId: OrderReference::of($payment->getOrder()),
             ipAddress: $this->stringOrNull($payload['ip_address'] ?? null),
-            threeDSecure: $this->threeDSecureFrom($payload),
+            threeDSecure: ThreeDSecureResult::fromPayload($payload),
             storedCard: new StoredCard(
                 vaultId: (string) $card->getVaultId(),
                 billingId: $card->getBillingId(),
@@ -64,38 +60,6 @@ final class ChargeFactory implements ChargeFactoryInterface
                 initialTransactionId: $card->getVaultingTransactionId(),
             ),
         );
-    }
-
-    /**
-     * What the gateway is told the order is: its number, which is what the merchant knows it by
-     * and types into the portal's search. Not the order's token — the gateway keeps fewer than
-     * fifty characters here, and a Sylius order token is sixty-four, so sending the token made
-     * every real checkout fail with a validation error while the short tokens of seeded test
-     * orders sailed through. A number is nine characters; the cut is there for a store that
-     * numbers its orders some other way.
-     */
-    private function orderReference(?OrderInterface $order): ?string
-    {
-        $number = $order?->getNumber();
-
-        return null !== $number && '' !== $number ? substr($number, 0, self::ORDER_REFERENCE_LENGTH) : null;
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function threeDSecureFrom(array $payload): ?ThreeDSecureResult
-    {
-        $result = new ThreeDSecureResult(
-            status: $this->stringOrNull($payload['cardholder_auth'] ?? null),
-            cavv: $this->stringOrNull($payload['cavv'] ?? null),
-            xid: $this->stringOrNull($payload['xid'] ?? null),
-            eci: $this->stringOrNull($payload['eci'] ?? null),
-            threeDsVersion: $this->stringOrNull($payload['three_ds_version'] ?? null),
-            directoryServerId: $this->stringOrNull($payload['directory_server_id'] ?? null),
-        );
-
-        // The gateway rejects a body carrying fields it does not expect, so an empty
-        // authentication object is omitted rather than sent.
-        return [] === $result->toArray() ? null : $result;
     }
 
     private function stringOrNull(mixed $value): ?string

@@ -12,6 +12,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepositoryInterface;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
@@ -44,6 +45,7 @@ final class CancelPaymentHandler
         private readonly NmiTransactionRecorderInterface $recorder,
         private readonly NmiTransactionRepositoryInterface $transactionRepository,
         private readonly StateMachineInterface $stateMachine,
+        private readonly ?NmiCardOnFileRepositoryInterface $cardsOnFile = null,
     ) {
     }
 
@@ -54,6 +56,16 @@ final class CancelPaymentHandler
         $payment = $paymentRequest->getPayment();
         if (!$payment instanceof PaymentInterface) {
             throw new \LogicException(sprintf('Expected a core payment, got "%s".', $payment::class));
+        }
+
+        // A payment holding a card on file has nothing to take back, by construction: an approved
+        // charge of the card completes the payment there and then, so while it still holds the card
+        // every sale on its record is a declined attempt — and asking the gateway to void a declined
+        // sale would be refused, leaving an order the operator can never cancel.
+        if (null !== $this->cardsOnFile?->findHeldBy($payment)) {
+            $this->stateMachine->apply($paymentRequest, PaymentRequestTransitions::GRAPH, PaymentRequestTransitions::TRANSITION_COMPLETE);
+
+            return;
         }
 
         $transaction = $this->voidable($payment);

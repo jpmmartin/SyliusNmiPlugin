@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\CommandProvider;
 
+use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface;
 use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
 use JpmMartin\SyliusNmiPlugin\Command\PrepareCardPayment;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\CancelCommandProvider;
@@ -55,6 +56,10 @@ final class NmiCommandProviderRegistrationTest extends KernelTestCase
                 // else so the audit trail does not fork, and it is the only action here that asks
                 // the gateway for nothing: by the time it arrives, it has already happened.
                 PaymentRequestInterface::ACTION_NOTIFY,
+                // Handled only to be refused. The charger dispatches the charge itself and never
+                // announces it; this provider is for the same action arriving any other way —
+                // through the shop API, which lets a client name any action — and it fails it.
+                NmiCardOnFileChargerInterface::ACTION,
             ],
             $this->nmiProvider()->getCommandProviderIndexes(),
         );

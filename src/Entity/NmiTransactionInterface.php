@@ -23,8 +23,17 @@ interface NmiTransactionInterface extends ResourceInterface
 
     public const TYPE_REFUND = 'refund';
 
+    /**
+     * A card verified and put on file with nothing charged.
+     *
+     * Recorded like any other operation so that a notification the gateway sends about it resolves
+     * to its payment rather than being reported as a transaction the store does not know. It takes
+     * no money and reserves none: nothing that voids, refunds or totals money reads this type.
+     */
+    public const TYPE_VALIDATE = 'validate';
+
     /** @var list<string> */
-    public const TYPES = [self::TYPE_SALE, self::TYPE_AUTH, self::TYPE_CAPTURE, self::TYPE_VOID, self::TYPE_REFUND];
+    public const TYPES = [self::TYPE_SALE, self::TYPE_AUTH, self::TYPE_CAPTURE, self::TYPE_VOID, self::TYPE_REFUND, self::TYPE_VALIDATE];
 
     public function getPayment(): ?PaymentInterface;
 

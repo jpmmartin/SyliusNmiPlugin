@@ -6,6 +6,7 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Integration\Migrations;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFile;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiReceivedEvent;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
@@ -74,5 +75,6 @@ final class MigrationMatchesMappingTest extends KernelTestCase
         yield 'the stored cards' => [NmiStoredCard::class];
         yield 'the received events' => [NmiReceivedEvent::class];
         yield 'the gateway notices' => [NmiGatewayNotice::class];
+        yield 'the cards on file' => [NmiCardOnFile::class];
     }
 }

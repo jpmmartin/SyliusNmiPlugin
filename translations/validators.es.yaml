@@ -8,3 +8,5 @@ jpm_martin_sylius_nmi:
             not_blank: Introduce el host de la pasarela.
             invalid: El host de la pasarela debe ser una dirección https.
             host_only: El host de la pasarela termina en el nombre del host, sin ruta, parámetros ni fragmento.
+        take_payment_later:
+            not_with_authorize: 'Cobrar más tarde no se puede usar junto con autorizar primero y capturar después: una tarjeta guardada no tiene nada autorizado que capturar. Desactiva una de las dos.'

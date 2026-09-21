@@ -29,5 +29,19 @@
             <argument type="service" id="logger" />
         </service>
         <service id="JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface" alias="jpm_martin_sylius_nmi.gateway.client" />
+
+        <!--
+            The same client, defined a second time rather than aliased. A store may decorate the
+            public client above, and its decorator implements that interface and no other; the
+            deferred checkout needs the verification, so it must never be handed the decorator.
+        -->
+        <service id="jpm_martin_sylius_nmi.gateway.card_verifier" class="JpmMartin\SyliusNmiPlugin\Gateway\NmiClient">
+            <argument type="service" id="Psr\Http\Client\ClientInterface" />
+            <argument type="service" id="Psr\Http\Message\RequestFactoryInterface" />
+            <argument type="service" id="Psr\Http\Message\StreamFactoryInterface" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.amount_formatter" />
+            <argument type="service" id="logger" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Gateway\NmiCardVerifierInterface" alias="jpm_martin_sylius_nmi.gateway.card_verifier" />
     </services>
 </container>

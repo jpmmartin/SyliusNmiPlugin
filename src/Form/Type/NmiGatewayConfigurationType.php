@@ -12,10 +12,13 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Regex;
 use Symfony\Component\Validator\Constraints\Url;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * Embedded by Sylius under `gatewayConfig.config` of the payment method form. The data is the
@@ -78,6 +81,30 @@ final class NmiGatewayConfigurationType extends AbstractType
                 'help' => 'jpm_martin_sylius_nmi.form.gateway_config.authenticate_stored_cards_help',
                 'help_html' => true,
                 'required' => false,
+            ])
+            // A third answer to when the money is taken, and one that excludes the second: a card
+            // put on file has nothing authorised to capture. Refused together rather than one
+            // silently winning, so the operator sees which of the two they actually have.
+            ->add(NmiGatewayFactory::CONFIG_TAKE_PAYMENT_LATER, CheckboxType::class, [
+                'label' => 'jpm_martin_sylius_nmi.form.gateway_config.take_payment_later',
+                'help' => 'jpm_martin_sylius_nmi.form.gateway_config.take_payment_later_help',
+                'required' => false,
+                'constraints' => [
+                    new Callback(callback: static function (mixed $takePaymentLater, ExecutionContextInterface $context): void {
+                        if (true !== $takePaymentLater) {
+                            return;
+                        }
+
+                        $field = $context->getObject();
+                        $useAuthorize = $field instanceof FormInterface
+                            ? $field->getParent()?->get(NmiGatewayFactory::CONFIG_USE_AUTHORIZE)->getData()
+                            : null;
+
+                        if (true === $useAuthorize) {
+                            $context->buildViolation('jpm_martin_sylius_nmi.gateway_config.take_payment_later.not_with_authorize')->addViolation();
+                        }
+                    }, groups: ['sylius']),
+                ],
             ])
             // Only reachable once webhooks are wired, because nothing else tells the store that a
             // card was closed. Rendered anyway rather than hidden behind the signing key: a

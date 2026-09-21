@@ -63,6 +63,16 @@ trait NmiGatewayConfigurationElements
      * thing that makes the text an accessible description rather than nearby prose, so following
      * it asserts something worth asserting.
      */
+    public function enableTakingPaymentLater(): void
+    {
+        $this->getElement('take_payment_later')->check();
+    }
+
+    public function isTakingPaymentLaterEnabled(): bool
+    {
+        return $this->getElement('take_payment_later')->isChecked();
+    }
+
     public function getStoredCardAuthenticationHelp(): string
     {
         $describedBy = $this->getElement('authenticate_stored_cards')->getAttribute('aria-describedby');
@@ -86,6 +96,7 @@ trait NmiGatewayConfigurationElements
             'use_authorize' => '[data-test-nmi-use-authorize]',
             'store_cards' => '[data-test-nmi-store-cards]',
             'authenticate_stored_cards' => '[data-test-nmi-authenticate-stored-cards]',
+            'take_payment_later' => '[data-test-nmi-take-payment-later]',
         ]);
     }
 }

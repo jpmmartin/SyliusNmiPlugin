@@ -56,5 +56,18 @@
             <argument type="service" id="jpm_martin_sylius_nmi.behat.page.shop.account.stored_card.index" />
         </service>
 
+        <service id="jpm_martin_sylius_nmi.context.setup.held_order" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Setup\NmiHeldOrderContext">
+            <argument type="service" id="sylius.behat.shared_storage" />
+            <argument type="service" id="sylius.factory.payment_method" />
+            <argument type="service" id="sylius.factory.gateway_config" />
+            <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_card_on_file" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.context.ui.admin.completing_nmi_held_orders" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Admin\CompletingNmiHeldOrdersContext">
+            <argument type="service" id="sylius.behat.notification_checker.admin" />
+        </service>
+
     </services>
 </container>

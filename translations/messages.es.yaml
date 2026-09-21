@@ -70,6 +70,15 @@ jpm_martin_sylius_nmi:
                 el emisor puede rechazar un pago que no lleve autenticación, y la responsabilidad
                 por un contracargo se queda en la tienda en vez de pasar al emisor. Vendiendo a
                 Norteamérica esa presión no aplica igual, y el pago de un solo clic es lo habitual.
+            take_payment_later: Cobrar más tarde — guardar la tarjeta en el checkout y cobrarla después
+            take_payment_later_help: >-
+                Si se activa, el checkout autentica la tarjeta del comprador y la deja guardada en
+                NMI, sin cobrar ni reservar nada. El pedido queda a la espera: al completar su pago
+                desde la página del pedido, o desde vuestro propio código, se cobra la tarjeta en
+                ese momento, sin el comprador presente. Como no se reservó nada, ese cobro
+                posterior puede ser rechazado. Vuestras condiciones tienen que decir al comprador,
+                antes de pagar, que su tarjeta se cobrará más tarde sin él. No se puede usar junto
+                con autorizar primero y capturar después.
             email_cardholder: Avisar por correo cuando una tarjeta guardada se cierre o se marque
             email_cardholder_help: >-
                 Si se activa, se envía un correo al comprador cuando su banco da de baja una
@@ -104,3 +113,10 @@ jpm_martin_sylius_nmi:
             use_saved_card: Pagar con una tarjeta guardada
             new_card: Usar una tarjeta nueva
             pay_now: Pagar
+            put_card_on_file: Guardar la tarjeta para este pedido
+
+# The platform's own list of payment requests labels an action as `sylius.ui.<action>`, so the one
+# action this plugin adds is named there, where an operator reads what happened to a payment.
+sylius:
+    ui:
+        nmi_charge_card_on_file: Cobro a la tarjeta guardada

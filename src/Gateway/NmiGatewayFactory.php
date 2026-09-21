@@ -38,6 +38,16 @@ final class NmiGatewayFactory
     public const CONFIG_USE_AUTHORIZE = 'use_authorize';
 
     /**
+     * Whether checkout puts the card on file instead of charging it, so the store can charge it later
+     * without the shopper.
+     *
+     * Off unless an operator says otherwise, and never together with authorise-then-capture: the
+     * two are different answers to when the money is taken. Turning it off stops new checkouts
+     * putting cards on file; it does not strand the payments that already hold one.
+     */
+    public const CONFIG_TAKE_PAYMENT_LATER = 'take_payment_later';
+
+    /**
      * Whether shoppers may keep a card on file with this account.
      *
      * Off unless an operator says otherwise, and off is the whole feature absent: no option on the

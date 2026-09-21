@@ -7,7 +7,9 @@ namespace JpmMartin\SyliusNmiPlugin\Gateway;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\CardVerification;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge;
+use JpmMartin\SyliusNmiPlugin\Gateway\Request\StoredCard;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\VaultCard;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -26,7 +28,7 @@ use Psr\Log\NullLogger;
  *
  * @internal
  */
-final class NmiClient implements NmiClientInterface
+final class NmiClient implements NmiClientInterface, NmiCardVerifierInterface
 {
     public const PAYMENTS_PATH = '/api/v5/payments';
 
@@ -152,14 +154,45 @@ final class NmiClient implements NmiClientInterface
                 // The gateway accepts `stored` or `used` and names both in its refusal; this is a
                 // charge against a credential already on file, so it is a use of one.
                 'stored_credential_indicator' => 'used',
-                // The shopper is standing at the checkout. The gateway's own vaulted-sale example
-                // says `merchant` because it illustrates a recurring charge, which this is not.
-                'initiated_by' => 'customer',
+                // The charge says who asked for it: the shopper at the checkout unless the store is
+                // charging a card on file with nobody present. Never inferred here.
+                'initiated_by' => $storedCard->initiatedBy,
                 'initial_transaction_id' => $storedCard->initialTransactionId,
             ];
         }
 
         return $body;
+    }
+
+    /**
+     * Established against the gateway, not read: every field below was accepted on `validate` in
+     * the shape the plugin already sends on a sale, and the answer is a transaction carrying both
+     * the vault reference and the transaction a later charge has to cite.
+     */
+    public function verifyAndStore(NmiGatewayConfiguration $configuration, CardVerification $card): NmiResponse
+    {
+        $body = [
+            'currency' => strtoupper($card->currencyCode),
+            'payment_details' => ['payment_token' => $card->paymentToken],
+            'customer_vault' => ['add_to_vault' => true],
+            // The first use of a credential the shopper agreed to store, which is what the later,
+            // unattended charge will cite.
+            'cit_mit' => [
+                'stored_credential_indicator' => 'stored',
+                'initiated_by' => StoredCard::INITIATED_BY_CUSTOMER,
+            ],
+        ];
+
+        $threeDSecure = $card->threeDSecure?->toArray() ?? [];
+        if ([] !== $threeDSecure) {
+            $body['cardholder_auth'] = $threeDSecure;
+        }
+
+        if (null !== $card->orderId && '' !== $card->orderId) {
+            $body['order_details'] = ['id' => $card->orderId];
+        }
+
+        return $this->send($configuration, 'POST', '/validate', $body);
     }
 
     public function createVaultRecord(NmiGatewayConfiguration $configuration, VaultCard $card): NmiVaultRecord

@@ -134,3 +134,48 @@ default:
 
             filters:
                 tags: "@managing_nmi_stored_cards&&@ui"
+
+        # Admin UI: completing an order held with a card on file.
+        #
+        # Sylius's own `ui_managing_orders` suite, cut down to what these scenarios use and joined
+        # by the payment-request list, which is where an operator finds the charge afterwards. The
+        # card is on file before the scenario starts, for the reason the saved-cards suite gives.
+        ui_completing_nmi_held_orders:
+            contexts:
+                - sylius.behat.context.hook.doctrine_orm
+                - sylius.behat.context.hook.session
+
+                - sylius.behat.context.transform.address
+                - sylius.behat.context.transform.channel
+                - sylius.behat.context.transform.country
+                - sylius.behat.context.transform.customer
+                - sylius.behat.context.transform.lexical
+                - sylius.behat.context.transform.locale
+                - sylius.behat.context.transform.order
+                - sylius.behat.context.transform.payment
+                - sylius.behat.context.transform.product
+                - sylius.behat.context.transform.product_variant
+                - sylius.behat.context.transform.shared_storage
+                - sylius.behat.context.transform.shipping_method
+                - sylius.behat.context.transform.zone
+
+                - sylius.behat.context.setup.admin_security
+                - sylius.behat.context.setup.channel
+                - sylius.behat.context.setup.currency
+                - sylius.behat.context.setup.customer
+                - sylius.behat.context.setup.geographical
+                - sylius.behat.context.setup.locale
+                - sylius.behat.context.setup.order
+                - sylius.behat.context.setup.product
+                - sylius.behat.context.setup.shipping
+                - sylius.behat.context.setup.user
+                - sylius.behat.context.setup.zone
+                - jpm_martin_sylius_nmi.context.setup.held_order
+
+                - sylius.behat.context.ui.admin.managing_orders
+                - sylius.behat.context.ui.admin.managing_payment_requests
+                - sylius.behat.context.ui.admin.notification
+                - jpm_martin_sylius_nmi.context.ui.admin.completing_nmi_held_orders
+
+            filters:
+                tags: "@completing_nmi_held_orders&&@ui"

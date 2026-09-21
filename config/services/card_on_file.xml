@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <!--
+            The platform's encryption, registered the way the stored cards' is: its generic Doctrine
+            listener, pointed at the card-on-file entity, driven by an encrypter that names the
+            three credentials. `sylius.encrypter` does the cryptography.
+        -->
+        <service id="jpm_martin_sylius_nmi.encryption.card_on_file" class="JpmMartin\SyliusNmiPlugin\Encryption\NmiCardOnFileEncrypter">
+            <argument type="service" id="sylius.encrypter" />
+        </service>
+
+        <!--
+            Second phase on a method that takes payment later: verify the tokenised card and put
+            it on file, charging nothing. The verifier, not the public client, so a store's
+            decorator of the client is never asked to do something it cannot.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_handler.put_card_on_file" class="JpmMartin\SyliusNmiPlugin\CommandHandler\PutCardOnFileHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.card_verifier" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_card_on_file" />
+            <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_card_on_file" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!--
+            The shopper's return from the pay page once their card is on file. Ahead of the
+            platform's own provider (−100), which would send a waiting payment back to be paid;
+            it answers only for a payment holding a card on file, so every other payment reaches
+            the platform's provider as before.
+        -->
+        <service id="jpm_martin_sylius_nmi.provider.card_on_file_after_pay" class="JpmMartin\SyliusNmiPlugin\Provider\NmiCardOnFileAfterPayResponseProvider">
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="sylius_shop.provider.order_pay.final_url" />
+            <tag name="sylius_shop.provider.order_pay.after_pay_response" priority="0" />
+        </service>
+
+        <!--
+            The one door to charging a card on file. Public, and named in docs/extending.md: this
+            is what a store's own code calls. It dispatches the charge itself rather than
+            announcing a request, so no action a client can name reaches the charge.
+        -->
+        <service id="jpm_martin_sylius_nmi.card_on_file.charger" class="JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileCharger">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.payment_request.command_bus" />
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.releaser" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface" alias="jpm_martin_sylius_nmi.card_on_file.charger" />
+
+        <!--
+            Lets go of a card once its payment is charged or cancelled, through the same queued
+            purge that forgets a deleted customer's cards. The event bus, as there: the purge
+            handler lives on it, and which bus carries the message does not change where it goes.
+        -->
+        <service id="jpm_martin_sylius_nmi.card_on_file.releaser" class="JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileReleaser">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="sylius.event_bus" />
+            <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_card_on_file" />
+        </service>
+
+        <!-- The order screen: complete charges the card first, and a refusal stops it. -->
+        <service id="jpm_martin_sylius_nmi.listener.charge_card_on_file_on_complete" class="JpmMartin\SyliusNmiPlugin\EventListener\ChargeCardOnFileOnCompleteListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.charger" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <tag name="kernel.event_listener" event="sylius.payment.pre_complete" />
+        </service>
+
+        <!-- And once complete or cancel has been committed, the card is released. -->
+        <service id="jpm_martin_sylius_nmi.listener.release_card_on_file" class="JpmMartin\SyliusNmiPlugin\EventListener\ReleaseCardOnFileListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.releaser" />
+            <tag name="kernel.event_listener" event="sylius.payment.post_complete" />
+            <tag name="kernel.event_listener" event="sylius.payment.post_cancel" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.command_handler.charge_card_on_file" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ChargeCardOnFileHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.card_on_file_charge_factory" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!-- The same action, arriving any other way: refused, with nothing read or sent. -->
+        <service id="jpm_martin_sylius_nmi.command_provider.card_on_file_charge" class="JpmMartin\SyliusNmiPlugin\CommandProvider\CardOnFileChargeCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="nmi_charge_card_on_file" />
+        </service>
+        <service id="jpm_martin_sylius_nmi.command_handler.refuse_card_on_file_charge" class="JpmMartin\SyliusNmiPlugin\CommandHandler\RefuseCardOnFileChargeHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!-- The charge of a card on file: declared merchant-initiated, with no browser behind it. -->
+        <service id="jpm_martin_sylius_nmi.gateway.card_on_file_charge_factory" class="JpmMartin\SyliusNmiPlugin\Gateway\Request\CardOnFileChargeFactory" />
+
+        <service id="jpm_martin_sylius_nmi.listener.card_on_file_encryption" class="Sylius\Bundle\PaymentBundle\Listener\EntityEncryptionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.encryption.card_on_file" />
+            <argument>%jpm_martin_sylius_nmi.model.nmi_card_on_file.class%</argument>
+            <tag name="doctrine.event_listener" event="onFlush" />
+            <tag name="doctrine.event_listener" event="postFlush" />
+            <tag name="doctrine.event_listener" event="postLoad" />
+        </service>
+    </services>
+</container>

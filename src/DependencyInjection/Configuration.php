@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
+use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFile;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiReceivedEvent;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiGatewayNoticeRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiReceivedEventRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepository;
@@ -101,6 +103,19 @@ final class Configuration implements ConfigurationInterface
                                         // The account pages are the platform's own resource controller, which is
                                         // what lets a route express the ownership query instead of a check.
                                         ->scalarNode('controller')->defaultValue(ResourceController::class)->end()
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('nmi_card_on_file')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->arrayNode('classes')
+                                    ->addDefaultsIfNotSet()
+                                    ->children()
+                                        ->scalarNode('model')->defaultValue(NmiCardOnFile::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('repository')->defaultValue(NmiCardOnFileRepository::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('factory')->defaultValue(Factory::class)->end()
                                     ->end()
                                 ->end()
                             ->end()
