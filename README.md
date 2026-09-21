@@ -134,10 +134,11 @@ translation files, so until you do this every label of the plugin shows as its k
 
 ### 4. Run the migration
 
-The plugin adds four tables: one recording every transaction it makes at the gateway, one for the
-cards shoppers save, one recording the webhook deliveries it has accepted, and one for what the
-gateway reports that nobody in your store caused. All four are created whether or not you turn
-saved cards or webhooks on, and stay empty until you do.
+The plugin adds five tables: one recording every transaction it makes at the gateway, one for the
+cards shoppers save, one for the cards put on file at checkout to be charged later, one recording
+the webhook deliveries it has accepted, and one for what the gateway reports that nobody in your
+store caused. All five are created whether or not you turn saved cards, taking payment later or
+webhooks on, and stay empty until you do.
 
 ```bash
 bin/console doctrine:migrations:migrate
