@@ -304,7 +304,7 @@ browser-side tokenisation, 3-D Secure, capture, void and refund. Targets **Syliu
 
 Package `jpmmartin/sylius-nmi-plugin`, namespace `JpmMartin\SyliusNmiPlugin\`, MIT.
 
-## Architecture facts, verified against Sylius 2.2.8 source
+## Architecture facts, verified against Sylius 2.2.9 source
 
 These were established by reading installed code. They are the kind of thing that costs hours to
 rediscover.
@@ -332,6 +332,16 @@ Command messages must implement `PaymentRequestHashAwareInterface` — messenger
 state machine is `new → processing → completed | failed | cancelled`; all three are terminal and
 there are no callbacks, so side effects happen imperatively inside the handler.
 
+**The shop API takes only the actions on a list, and the list is short.** Since 2.2.9,
+`sylius_api.shop_payment_request.allowed_actions` — default `capture, authorize, status, notify` —
+is enforced by `ChosenPaymentRequestActionEligibilityValidator` before a payment request exists, so
+a shop client naming anything else gets HTTP 422 and nothing is created. On 2.2.8 any action with a
+command provider was accepted. A refusal that belongs to the plugin therefore only runs on 2.2.8 or
+on a store that widened the list, and a test asserting one refusal passes on one version and fails on
+the other. The admin API and the admin screens need no such list because neither can create a payment
+request: the admin API declares one operation on it, `GetCollection`, and `AdminBundle` routes only
+`index` and `show`, both `GET`.
+
 **Sale versus authorise is already core behaviour.** `DefaultActionProvider` reads
 `$gatewayConfig->getConfig()['use_authorize']` and returns `ACTION_AUTHORIZE` or the default. This
 costs one checkbox in the gateway configuration form — do not build branching for it.
@@ -344,7 +354,7 @@ costs one checkbox in the gateway configuration form — do not build branching 
 | `cancel` | `authorized` → `cancelled` | void |
 | `refund` | `completed` → `refunded` | refund |
 
-**There is no `void` transition — do not assume one exists.** Sylius 2.2.8 ships four definitions of
+**There is no `void` transition — do not assume one exists.** Sylius 2.2.9 ships four definitions of
 the `sylius_payment` state machine and they disagree. The two that actually load (both in
 `CoreBundle`, reached via `_sylius.yaml` → `app/config.yml` → `workflow.yaml` → `workflow/**`) omit
 `void` and the `unknown` place. `PaymentBundle`'s two definitions declare them but are orphaned,
