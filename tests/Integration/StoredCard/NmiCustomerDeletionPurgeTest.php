@@ -165,8 +165,8 @@ final class NmiCustomerDeletionPurgeTest extends KernelTestCase
      * A record the gateway no longer has is the state being asked for.
      *
      * Established against the sandbox rather than assumed: the first delete answers 204, the second
-     * 404 with `E_RESOURCE_NOT_FOUND`. Without this the retry would loop for ever on a purge that
-     * had already succeeded.
+     * 404 with `E_RESOURCE_NOT_FOUND`. Without this a purge that had already succeeded would be
+     * retried, fail every time, and end up parked in the failure transport as if it had not.
      */
     public function testARecordTheGatewayNoLongerHasCountsAsPurged(): void
     {
@@ -179,7 +179,7 @@ final class NmiCustomerDeletionPurgeTest extends KernelTestCase
 
         $this->handle(new PurgeStoredCard('vault-1111', (string) $paymentMethod->getCode()));
 
-        self::assertTrue(true, 'Nothing was thrown, so the message is acknowledged rather than retried for ever.');
+        self::assertTrue(true, 'Nothing was thrown, so the message is acknowledged rather than retried and parked.');
     }
 
     /**
