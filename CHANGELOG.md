@@ -28,8 +28,8 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
   It is refused before the gateway is asked when the payment is no longer waiting, holds no card on
   file, has moved to another payment method, or when the card is closed, expired or carries no
   record of that verification. A charge the gateway does not answer is reported as unknown, never as
-  declined. No payment-request action can cause a charge, so the shop API — which lets a client name
-  any action — cannot.
+  declined. No payment-request action can cause a charge, so neither can a client of the shop API,
+  whichever actions the platform lets it name.
 - A card on file is **let go at the gateway** once its payment is charged or cancelled, through the
   same queued purge that forgets a deleted customer's cards, and **NMI's card updater reaches it**: a
   closed account marks it closed, a renewal updates its expiry and number.
