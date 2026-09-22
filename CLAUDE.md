@@ -46,19 +46,19 @@ At the time of writing, `composer install` resolved:
 
 | Package | Version |
 |---|---|
-| `sylius/sylius` | v2.2.8 |
-| `symfony/framework-bundle` (and the Symfony stack) | v7.4.16 |
-| `doctrine/orm` | 3.6.8 |
+| `sylius/sylius` | v2.2.9 |
+| `symfony/framework-bundle` (and the Symfony stack) | v7.4.19 |
+| `doctrine/orm` | 3.7.1 |
 | `doctrine/dbal` | 3.10.6 |
-| `doctrine/doctrine-bundle` | 2.19.0 |
-| `twig/twig` | v3.28.0 |
+| `doctrine/doctrine-bundle` | 2.19.1 |
+| `twig/twig` | v3.29.0 |
 | `sylius/twig-hooks` | v0.9.1 |
 | `sylius/resource-bundle` | v1.14.2 |
 | `sylius/grid-bundle` | v1.16.1 |
 | `sylius/test-application` | v2.2.0-ALPHA.1 |
 | `phpstan/phpstan` | 1.12.34 |
 | `phpunit/phpunit` | 10.5.64 |
-| `behat/behat` | v3.32.0 |
+| `behat/behat` | v3.33.0 |
 | `sylius-labs/coding-standard` | v4.5.1 |
 
 Re-derive rather than trusting this table after any `composer update`.
