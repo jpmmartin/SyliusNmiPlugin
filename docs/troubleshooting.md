@@ -291,7 +291,9 @@ The payment keeps waiting, and in every case but *no answer* nothing has been ch
 - *The card on file was declined …* (`card_on_file_declined`) — NMI asked the issuer and the answer
   was no. The card is still on file; ask the shopper for another card or cancel the order.
 - *The gateway did not answer …* (`card_on_file_charge_unknown`) — **the card may have been
-  charged.** Look the order up in NMI's portal by its number before charging again.
+  charged.** Look the order up in NMI's portal by its number before charging again, and match the
+  amount and the time: the zero-amount verification from checkout, and every earlier attempt, carry
+  that same number.
 - *This payment is not waiting to be charged …* (`card_on_file_not_waiting`) — it was charged or
   cancelled already. A second charge is refused rather than sent.
 - *This payment holds no card on file …* (`no_card_on_file`) — checkout never put one on file: the
@@ -316,6 +318,44 @@ on file.
 
 **What was missed:** nothing — one card per order, by design. The order is waiting to be charged;
 cancel its payment first if the shopper needs to use another card.
+
+## A charged card is still in NMI's vault, or the closed-card email never arrived
+
+**What you see:** the payment was charged or cancelled days ago and the customer record is still
+listed in NMI's vault; or a card the updater reported closed is marked closed in the shopper's
+account, and checkout stopped offering it, but the email about it never arrived. No error anywhere,
+in the log or on screen.
+
+**What was missed:** the worker. Both jobs are queued on Sylius's `main` transport, each for its own
+reason. Letting go of a card is queued so that a gateway that is down cannot make deleting a
+customer or cancelling an order fail, and so the attempt survives to be retried; the email is queued
+so that a slow mail server cannot turn a webhook delivery into a failure the gateway then retries
+for days. Sylius points `main` at a database queue by default, so until something consumes it the
+work waits:
+
+```bash
+bin/console messenger:consume main
+```
+
+**How to confirm it before changing anything:** look in the queue. The rows are Sylius's own table,
+and each message names its class inside the serialised `body`.
+
+```sql
+SELECT id, queue_name, created_at, body FROM messenger_messages ORDER BY id;
+```
+
+Anything sitting there with an old `created_at` is work nothing has picked up. Run the worker under
+Supervisor, systemd or your scheduler, the way you run any Symfony worker. If the retries are
+exhausted the message is parked rather than dropped, in the `main_failed` transport — which has to
+be named, because this store has several and no default:
+
+```bash
+bin/console messenger:failed:show --transport main_failed
+```
+
+**Not this:** the payment-request transport, which the README tells you to leave at `sync://`. That
+one must not be queued — the pay page needs its answer in the same request. They are different
+transports and both are right.
 
 ## Credentials read as plain text in the database
 

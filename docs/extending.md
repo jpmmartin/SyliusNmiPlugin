@@ -152,7 +152,9 @@ plugin does not model, merged beneath its own exactly as on any charge. It answe
 which needs the payment-request bus to be synchronous, as the pay page already requires.
 
 **An unknown outcome is not a decline.** The gateway did not answer, so the card may have been
-charged. Look the order up in the gateway's portal by its number before charging again.
+charged. Look the order up in the gateway's portal by its number before charging again, and match
+the amount and the time: the same order number also carries the zero-amount verification made at
+checkout, and every earlier attempt.
 
 The charge is recorded as a payment request with the action `NmiCardOnFileChargerInterface::ACTION`.
 That action only names the record: a request created with it any other way fails, and nothing is

@@ -8,6 +8,19 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Fixed
+
+- **The documentation now says that letting go of a card needs a worker.** Releasing a card at NMI,
+  and the email to a cardholder whose card was closed, are queued on Sylius's `main` transport —
+  which Sylius points at a database queue by default. Nothing said so, so on a store running no
+  worker a charged card stays in NMI's vault and no email is sent, with no error anywhere. The
+  behaviour is unchanged; what was missing was the sentence telling you to run
+  `bin/console messenger:consume main`, now in the README, the configuration reference and the
+  troubleshooting guide.
+- Looking an unanswered charge up in NMI's portal now says to read the amount and the time, not the
+  order number alone: an order held for later payment always carries at least two transactions under
+  that number — the zero-amount verification made at checkout, and every charge attempted since.
+
 ## [1.2.0] - 2026-09-22
 
 ### Added

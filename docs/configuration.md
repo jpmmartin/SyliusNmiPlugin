@@ -169,6 +169,10 @@ That is a decision an operator makes, not one they inherit.
 
 **It needs webhooks.** Nothing else tells your store that a card was closed.
 
+**It needs a worker.** The email is queued on Sylius's `main` transport, which Sylius points at a
+database queue by default, so nothing is sent until `bin/console messenger:consume main` is running.
+The same worker is what lets go of a card at the gateway once its payment is charged or cancelled.
+
 ### List transactions this store does not recognise — off
 
 **Off:** an event naming a transaction your store has no record of is accepted and logged, and

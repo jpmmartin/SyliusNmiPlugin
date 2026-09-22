@@ -455,7 +455,9 @@ is not there to be asked.
 
 **Before trying again after no answer.** A charge the gateway did not answer is reported as
 *unknown*, never as declined: the card may have been charged. Look the order up in NMI's portal by
-its number before charging again. The plugin does not retry on its own.
+its number before charging again — and read the amount and the time, not the number alone: an order
+held this way always has at least two transactions under that number, the zero-amount verification
+made at checkout and each charge attempted since. The plugin does not retry on its own.
 
 A charge is refused, **without asking the gateway**, when the payment is no longer waiting, holds no
 card on file, has moved to another payment method, or when the card's account has been closed, the
@@ -466,6 +468,19 @@ named in each case.
 the record is removed from NMI's vault, and the removal is retried until NMI has done it. Turning the
 setting off later stops new checkouts from putting cards on file; it does not strand the orders
 already waiting.
+
+> **This one needs a worker running.** Letting the card go is queued on Sylius's `main` transport,
+> so that a gateway that is down cannot make cancelling an order fail, and so that the attempt
+> survives to be retried. Sylius points `main` at a database queue by default, which means the card
+> stays in NMI's vault until something consumes it:
+>
+> ```bash
+> bin/console messenger:consume main
+> ```
+>
+> Run it the way you run any Symfony worker — Supervisor, systemd, a scheduler. Nothing reports an
+> error while it is not running; the row simply waits in `messenger_messages`. The payment-request
+> transport above is the opposite case and stays `sync://`.
 
 **What it does not do.** It does not charge a card a shopper saved for themselves without them —
 that card was kept on a different promise. It does not schedule recurring charges, authorise
