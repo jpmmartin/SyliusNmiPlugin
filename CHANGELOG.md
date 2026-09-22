@@ -8,6 +8,8 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-22
+
 ### Added
 
 - **Take payment later**, a switch per payment method, off by default. On a method that has it,
@@ -130,6 +132,7 @@ Stated here as well as in the README, because they decide whether this release f
   allows a void but not a refund, so a partial refund of an unsettled payment can be refused; the
   plugin asks either way, shows the answer, and the order screen's *Refund* voids the whole amount.
 
-[Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/compare/v1.1.0...main
+[Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/compare/v1.2.0...main
+[1.2.0]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.2.0
 [1.1.0]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.0.0
