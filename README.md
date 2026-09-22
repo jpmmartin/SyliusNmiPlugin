@@ -465,9 +465,11 @@ card has expired, or it carries no record of the verification that put it on fil
 named in each case.
 
 **Cancelling** the payment from the order screen lets the card go, and so does an approved charge:
-the record is removed from NMI's vault, and the removal is retried until NMI has done it. Turning the
-setting off later stops new checkouts from putting cards on file; it does not strand the orders
-already waiting.
+the record is removed from NMI's vault. If NMI does not answer, the removal is tried again a few
+times and then kept in Sylius's failure transport, where you list it and send it again — once NMI
+answers, because a removal sent again that fails is discarded rather than kept a second time;
+[docs/troubleshooting.md](docs/troubleshooting.md) has both commands. Turning the setting off later
+stops new checkouts from putting cards on file; it does not strand the orders already waiting.
 
 > **This one needs a worker running.** Letting the card go is queued on Sylius's `main` transport,
 > so that a gateway that is down cannot make cancelling an order fail, and so that the attempt

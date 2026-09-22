@@ -20,6 +20,12 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 - Looking an unanswered charge up in NMI's portal now says to read the amount and the time, not the
   order number alone: an order held for later payment always carries at least two transactions under
   that number — the zero-amount verification made at checkout, and every charge attempted since.
+- The README no longer says that letting go of a card at NMI is **retried until NMI has done it**.
+  It never was: Sylius's `main` transport tries it a few times over a few seconds and then parks it
+  in `main_failed`, where `bin/console messenger:failed:retry --transport main_failed` sends it
+  again. Send it again only once NMI answers — one sent again that fails is discarded, not parked a
+  second time, and its vault record then has to be removed at NMI by hand. The troubleshooting guide
+  has both commands and says so beside them.
 
 ## [1.2.0] - 2026-09-22
 

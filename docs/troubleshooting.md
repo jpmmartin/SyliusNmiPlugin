@@ -347,11 +347,21 @@ SELECT id, queue_name, created_at, body FROM messenger_messages ORDER BY id;
 Anything sitting there with an old `created_at` is work nothing has picked up. Run the worker under
 Supervisor, systemd or your scheduler, the way you run any Symfony worker. If the retries are
 exhausted the message is parked rather than dropped, in the `main_failed` transport — which has to
-be named, because this store has several and no default:
+be named in both commands below, because a Sylius store has several failure transports and no
+default. List what is parked, then send it again once NMI or the mail server is answering:
 
 ```bash
 bin/console messenger:failed:show --transport main_failed
+bin/console messenger:failed:retry --transport main_failed
 ```
+
+The second one asks about each message before sending it; `--force` sends them all without asking.
+
+**Send it again only once NMI, or the mail server, is answering.** A message sent again that fails
+is tried a few more times and then **discarded** — not parked a second time, because Sylius gives its
+failure transport no failure transport of its own — and all that remains is an error in the log. So
+check first, and run the first command again afterwards: a purge that has left the list while its
+record is still in NMI's vault was discarded, and that record has to be removed at NMI by hand.
 
 **Not this:** the payment-request transport, which the README tells you to leave at `sync://`. That
 one must not be queued — the pay page needs its answer in the same request. They are different
