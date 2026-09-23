@@ -319,12 +319,12 @@ on file.
 **What was missed:** nothing — one card per order, by design. The order is waiting to be charged;
 cancel its payment first if the shopper needs to use another card.
 
-## A charged card is still in NMI's vault, or the closed-card email never arrived
+## A deleted customer's cards, or a card held for later payment, are still in NMI's vault — or the closed-card email never arrived
 
-**What you see:** the payment was charged or cancelled days ago and the customer record is still
-listed in NMI's vault; or a card the updater reported closed is marked closed in the shopper's
-account, and checkout stopped offering it, but the email about it never arrived. No error anywhere,
-in the log or on screen.
+**What you see:** a customer you deleted still has their saved cards listed in NMI's vault; or a
+payment held for later was charged or cancelled days ago and its card is still there; or a card the
+updater reported closed is marked closed in the shopper's account, and checkout stopped offering it,
+but the email about it never arrived. No error anywhere, in the log or on screen.
 
 **What was missed:** the worker. Both jobs are queued on Sylius's `main` transport, each for its own
 reason. Letting go of a card is queued so that a gateway that is down cannot make deleting a

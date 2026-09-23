@@ -10,13 +10,15 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ### Fixed
 
-- **The documentation now says that letting go of a card needs a worker.** Releasing a card at NMI,
-  and the email to a cardholder whose card was closed, are queued on Sylius's `main` transport —
-  which Sylius points at a database queue by default. Nothing said so, so on a store running no
-  worker a charged card stays in NMI's vault and no email is sent, with no error anywhere. The
-  behaviour is unchanged; what was missing was the sentence telling you to run
-  `bin/console messenger:consume main`, now in the README, the configuration reference and the
-  troubleshooting guide.
+- **The documentation now says that saved cards and taking payment later need a worker.** Purging
+  a deleted customer's saved cards at NMI, releasing a card on file, and the email to a cardholder
+  whose card was closed are all queued on Sylius's `main` transport — which Sylius points at a
+  database queue by default. Nothing said so; for saved cards, nothing has said so since they
+  shipped. On a store running no worker a deleted customer's cards and a charged card stay in NMI's
+  vault and no email is sent, with no error anywhere. The behaviour is unchanged; what was missing
+  was the sentence telling you to run `bin/console messenger:consume main`, now in installation
+  step 6 of the README, where saved cards and taking payment later are described, in the
+  configuration reference and in the troubleshooting guide.
 - Looking an unanswered charge up in NMI's portal now says to read the amount and the time, not the
   order number alone: an order held for later payment always carries at least two transactions under
   that number — the zero-amount verification made at checkout, and every charge attempted since.

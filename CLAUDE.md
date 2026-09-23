@@ -381,6 +381,16 @@ transport, whose own default is `sync://` — but **`sylius/test-application` ov
 flow: the command is enqueued, the state never changes, and the page redirects away with no
 error. `tests/TestApplication/.env` puts it back to `sync://`.
 
+**The plugin's queued work rides `main`, and `main` gives up.** The extension prepends routing of
+`PurgeStoredCard` and `NotifyCardholder` to Sylius's `main` transport — default DSN
+`doctrine://default`, so nothing runs without a worker — and sets no retry strategy of its own.
+`main`'s is `max_retries: 3`, `delay: 1000`, `multiplier: 2`, `max_delay: 0`: a failing message is
+tried again after about one, two and four seconds, then parked in `main_failed`. Parking resets the
+retry count. A message resent from `main_failed` that fails again is retried under `main_failed`'s
+own strategy and then **discarded** with a `critical` log line, because `main_failed` has no failure
+transport. So "never lost" holds once, not twice — never promise a purge is retried until it
+completes. `tests/Integration/StoredCard/NmiParkedPurgeTest` runs both halves through a real worker.
+
 **The payment-request command bus flushes for you.** `sylius.payment_request.command_bus` carries
 the `doctrine_transaction` middleware, so a handler runs inside a transaction that commits on
 return. Persist inside a handler; do not flush, and do not open your own transaction.
@@ -469,6 +479,16 @@ over to the test application's own bootstrap.
 > when it dumped them, so a file added later is never read until the cache is deleted. After
 > adding a translation file, `rm -rf var/cache/test` before trusting a Behat result. Note the
 > cache lives at the repository root, not under `tests/TestApplication/`.
+
+> **The test environment's clock cannot be frozen.** There, `clock` is an alias of
+> `sylius.behat.clock` (`Sylius\Behat\Service\Clock`), which returns the date written in
+> `vendor/sylius/test-application/var/date.txt` when that file exists and the real time otherwise,
+> has a `sleep()` that does nothing, and never consults Symfony's global clock — so
+> `ClockSensitiveTrait::mockTime()` does not move it. The in-memory Messenger transports are built
+> with it, so a test that drives retries through a worker waits out every `DelayStamp` in real time.
+> Moving it means writing that file — which is how Sylius's own Behat steps do it
+> (`Setup\CalendarContext::itIsNow()` writes it, `Hook\CalendarContext` deletes it after each
+> scenario) — and a test that did the same would share state with them; don't.
 
 There is **no Makefile**. Docker is available directly — `compose.yml` defines `php`, `mysql` 8.4,
 `postgres` 16, `nginx` and `mailhog`; copy `compose.override.dist.yml` to `compose.override.yml`

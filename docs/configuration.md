@@ -133,7 +133,9 @@ offered to guests, and **your store still holds no card number** — only the re
 back, which is useless to any other gateway account and is stored encrypted.
 
 **What it costs:** the account routes have to be imported (README step 3), or the saved-cards page
-404s. And you inherit the question below.
+404s. A worker has to consume Sylius's `main` transport (README step 6), or a deleted customer's
+cards are never purged at NMI — the purge is queued, and nothing reports that it is waiting. And you
+inherit the question below.
 
 ### Authenticate saved cards with 3-D Secure — **on**
 

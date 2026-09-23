@@ -219,7 +219,7 @@ That template assumes those two names — the `nmi-shop` entry, in the `app.shop
 Standard store compiles its shop assets under. If your store builds under other names, override it
 at `templates/bundles/JpmMartinSyliusNmiPlugin/shop/scripts.html.twig` and change them there.
 
-### 6. Check two things about your application
+### 6. Check what your application must provide
 
 **Payment requests must be handled synchronously.** The pay page announces its command and asks
 for a response inside the same HTTP request, so a queued command leaves the page with nothing to
@@ -230,6 +230,18 @@ default is correct; only change it if you know why.
 # .env — this is Sylius's default. Do not point it at a queue.
 SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN=sync://
 ```
+
+**If you turn on saved cards or taking payment later, run a worker for Sylius's `main` transport.**
+Three things this plugin does are queued there rather than done in the request — purging a deleted
+customer's saved cards at NMI, letting go of a card on file once its payment is charged or
+cancelled, and, if you turn it on, the email to a cardholder whose saved card was closed or flagged
+— so that NMI or a mail server being down never makes deleting the customer, completing the payment
+or receiving NMI's notice fail. Sylius points `main` at a database
+queue by default, so until something consumes it none of the three happens, and nothing reports an
+error. Run `bin/console messenger:consume main` the way you run any Symfony worker — Supervisor,
+systemd, a scheduler. [docs/troubleshooting.md](docs/troubleshooting.md) says how to see what is
+waiting, and what to do with work that ran out of attempts. The payment-request transport above is
+the opposite case: it stays synchronous, and needs no worker.
 
 **Gateway credentials are encrypted at rest**, by Sylius rather than by this plugin, and that needs
 a key — **which your store almost certainly already has, and it is the wrong one.**
@@ -392,7 +404,8 @@ it opts in. Then:
 
 **The store never holds a card number.** What it keeps is the reference NMI gives back, encrypted
 at rest, plus the four digits, brand and expiry a receipt already prints. Removing a card asks the
-gateway to forget it before the row goes, and deleting a customer forgets theirs too.
+gateway to forget it before the row goes. Deleting a customer forgets theirs too, but through a
+purge queued for the worker from step 6: without that worker running, their cards stay at NMI.
 
 Cards belong to the payment method they were saved under, because a reference means nothing to any
 NMI account but the one that issued it. A shopper with cards on two of your channels sees each
@@ -482,7 +495,8 @@ stops new checkouts from putting cards on file; it does not strand the orders al
 >
 > Run it the way you run any Symfony worker — Supervisor, systemd, a scheduler. Nothing reports an
 > error while it is not running; the row simply waits in `messenger_messages`. The payment-request
-> transport above is the opposite case and stays `sync://`.
+> transport above is the opposite case and stays `sync://`. It is the same worker installation
+> step 6 asks for.
 
 **What it does not do.** It does not charge a card a shopper saved for themselves without them —
 that card was kept on a different promise. It does not schedule recurring charges, authorise
@@ -577,7 +591,7 @@ Two settings on the payment method are off by default and stay off unless you sa
 
 - **Email the shopper when a saved card is closed or flagged.** Everything else happens either way —
   the card is marked, the account shows it, the checkout stops offering it. Only the email is
-  skipped.
+  skipped. Turned on, the email is queued, and goes out only while the worker from step 6 runs.
 - **Tell me about transactions this store does not recognise.** Useful only if the NMI account is
   yours alone. If you share it with another shop or another system, every one of their transactions
   arrives here too and this would list all of them.
