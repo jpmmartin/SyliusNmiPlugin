@@ -35,8 +35,8 @@ use Tests\JpmMartin\SyliusNmiPlugin\Support\NmiHost;
  *
  * How many times it is tried, and how long apart, is Sylius's to decide and is not asserted. The
  * waits are real: the in-memory transport reads the test application's clock, which follows a date
- * file the Behat suite also writes rather than any clock a test can freeze, so the retry delays are
- * paid in full — a few seconds.
+ * file — the one Sylius's own Behat calendar steps write — rather than any clock a test can freeze,
+ * so the retry delays are paid in full, about seven seconds a round.
  */
 final class NmiParkedPurgeTest extends KernelTestCase
 {
