@@ -359,6 +359,8 @@ form. Render them anywhere, in any markup, and keep the attributes.
 | `data-nmi-describe-card` | the container | ask the browser to send the card's brand, which the account's add-a-card page needs |
 | `data-nmi-field`, `data-nmi-title`, `data-nmi-placeholder` | each field element | which of `ccnumber`, `ccexp`, `cvv` the gateway draws there, its accessible name and its placeholder |
 | `data-nmi-pay-button` | the button that starts an attempt | disabled until the frames are ready |
+| `data-nmi-processing-message` | the pay button and the saved-card path's button | what a screen reader hears while the button is busy, translated by the template; English when it is missing |
+| `data-nmi-spinner` | inside a pressed button, put there by the script | the theme's small spinner (`spinner-border spinner-border-sm`) beside the label and a visually hidden status line; the button is also disabled and marked `aria-busy`. All of it goes when the attempt ends without leaving the page, and stays while the page moves on. Restyle or hide it by this attribute |
 | `data-nmi-error` | an element | where a failed attempt is said out loud |
 | `data-nmi-three-d-secure` | an element | where the authentication widget attaches; one per page |
 | `data-nmi-store-card` | a checkbox | the shopper's request to keep the card, read when the token arrives |
@@ -375,7 +377,7 @@ All four are `CustomEvent`s dispatched on the container and bubbling, with these
 |---|---|---|
 | `nmi:mounted` | `{}` | the gateway's frames take input and the button is enabled |
 | `nmi:token` | `{ token, authentication, fields }` | `tokenize` mode only: the token, the 3-D Secure result under the names the store expects, and `fields`, which is what `submit` would post minus the CSRF token |
-| `nmi:submitted` | `{ fields }` — cancelable | just before the hidden form posts; `preventDefault()` keeps it from posting |
+| `nmi:submitted` | `{ fields }` — cancelable | just before the hidden form posts; `preventDefault()` keeps it from posting, and leaves the button disabled and busy for the store that took the submission over to hand back |
 | `nmi:failed` | `{ reason, message }` | the attempt ended without a token: `unreadable` (a field the gateway refused, or no answer), `unavailable` (the frames never came), `not_authenticated` (3-D Secure failed, was abandoned or timed out). The message is the one shown to the shopper |
 
 A decline is never an event: the token is posted as a form, the store answers with a redirect and a

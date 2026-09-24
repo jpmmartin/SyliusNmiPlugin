@@ -114,6 +114,7 @@ jpm_martin_sylius_nmi:
             new_card: Usar una tarjeta nueva
             pay_now: Pagar
             put_card_on_file: Guardar la tarjeta para este pedido
+            processing: Procesando…
             pay_now_for_renewals: Pagar y guardar la tarjeta para las renovaciones
             put_card_on_file_for_renewals: Guardar la tarjeta para este pedido y sus renovaciones
             # A neutral default. A store replaces it with its own terms: how often the card is

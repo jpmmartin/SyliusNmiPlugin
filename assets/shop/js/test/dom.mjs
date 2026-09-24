@@ -59,3 +59,18 @@ export const CARD_FORM = `
     <button type="button" data-nmi-pay-button disabled>Pay</button>
     <div data-nmi-three-d-secure></div>
 `;
+
+/*
+ * The saved-card path as the pay page renders it for a shopper with one card, which is chosen. It
+ * sits above the card form on the page, which is where authentication finds its key and its place,
+ * so a test renders the two together.
+ */
+export const STORED_CARDS = `
+    <div data-nmi-stored-cards data-nmi-action-url="/nmi/pay/hash-1" data-nmi-csrf-token="csrf-1"
+         data-nmi-authenticate-url="/nmi/pay/hash-1/authenticate" data-nmi-authenticate="1">
+        <input type="radio" name="nmi_payment_source" data-nmi-payment-source value="42" checked>
+        <input type="radio" name="nmi_payment_source" data-nmi-payment-source value="new">
+        <p data-nmi-stored-card-error hidden></p>
+        <button type="button" data-nmi-stored-card-pay hidden>Pay</button>
+    </div>
+`;

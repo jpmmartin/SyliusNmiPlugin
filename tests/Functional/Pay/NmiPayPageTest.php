@@ -10,6 +10,7 @@ use Sylius\Component\Locale\Model\Locale;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Translation\TranslatorBagInterface;
 
 /**
  * The pay page end to end: the platform announces the request's command, the first-phase handler
@@ -202,6 +203,34 @@ final class NmiPayPageTest extends WebTestCase
         self::assertSame('Número de tarjeta', $spanish->filter('#nmi-card-number')->attr('data-nmi-title'));
         self::assertSame('Número de tarjeta', trim($spanish->filter('[data-nmi-payment] label.form-label')->first()->text()));
         self::assertSame('Pagar', trim($spanish->filter('[data-nmi-pay-button]')->text()));
+        // What a screen reader hears while the button is busy, read off the button by the script.
+        self::assertSame('Procesando…', $spanish->filter('[data-nmi-pay-button]')->attr('data-nmi-processing-message'));
+    }
+
+    /** The button's words for a screen reader while it is busy come from the template, translated. */
+    public function testThePayButtonCarriesWhatItSaysWhileBusy(): void
+    {
+        $paymentRequest = $this->newPaymentRequest();
+
+        $crawler = $this->client->request('GET', sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Processing…', $crawler->filter('[data-nmi-pay-button]')->attr('data-nmi-processing-message'));
+    }
+
+    /** A store that words it its own way is heard in its own words. */
+    public function testTheStoresOwnWordingIsWhatTheBusyButtonSays(): void
+    {
+        // The catalogue is where a store's own translation file ends up. Written into it here
+        // rather than into a file because catalogues are cached, and a file added now is not read.
+        /** @var TranslatorBagInterface $translator */
+        $translator = self::getContainer()->get('translator');
+        $translator->getCatalogue('en_US')->set('jpm_martin_sylius_nmi.shop.pay.processing', 'Taking your payment, one moment…');
+        $paymentRequest = $this->newPaymentRequest();
+
+        $crawler = $this->client->request('GET', sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()));
+
+        self::assertSame('Taking your payment, one moment…', $crawler->filter('[data-nmi-pay-button]')->attr('data-nmi-processing-message'));
     }
 
     /** A finished request has nothing left to collect, so the platform sends the shopper onward. */

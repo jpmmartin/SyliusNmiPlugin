@@ -114,6 +114,7 @@ jpm_martin_sylius_nmi:
             new_card: Use a new card
             pay_now: Pay
             put_card_on_file: Save card for this order
+            processing: Processing…
             pay_now_for_renewals: Pay and keep card for renewals
             put_card_on_file_for_renewals: Save card for this order and its renewals
             # A neutral default. A store replaces it with its own terms: how often the card is
