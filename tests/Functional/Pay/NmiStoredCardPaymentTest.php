@@ -12,6 +12,7 @@ use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethod;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
+use Sylius\Component\Locale\Model\Locale;
 use Sylius\Component\Payment\Model\PaymentInterface;
 use Sylius\Component\Payment\Model\PaymentRequest;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
@@ -94,6 +95,7 @@ final class NmiStoredCardPaymentTest extends WebTestCase
         $crawler = $this->payPage($paymentRequest);
 
         self::assertCount(1, $crawler->filter('[data-nmi-stored-cards]'), 'A shopper with saved cards must be offered them.');
+        self::assertSame('Processing…', $crawler->filter('[data-nmi-stored-card-pay]')->attr('data-nmi-processing-message'), 'What a screen reader hears while it is busy.');
         self::assertTrue($this->has($this->radioFor($crawler, $everyday), 'checked'), 'The default card is the one preselected.');
         self::assertFalse($this->has($this->radioFor($crawler, $spare), 'checked'));
         self::assertFalse($this->has($this->radioFor($crawler, $spare), 'disabled'), 'A card that has not expired is selectable.');
@@ -494,6 +496,32 @@ final class NmiStoredCardPaymentTest extends WebTestCase
                 '_csrf_token' => (string) $crawler->filter('[data-nmi-payment]')->attr('data-nmi-csrf-token'),
             ],
         );
+    }
+
+    /** The saved-card button's words for a screen reader, in the shopper's language. */
+    public function testTheSavedCardButtonSaysWhatItDoesWhileBusyInTheShoppersLanguage(): void
+    {
+        $user = $this->signedInShopper();
+        $paymentRequest = $this->newPaymentRequest(storeCards: true, customer: $user->getCustomer());
+        $this->aCard($paymentRequest, $user, '1111', default: true);
+        $this->manager->flush();
+
+        // The channel learns Spanish and answers to a host of its own, and the shopper signs in on it.
+        $locale = $this->manager->getRepository(Locale::class)->findOneBy(['code' => 'es_ES']) ?? new Locale();
+        $locale->setCode('es_ES');
+        $this->manager->persist($locale);
+        $channel = $paymentRequest->getPayment()?->getOrder()?->getChannel();
+        self::assertNotNull($channel);
+        $channel->addLocale($locale);
+        $channel->setHostname($channel->getCode() . '.localhost');
+        $this->manager->flush();
+        $this->client->setServerParameter('HTTP_HOST', (string) $channel->getHostname());
+        $this->client->loginUser($user, 'shop');
+
+        $crawler = $this->client->request('GET', sprintf('/es_ES/payment-request/pay/%s', (string) $paymentRequest->getId()));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Procesando…', $crawler->filter('[data-nmi-stored-card-pay]')->attr('data-nmi-processing-message'));
     }
 
     private function payPage(PaymentRequest $paymentRequest): Crawler

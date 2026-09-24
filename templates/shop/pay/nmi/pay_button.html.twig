@@ -30,6 +30,8 @@
     data-nmi-pay-button
     class="btn btn-primary"
     data-nmi-new-card-only
+    {# Read by the script while the button is busy, for screen readers; translated here. #}
+    data-nmi-processing-message="{{ 'jpm_martin_sylius_nmi.shop.pay.processing'|trans }}"
     disabled
     {{ sylius_test_html_attribute('nmi-card-pay') }}
 >

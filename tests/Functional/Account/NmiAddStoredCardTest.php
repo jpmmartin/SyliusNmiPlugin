@@ -12,6 +12,7 @@ use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
+use Sylius\Component\Locale\Model\Locale;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
@@ -85,6 +86,24 @@ final class NmiAddStoredCardTest extends WebTestCase
         self::assertCount(1, $page->filter('[data-nmi-payment] #nmi-card-cvv'));
         self::assertSame('Add a card', trim($page->filter('[data-nmi-pay-button]')->text()));
         self::assertNotNull($page->filter('[data-nmi-pay-button]')->attr('disabled'));
+        self::assertSame('Processing…', $page->filter('[data-nmi-pay-button]')->attr('data-nmi-processing-message'), 'What a screen reader hears while it is busy.');
+    }
+
+    /** The add-card button's words for a screen reader, in the shopper's language. */
+    public function testTheAddCardButtonSaysWhatItDoesWhileBusyInTheShoppersLanguage(): void
+    {
+        $this->aStoreThatSavesCards();
+        $locale = $this->manager->getRepository(Locale::class)->findOneBy(['code' => 'es_ES']) ?? new Locale();
+        $locale->setCode('es_ES');
+        $this->manager->persist($locale);
+        $this->aShopChannel()->addLocale($locale);
+        $this->manager->flush();
+        $this->signIn();
+
+        $page = $this->client->request('GET', '/es_ES/account/saved-cards/add');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Procesando…', $page->filter('[data-nmi-pay-button]')->attr('data-nmi-processing-message'));
     }
 
     /**

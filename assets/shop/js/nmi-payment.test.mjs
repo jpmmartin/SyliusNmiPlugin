@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { beforeEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import { CARD_FORM, givenAPage, tick } from './test/dom.mjs';
+import { CARD_FORM, STORED_CARDS, givenAPage, tick } from './test/dom.mjs';
+import { nextAuthentication } from './test/nmi-pay.stub.mjs';
 
 /*
  * The contract a store's own script can rely on: where the parts are found, what the four events
@@ -136,5 +137,167 @@ describe('submit', () => {
         container.addEventListener('nmi:submitted', (event) => event.preventDefault());
         assert.equal(submit(container, { payment_token: 'tok-refused' }), false);
         assert.equal(page.submitted.length, 1, 'Cancelled, so nothing more was posted.');
+    });
+});
+
+/*
+ * The busy state a press puts a button in: the theme's spinner beside the label, a status line for
+ * screen readers, `aria-busy` — for as long as the attempt runs, and not a moment before or after.
+ */
+const spinnerOf = (button) => button.querySelector('[data-nmi-spinner]');
+
+const assertBusy = (button, label) => {
+    assert.equal(button.disabled, true);
+    assert.equal(button.getAttribute('aria-busy'), 'true');
+    assert.equal(button.querySelectorAll('[data-nmi-spinner]').length, 1, 'Exactly one spinner.');
+    const spinner = spinnerOf(button);
+    const wheel = spinner.querySelector('.spinner-border.spinner-border-sm');
+    assert.ok(wheel, 'The theme\'s small border spinner.');
+    assert.equal(wheel.getAttribute('aria-hidden'), 'true');
+    const status = spinner.querySelector('.visually-hidden[role="status"]');
+    assert.ok(status, 'A line only a screen reader reads.');
+    assert.ok(button.textContent.includes(label), 'The label is kept beside the spinner.');
+
+    return status.textContent;
+};
+
+const assertIdle = (button) => {
+    assert.equal(button.disabled, false);
+    assert.equal(button.hasAttribute('aria-busy'), false);
+    assert.equal(spinnerOf(button), null);
+};
+
+describe('the busy pay button', () => {
+    let page;
+    let button;
+
+    beforeEach(async () => {
+        page = givenAPage(CARD_FORM);
+        button = page.document.querySelector('[data-nmi-pay-button]');
+    });
+
+    it('shows nothing while the frames load, and nothing once they are ready', async () => {
+        await load();
+
+        assert.equal(button.disabled, true);
+        assert.equal(spinnerOf(button), null, 'No spinner before anything is pressed.');
+
+        await tick();
+        assertIdle(button);
+    });
+
+    it('shows the spinner from the press, once however often it is pressed', async () => {
+        await load();
+        await tick();
+        page.collect.startPaymentRequest = () => {};
+
+        button.click();
+        button.click();
+
+        assert.equal(assertBusy(button, 'Pay'), 'Processing…', 'The literal, when the template gave no words.');
+    });
+
+    it('reads to screen readers the words the template translated', async () => {
+        button.dataset.nmiProcessingMessage = 'Procesando…';
+        await load();
+        await tick();
+        page.collect.startPaymentRequest = () => {};
+
+        button.click();
+
+        assert.equal(assertBusy(button, 'Pay'), 'Procesando…');
+    });
+
+    it('gives the button back idle when a field is empty or invalid', async () => {
+        await load();
+        await tick();
+
+        page.collect.responses.push({});
+        button.click();
+        await tick();
+
+        assertIdle(button);
+    });
+
+    it('gives the button back idle when the fields do not answer in time', async () => {
+        await load();
+        await tick();
+        page.collect.startPaymentRequest = () => {};
+
+        button.click();
+        assertBusy(button, 'Pay');
+        page.collect.options.timeoutCallback();
+
+        assertIdle(button);
+    });
+
+    it('keeps the spinner while a successful attempt posts and the page moves on', async () => {
+        await load();
+        await tick();
+
+        page.collect.responses.push({ token: 'tok-once-abc', card: null });
+        button.click();
+        await tick();
+        await tick();
+
+        assert.equal(page.submitted.length, 1);
+        assertBusy(button, 'Pay');
+    });
+
+    it('gives the button back idle once tokenize mode has handed the token over', async () => {
+        page.document.querySelector('[data-nmi-payment]').dataset.nmiMode = 'tokenize';
+        await load();
+        await tick();
+
+        page.collect.responses.push({ token: 'tok-once-abc', card: null });
+        button.click();
+        await tick();
+        await tick();
+
+        assertIdle(button);
+    });
+});
+
+describe('the busy saved-card button', () => {
+    let page;
+    let button;
+    let fetch;
+
+    beforeEach(() => {
+        page = givenAPage(STORED_CARDS + CARD_FORM);
+        button = page.document.querySelector('[data-nmi-stored-card-pay]');
+        ({ fetch } = globalThis);
+        globalThis.fetch = async () => ({ ok: true, json: async () => ({ customer_vault_id: '1736036779', currency: 'USD', amount: '12.99' }) });
+    });
+
+    afterEach(() => {
+        globalThis.fetch = fetch;
+        nextAuthentication.fails = false;
+    });
+
+    it('is busy from the press and stays busy while the authenticated card is posted', async () => {
+        await load();
+
+        button.click();
+        assertBusy(button, 'Pay');
+        await tick();
+        await tick();
+
+        assert.equal(page.submitted.length, 1, 'The saved card was posted.');
+        assert.equal(page.submitted[0].stored_card, '42');
+        assert.equal(page.submitted[0].cavv, 'AAABBJ', 'Posted after authenticating, which is the path under test.');
+        assertBusy(button, 'Pay');
+    });
+
+    it('is given back idle when authentication fails', async () => {
+        nextAuthentication.fails = true;
+        await load();
+
+        button.click();
+        await tick();
+        await tick();
+
+        assert.equal(page.submitted.length, 0);
+        assertIdle(button);
     });
 });

@@ -35,6 +35,13 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
   card on file's charger as for the new one.
 - **A new table**, `jpm_martin_sylius_nmi_recurring_credential`. Run your migrations when you
   upgrade; the migration only adds, and the table stays empty until the store opts in.
+- **A pressed pay button now shows that the payment is being processed**: the theme's small spinner
+  beside its label, a line read to screen readers ("Processing…", translated), and `aria-busy`, on
+  top of the button being disabled. On the pay page's button, the saved-card path's button and the
+  account area's *Add card* button; it goes when an attempt ends without leaving the page and stays
+  while the page moves on. It uses the theme's Bootstrap spinner, so a theme without one shows
+  nothing extra; restyle or hide it through `[data-nmi-spinner]`. **Rebuild your front-end assets**
+  when you upgrade, or the old script keeps running.
 
 ### Known limitations
 

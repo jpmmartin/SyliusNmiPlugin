@@ -55,6 +55,46 @@ const emit = (container, name, detail = {}, cancelable = false) =>
     container.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, cancelable }));
 
 /*
+ * A pressed button's busy state: the theme's small spinner beside the label, a line only a screen
+ * reader reads, and `aria-busy` — Bootstrap's own pattern for a spinner in a disabled button, which
+ * the Sylius 2 shop theme ships. Entered and left exactly where the button's `disabled` changes for
+ * an attempt, so it can neither precede nor outlive one. A theme without those classes draws
+ * nothing extra; a store restyles or hides the spinner by its attribute. The words are the
+ * template's, translated; the literal is only reached by an override that dropped the attribute.
+ */
+const SPINNER_ATTRIBUTE = 'data-nmi-spinner';
+
+const busy = (button) => {
+    button.disabled = true;
+    if (button.querySelector(`[${SPINNER_ATTRIBUTE}]`) !== null) {
+        return;
+    }
+
+    const wheel = document.createElement('span');
+    wheel.className = 'spinner-border spinner-border-sm';
+    wheel.setAttribute('aria-hidden', 'true');
+
+    const status = document.createElement('span');
+    status.className = 'visually-hidden';
+    status.setAttribute('role', 'status');
+    status.textContent = button.dataset.nmiProcessingMessage || 'Processing…';
+
+    const spinner = document.createElement('span');
+    spinner.setAttribute(SPINNER_ATTRIBUTE, '');
+    spinner.className = 'me-2';
+    spinner.append(wheel, status);
+
+    button.prepend(spinner);
+    button.setAttribute('aria-busy', 'true');
+};
+
+const idle = (button) => {
+    button.querySelector(`[${SPINNER_ATTRIBUTE}]`)?.remove();
+    button.removeAttribute('aria-busy');
+    button.disabled = false;
+};
+
+/*
  * The theme's class for a text input, and the class it marks an invalid one with. The frames copy
  * the look of an input carrying the first, and the probe below reads what the second does to it.
  * Bootstrap's names, which the Sylius 2 shop theme uses.
@@ -445,7 +485,7 @@ const mount = (container) => {
      */
     const release = () => {
         attempt = null;
-        button.disabled = false;
+        idle(button);
 
         if (collect && typeof collect.inSubmission === 'boolean') {
             collect.inSubmission = false;
@@ -526,7 +566,7 @@ const mount = (container) => {
 
         attempt = { phase: 'tokenising' };
         say(null);
-        button.disabled = true;
+        busy(button);
         collect.startPaymentRequest();
     });
 
@@ -693,7 +733,7 @@ const mountStoredCards = (container) => {
             return;
         }
 
-        payButton.disabled = true;
+        busy(payButton);
         say('');
 
         const threeDSecure = container.dataset.nmiAuthenticate === '1' ? sharedAuthenticator() : null;
@@ -721,7 +761,7 @@ const mountStoredCards = (container) => {
             if (!outcome.authenticated) {
                 const message = outcome.message || threeDSecure.notAuthenticated();
                 say(message);
-                payButton.disabled = false;
+                idle(payButton);
                 emit(container, 'nmi:failed', { reason: 'not_authenticated', message });
 
                 return;
