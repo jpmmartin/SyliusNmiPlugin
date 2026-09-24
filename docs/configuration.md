@@ -121,6 +121,12 @@ It cannot be combined with *Authorize first, capture later*, and the form refuse
 Turning it off later stops new checkouts from putting cards on file; orders already waiting can
 still be charged.
 
+**With recurring charges.** When your store's code says a payment opens recurring charges, the
+card is kept for the renewals instead of on file — one card, one promise. The order is held exactly
+as above and charged the same two ways, and the card is **not** let go afterwards, nor when the
+order is cancelled: it stays for the renewals until your code lets it go. See the README's
+*Recurring charges*.
+
 ### Let shoppers save their card — off
 
 **Off:** nothing about saved cards exists. No option at checkout, no page in the shopper's account,
@@ -200,3 +206,7 @@ is mounted, and that page does not exist yet.
 a stored setting. See *Webhooks* in the README.
 
 **Anything about partial captures.** There are none; see *Authorize first, capture later* above.
+
+**Which payments open recurring charges.** That is decided by your store's code, per payment, not by
+a switch on the method — a store sells renewable and one-off goods through the same method. See the
+README's *Recurring charges*.

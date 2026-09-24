@@ -7,11 +7,13 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Setup;
 use Behat\Behat\Context\Context;
 use Doctrine\Persistence\ObjectManager;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFileInterface;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredentialInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Behat\Service\SharedStorageInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
@@ -39,6 +41,7 @@ final class NmiHeldOrderContext implements Context
      * @param FactoryInterface<PaymentMethodInterface> $paymentMethodFactory
      * @param FactoryInterface<GatewayConfigInterface> $gatewayConfigFactory
      * @param FactoryInterface<NmiCardOnFileInterface> $cardOnFileFactory
+     * @param FactoryInterface<NmiRecurringCredentialInterface> $recurringCredentialFactory
      */
     public function __construct(
         private readonly SharedStorageInterface $sharedStorage,
@@ -47,6 +50,7 @@ final class NmiHeldOrderContext implements Context
         private readonly FactoryInterface $cardOnFileFactory,
         private readonly StateMachineInterface $stateMachine,
         private readonly ObjectManager $manager,
+        private readonly FactoryInterface $recurringCredentialFactory,
     ) {
     }
 
@@ -131,6 +135,48 @@ final class NmiHeldOrderContext implements Context
         $card->setExpiryMonth(10);
         $card->setExpiryYear(2035);
         $this->manager->persist($card);
+
+        $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_PROCESS);
+
+        $this->manager->flush();
+    }
+
+    /**
+     * As the deferred checkout leaves an order whose payment opened recurring charges: the card
+     * verified and kept as a recurring credential rather than on file, the payment waiting in
+     * processing, nothing charged.
+     *
+     * @Given /^(this order) is held with a "([^"]+)" card ending "(\d{4})" kept for renewals$/
+     */
+    public function thisOrderIsHeldWithACardKeptForRenewals(OrderInterface $order, string $brand, string $lastFour): void
+    {
+        $payment = $order->getLastPayment(PaymentInterface::STATE_NEW);
+        if (null === $payment) {
+            throw new \RuntimeException('The order has no payment waiting to be taken.');
+        }
+
+        $method = $payment->getMethod();
+        if (!$method instanceof PaymentMethodInterface) {
+            throw new \RuntimeException('The order\'s payment has no payment method.');
+        }
+
+        $customer = $order->getCustomer();
+        if (!$customer instanceof CustomerInterface) {
+            throw new \RuntimeException('The order has no customer.');
+        }
+
+        /** @var NmiRecurringCredentialInterface $credential */
+        $credential = $this->recurringCredentialFactory->createNew();
+        $credential->setInitialPayment($payment);
+        $credential->setCustomer($customer);
+        $credential->setPaymentMethod($method);
+        $credential->setVaultId('vault-' . $lastFour);
+        $credential->setInitialTransactionId('12592792407');
+        $credential->setBrand($brand);
+        $credential->setLastFour($lastFour);
+        $credential->setExpiryMonth(10);
+        $credential->setExpiryYear(2035);
+        $this->manager->persist($credential);
 
         $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_PROCESS);
 

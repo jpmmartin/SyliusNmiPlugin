@@ -19,7 +19,7 @@ configuration, the way the Sylius documentation describes.
 
 | Hook | Hookables |
 |---|---|
-| `jpm_martin_sylius_nmi.shop.pay` — the pay page | `stored_cards`, `card_form`, `save_card`, `pay_button`, `three_d_secure` |
+| `jpm_martin_sylius_nmi.shop.pay` — the pay page | `stored_cards`, `card_form`, `save_card`, `recurring_commitment`, `pay_button`, `three_d_secure` |
 | `jpm_martin_sylius_nmi.shop.account.stored_card.index.content` | `menu`, `main` |
 | `jpm_martin_sylius_nmi.shop.account.stored_card.index.content.main` | `cards` |
 | `jpm_martin_sylius_nmi.shop.account.stored_card.index.content.main.header` | `title`, `buttons` |
@@ -31,7 +31,7 @@ configuration, the way the Sylius documentation describes.
 | `sylius_admin.payment_method.update.content.form.sections.gateway_configuration.nmi` | `fields` |
 
 Every template under the plugin's `templates/` directory can be overridden by path, under your
-store's `templates/bundles/JpmMartinSyliusNmiPlugin/`. The pay page's five fragments live in
+store's `templates/bundles/JpmMartinSyliusNmiPlugin/`. The pay page's six fragments live in
 `templates/shop/pay/nmi/`; keep the `data-nmi-*` attributes described below when you override
 one, because the script finds its parts by them.
 
@@ -45,6 +45,9 @@ aliased to. The implementation behind each is internal.
 | `JpmMartin\SyliusNmiPlugin\Gateway\Request\ChargeFactoryInterface` | `jpm_martin_sylius_nmi.gateway.charge_factory` | the charge sent to the gateway for a token or a stored card — see below |
 | `JpmMartin\SyliusNmiPlugin\Gateway\NmiClientInterface` | `jpm_martin_sylius_nmi.gateway.client` | every call to the gateway's API |
 | `JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface` | `jpm_martin_sylius_nmi.card_on_file.charger` | charging the card put on file for a payment, from the store's own code — see below |
+| `JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface` | `jpm_martin_sylius_nmi.recurring.policy` | which payments open recurring charges; the shipped one answers no — see below |
+| `JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargerInterface` | `jpm_martin_sylius_nmi.recurring.charger` | charging a recurring credential for a payment, from the store's own code — see below |
+| `JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCredentialReleaserInterface` | `jpm_martin_sylius_nmi.recurring.releaser` | letting a recurring credential go when its renewals end |
 | `JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface` | `jpm_martin_sylius_nmi.gateway.configuration_provider` | the keys and host read off a payment method |
 | `JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface` | `jpm_martin_sylius_nmi.recorder.transaction` | how a gateway transaction is written to the log |
 | `JpmMartin\SyliusNmiPlugin\Recorder\NmiGatewayNoticeRecorderInterface` | `jpm_martin_sylius_nmi.recorder.gateway_notice` | how a chargeback or settlement failure becomes a notice |
@@ -59,6 +62,7 @@ aliased to. The implementation behind each is internal.
 | `JpmMartin\SyliusNmiPlugin\Repository\NmiGatewayNoticeRepositoryInterface` | `jpm_martin_sylius_nmi.repository.nmi_gateway_notice` | the notices |
 | `JpmMartin\SyliusNmiPlugin\Repository\NmiReceivedEventRepositoryInterface` | `jpm_martin_sylius_nmi.repository.nmi_received_event` | the webhook deliveries |
 | `JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface` | `jpm_martin_sylius_nmi.repository.nmi_stored_card` | the saved cards |
+| `JpmMartin\SyliusNmiPlugin\Repository\NmiRecurringCredentialRepositoryInterface` | `jpm_martin_sylius_nmi.repository.nmi_recurring_credential` | the recurring credentials: the one a payment opened, one by the id the store kept |
 
 ### Telling the gateway more: the charge factory
 
@@ -162,6 +166,88 @@ charged. Through the shop API, Sylius 2.2.9 and later refuse it before any reque
 is not among the actions a shop client may name (`sylius_api.shop_payment_request.allowed_actions`);
 on 2.2.8, or on a store that adds it to that list, the request is created and this plugin fails it.
 
+A held payment that opened recurring charges — see the next section — kept its card as a recurring
+credential rather than on file, and this charger charges it all the same, through that credential:
+a store that charges held orders from code changes nothing the day it opts into recurring charges.
+The outcome's status means what it means above; its message is the recurring charge's, and the
+credential is not let go, because its renewals are still to come.
+
+### Recurring charges: the policy, the charger and the releaser
+
+A store that sells renewals — a subscription, a membership, a plan — keeps the shopper's card at
+checkout on a promise to charge it again, and charges it later for each renewal, with nobody
+present. The plugin knows nothing about subscriptions: the store says which payments open recurring
+charges, keeps the reference the plugin gives it, and decides when a renewal is due and what it
+costs.
+
+**Which payments open recurring charges** is `NmiRecurringChargesPolicyInterface::opensRecurringCharges()`.
+The one the plugin ships answers no for every payment, so a store that does nothing sees no change.
+Replace or decorate it on its interface:
+
+```php
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface;
+use Sylius\Component\Core\Model\PaymentInterface;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
+
+#[AsAlias(NmiRecurringChargesPolicyInterface::class)]
+final class RenewablePlansPolicy implements NmiRecurringChargesPolicyInterface
+{
+    public function opensRecurringCharges(PaymentInterface $payment): bool
+    {
+        foreach ($payment->getOrder()?->getItems() ?? [] as $item) {
+            if ($item->getProduct()?->hasAttributeByCodeAndLocale('renews') ?? false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+```
+
+It is asked when the pay page is prepared and again when the card is submitted. For a payment it
+answers yes to, the pay page shows the `recurring_commitment` hookable — a statement of the
+commitment whose wording is the `recurring_commitment` message under `jpm_martin_sylius_nmi.shop.pay`
+in the `messages` domain, neutral by default and meant to be replaced with the store's own terms —
+and offers neither saving
+the card nor the shopper's saved cards. A headless client finds `"recurring_charges": true` in the
+prepared request's `responseData`, alongside `"card_on_file": true` on a method that takes payment
+later, and neither `can_store_card` nor `stored_cards`.
+
+The card is then kept as a recurring credential, from the checkout's own transaction — the sale, the
+authorisation, or on a method that takes payment later the verification — declared to the gateway as
+the first use of a stored credential. **Find it by the payment that opened it**, and keep its id:
+
+```php
+$credential = $recurringCredentials->findOpenedBy($firstPayment); // NmiRecurringCredentialRepositoryInterface
+$subscription->setCardReference($credential?->getId());
+```
+
+**Charge a renewal** by creating its order and payment the way the store creates any, then:
+
+```php
+$credential = $recurringCredentials->find($subscription->getCardReference());
+$outcome = $recurringCharger->charge($renewalPayment, $credential); // NmiRecurringChargerInterface
+```
+
+The payment may be `new`, as the store creates it, or the held payment that opened the credential;
+the amount is the payment's own and may differ from every earlier charge. The charge is declared
+merchant-initiated and cites the credential's first transaction; the third argument carries fields
+of the gateway's API the plugin does not model, merged beneath its own, so it cannot change that
+declaration. The outcome is an `NmiChargeOutcome`, read as the card on file's is. A charge is
+refused before the gateway is asked when the payment is not waiting, the credential was let go,
+belongs to another payment method, its card was reported closed or is past its expiry, or it has no
+first transaction to cite; the message key names which. It is recorded as a payment request with the
+action `NmiRecurringChargerInterface::ACTION`, guarded as the card on file's action is. A charge never
+lets the credential go.
+
+**Let it go** when the renewals end — `NmiRecurringCredentialReleaserInterface::release()` — and its
+card is removed from the gateway through the queued purge that forgets any card the store no longer
+holds. Nothing else lets a credential go: not a charge, not cancelling or deleting the order that
+opened it. Deleting the customer does, because then there is nobody to renew for. The gateway's card
+updater reaches credentials as it reaches saved cards: a renewed card keeps its renewals going, and a
+closed one refuses the next.
+
 ### Value objects, exceptions and constants you may use
 
 `JpmMartin\SyliusNmiPlugin\Gateway\Request\Charge`,
@@ -173,7 +259,9 @@ on 2.2.8, or on a store that adds it to that list, the request is created and th
 and `JpmMartin\SyliusNmiPlugin\Gateway\NmiVaultRecord` are what the gateway answers;
 `JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration` is a payment method's credentials and
 `JpmMartin\SyliusNmiPlugin\Gateway\NmiCardDetails` a card as the browser described it;
-`JpmMartin\SyliusNmiPlugin\CardOnFile\NmiChargeOutcome` what a charge of a card on file came to. The client
+`JpmMartin\SyliusNmiPlugin\CardOnFile\NmiChargeOutcome` what a charge of a card on file or of a recurring
+credential came to — its status, the message key, the gateway's wording, the transaction and, on a
+decline, the gateway's response `code`. The client
 throws `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException`,
 `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiGatewayException` and
 `JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException`, all of them
@@ -198,6 +286,10 @@ as the models a store may extend the Sylius way. The forms a store may extend ar
 `JpmMartin\SyliusNmiPlugin\Form\Type\NmiStoredCardDefaultType`; the bundle class is
 `JpmMartin\SyliusNmiPlugin\JpmMartinSyliusNmiPlugin`.
 
+The recurring credentials are a resource too, `nmi_recurring_credential`, with
+`JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredentialInterface` as their contract. Their model is
+internal: a store reads a credential through the interface and changes it only through the releaser.
+
 ## Reacting: what the plugin does to Sylius's state machines
 
 The plugin adds no events of its own. What it does, it does through transitions Sylius already
@@ -213,7 +305,8 @@ It listens on `sylius.payment.pre_complete`, `sylius.payment.pre_cancel` and
 `workflow.sylius_shipment.completed.ship` to capture when a shipment goes out. On a payment holding a
 card on file, `sylius.payment.pre_complete` charges that card instead, and
 `sylius.payment.post_complete` and `sylius.payment.post_cancel` let it go at the gateway once the
-payment's new state is committed. The transaction log
+payment's new state is committed. On a held payment that kept its card as a recurring credential,
+`sylius.payment.pre_complete` charges that credential, and nothing lets it go. The transaction log
 is written through the recorder above; decorate it to react to a transaction being recorded.
 
 ## Integrating: routes, the API and the console

@@ -169,6 +169,7 @@ final class NmiCardOnFileChargeTest extends KernelTestCase
 
         self::assertSame(NmiChargeOutcome::DECLINED, $outcome->status);
         self::assertSame('DECLINE', $outcome->reason);
+        self::assertSame(200, $outcome->code, 'The gateway\'s response code travels with the reason.');
         self::assertSame(PaymentInterface::STATE_PROCESSING, $payment->getState());
         self::assertNotNull($this->heldCardOf($payment), 'The card has to stay on file for the store to decide what next.');
         $this->assertRecorded('12584700002', NmiTransactionInterface::TYPE_SALE);

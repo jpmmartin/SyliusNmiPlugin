@@ -6,6 +6,8 @@ namespace JpmMartin\SyliusNmiPlugin\CardOnFile;
 
 use JpmMartin\SyliusNmiPlugin\Command\ChargeCardOnFile;
 use JpmMartin\SyliusNmiPlugin\CommandHandler\ChargeCardOnFileHandler;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredentialInterface;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCharger;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Payment\Factory\PaymentRequestFactoryInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
@@ -20,6 +22,10 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * would route by action, and the shop API lets a client pick the action. The charge is dispatched
  * here instead, on the payment-request bus, straight to its handler.
  *
+ * A held payment that opened recurring charges kept its card as a recurring credential rather than
+ * on file; it is charged here all the same, through that credential, so a store's code that charges
+ * held orders does not change the day the store opts into recurring charges.
+ *
  * @internal
  */
 final class NmiCardOnFileCharger implements NmiCardOnFileChargerInterface
@@ -33,11 +39,20 @@ final class NmiCardOnFileCharger implements NmiCardOnFileChargerInterface
         private readonly PaymentRequestRepositoryInterface $paymentRequestRepository,
         private readonly MessageBusInterface $paymentRequestBus,
         private readonly NmiCardOnFileReleaser $releaser,
+        private readonly NmiHeldPaymentCardResolver $heldPayments,
+        private readonly NmiRecurringCharger $recurringCharger,
     ) {
     }
 
     public function charge(PaymentInterface $payment, array $extra = []): NmiChargeOutcome
     {
+        // Charged through its credential, which the charge does not let go: the renewals it was
+        // kept for are still to come.
+        $credential = $this->heldPayments->resolve($payment);
+        if ($credential instanceof NmiRecurringCredentialInterface) {
+            return $this->recurringCharger->charge($payment, $credential, $extra);
+        }
+
         $outcome = $this->dispatch($payment, ['extra' => $extra]);
 
         // After the bus has returned, which is after the charge was committed: a charge that rolled
@@ -56,6 +71,11 @@ final class NmiCardOnFileCharger implements NmiCardOnFileChargerInterface
      */
     public function chargeForTheOrderScreen(PaymentInterface $payment): NmiChargeOutcome
     {
+        $credential = $this->heldPayments->resolve($payment);
+        if ($credential instanceof NmiRecurringCredentialInterface) {
+            return $this->recurringCharger->chargeForTheOrderScreen($payment, $credential);
+        }
+
         return $this->dispatch($payment, ['extra' => [], ChargeCardOnFileHandler::LEAVE_PAYMENT => true]);
     }
 

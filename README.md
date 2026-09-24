@@ -25,6 +25,10 @@ card details tokenised in the shopper's browser so the store never handles them.
 - **Take payment later**, off until you turn it on. Checkout authenticates the card and puts it on
   file for that order with nothing charged; you charge it once you have decided to, from the order
   screen or from your own code.
+- **Recurring charges**, off until your code turns them on. For the payments you say open recurring
+  charges, checkout keeps the card on a promise to charge it again, and your code charges it for
+  each renewal, at that renewal's own amount, with nobody present. The plugin knows nothing about
+  subscriptions: which payments, when and how much are yours to decide.
 
 ## Requirements
 
@@ -134,11 +138,12 @@ translation files, so until you do this every label of the plugin shows as its k
 
 ### 4. Run the migration
 
-The plugin adds five tables: one recording every transaction it makes at the gateway, one for the
-cards shoppers save, one for the cards put on file at checkout to be charged later, one recording
-the webhook deliveries it has accepted, and one for what the gateway reports that nobody in your
-store caused. All five are created whether or not you turn saved cards, taking payment later or
-webhooks on, and stay empty until you do.
+The plugin adds six tables: one recording every transaction it makes at the gateway, one for the
+cards shoppers save, one for the cards put on file at checkout to be charged later, one for the
+cards kept at checkout for your renewals, one recording the webhook deliveries it has accepted, and
+one for what the gateway reports that nobody in your store caused. All six are created whether or
+not you turn saved cards, taking payment later, recurring charges or webhooks on, and stay empty
+until you do.
 
 ```bash
 bin/console doctrine:migrations:migrate
@@ -499,14 +504,88 @@ stops new checkouts from putting cards on file; it does not strand the orders al
 > step 6 asks for.
 
 **What it does not do.** It does not charge a card a shopper saved for themselves without them —
-that card was kept on a different promise. It does not schedule recurring charges, authorise
-instead of charging, or charge a part of the order. And because nothing is reserved at checkout, the
+that card was kept on a different promise. It does not schedule charges — a card kept for renewals
+is the next section's — authorise instead of charging, or charge a part of the order. And because nothing is reserved at checkout, the
 later charge can be declined like any other.
 
 **The sandbox is more lenient than the rule.** On 2026-09-21 the sandbox charged a card on file
 whose expiry had passed, and accepted a merchant-initiated charge that cited no verification. The
 plugin refuses both itself. A sandbox accepting a declaration is also not the card networks
 accepting it, and no test here can show the second.
+
+## Recurring charges
+
+For a store that sells renewals — a subscription, a membership, a plan paid by the month. At
+checkout the card is kept on a promise to charge it again; later, your code charges it for each
+renewal, with nobody present. The plugin keeps the card, declares each charge correctly to the card
+networks and tells you what happened. Which orders renew, when a renewal is due and what it costs
+are your store's, and so is everything a subscription is — the plugin has no notion of one.
+
+**Turning it on is code, not a setting.** A service of yours answers, for each payment, whether it
+opens recurring charges. The plugin's own answers no to every payment, so a store that writes
+nothing sees no change at all. [docs/extending.md](docs/extending.md) shows the service, the
+charger, and how to find the card again.
+
+**What the shopper sees.** For a payment your service says opens recurring charges, the pay page
+shows a statement of the commitment above the button, and offers neither saving the card for next
+time nor the shopper's saved cards: the card is being kept on a promise to you, not for their own
+use. The button says *Pay and keep card for renewals*, or *Save card for this order and its
+renewals* on a method that takes payment later. A guest can agree to it; no account is needed,
+because the card is only ever charged by your code.
+
+**What your terms have to say — and the statement is yours to write.** The plugin ships a neutral
+default, and it is a placeholder: how often the card is charged, how the amount is set and how to
+stop it are your terms, and the card networks treat every later charge as resting on the shopper
+having agreed to them before paying. Replace it as you replace any translation, under the key
+`jpm_martin_sylius_nmi.shop.pay.recurring_commitment` in your `translations/messages.<locale>.yaml`.
+
+> Like the paragraph on taking payment later, this makes a claim about card network rules that has
+> not been reviewed by anyone qualified to make it. Treat it as a prompt to check your own
+> position, not as advice.
+
+**The first transaction is the checkout's own.** On a method that charges at checkout it is the
+sale; on one that authorises first, the authorisation; on one that takes payment later, the
+zero-amount verification. Each is declared to the gateway as the first use of a stored credential,
+initiated by the customer, with the 3-D Secure result the checkout obtained. The card is kept only
+when the gateway approves and returns it; a decline keeps nothing.
+
+**Charging a renewal.** Create the renewal's order and payment the way your store creates any —
+the payment stays *new* — and hand it to the charger with the card. The charge is the payment's own
+amount, which may differ from every earlier one; declared merchant-initiated, citing the first
+transaction; recorded against the renewal's payment, so a refund in NMI's portal reaches that
+payment; and completes it when approved. You get one of four answers back — approved, declined with
+the issuer's reason and NMI's response code, refused before asking NMI, or unknown — read exactly
+as the card-on-file charger's, including **not retrying on an unknown** before looking in the
+portal.
+
+A charge is refused, **without asking the gateway**, when the payment is not waiting to be paid,
+the card was let go, belongs to another payment method, was reported closed, is past its expiry, or
+has no first transaction to cite. The reason is named in each case.
+
+**The held first order.** On a method that takes payment later, the first order is held as any
+other is, but its card is kept for the renewals rather than on file. *Complete* on the order screen,
+and the card-on-file charger from your code, charge it all the same — so a store already charging
+held orders changes nothing — and the card is kept afterwards. Cancelling that order does not let
+the card go either: whether the renewals go ahead is your decision.
+
+**Letting it go.** Nothing lets the card go on its own: not a charge, not cancelling or deleting the
+order that opened it. Your code lets it go when the renewals end, and the card is removed from NMI's
+vault through the same queued removal as a card on file — which needs the same worker running on
+`main`. Deleting a customer lets their cards go too. NMI's card updater reaches these cards as it
+reaches saved ones: a renewed card keeps the renewals going, with its new expiry and digits, and a
+closed account refuses the next renewal.
+
+**What it cannot say: "recurring".** The card networks distinguish a recurring series from other
+charges made without the cardholder, and NMI's guides name a field for it. On 2026-09-23 NMI's
+payments API refused that field outright — on the verification and on the sale, inside the vault
+object, at the top level and inside the stored-credential object, whatever its value. So each
+renewal is declared a merchant-initiated use of a stored credential citing the first transaction,
+and nothing more. Ask NMI, or your reseller, which field its payments API takes for it; the
+declaration is made in one place, so adding it is a small change.
+
+**Variable amounts** were accepted by the sandbox on the same date. A sandbox accepting a
+declaration is not the card networks accepting it, and nothing here can show the second; that the
+amount may change is part of what your statement has to say.
 
 ## Webhooks
 
@@ -740,6 +819,13 @@ Here, do the 3-D Secure. Step 2 accepts a token without it, as it does for a cha
 is put on file anyway — but in regions that require strong customer authentication every later
 charge relies on this first one, so a card put on file without it can be declined when the store
 charges it, with the shopper long gone.
+
+**Recurring charges, headlessly.** For a payment your service says opens recurring charges, step 1
+answers with `"recurring_charges": true` — alongside `"card_on_file": true` on a method that takes
+payment later — and without `can_store_card` or `stored_cards`. Show the shopper your statement of
+the commitment before step 2, which is unchanged; the response carries `"recurring_charges": true`
+again once the card is kept. A client cannot open recurring charges by sending anything: only your
+service decides.
 
 ## What the pay page carries
 

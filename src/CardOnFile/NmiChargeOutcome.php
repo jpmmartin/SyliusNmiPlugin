@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CardOnFile;
 
 /**
- * What became of a charge of a card on file, told to the code that asked for it.
+ * What became of a charge made without the shopper — of a card on file or of a recurring credential —
+ * told to the code that asked for it.
  *
  * Four answers and no more, because a caller has to act differently on each:
  *
  * - **approved** — the money was taken; the payment is completed
  * - **declined** — the gateway reached a decision and it was no; the payment still waits, with its
- *   card on file, and the reason is the issuer's or the gateway's own
+ *   card still held, and the reason is the issuer's or the gateway's own
  * - **refused** — nothing was sent: a condition for charging without the shopper did not hold, and
  *   the reason names which one
  * - **unknown** — the gateway did not answer, so whether the card was charged cannot be known from
@@ -35,17 +36,20 @@ final class NmiChargeOutcome
         public readonly ?string $reason = null,
         /** The gateway's identifier for the attempt, when it gave one. */
         public readonly ?string $transactionId = null,
+        /** The gateway's response code on a decline, when it gave one — the reason's machine-readable half. */
+        public readonly ?int $code = null,
     ) {
     }
 
-    public static function approved(string $transactionId): self
+    /** The message defaults to the card on file's; a recurring charge names its own. */
+    public static function approved(string $transactionId, string $messageKey = 'jpm_martin_sylius_nmi.payment.card_on_file_charged'): self
     {
-        return new self(self::APPROVED, 'jpm_martin_sylius_nmi.payment.card_on_file_charged', null, $transactionId);
+        return new self(self::APPROVED, $messageKey, null, $transactionId);
     }
 
-    public static function declined(string $messageKey, ?string $reason, ?string $transactionId = null): self
+    public static function declined(string $messageKey, ?string $reason, ?string $transactionId = null, ?int $code = null): self
     {
-        return new self(self::DECLINED, $messageKey, $reason, $transactionId);
+        return new self(self::DECLINED, $messageKey, $reason, $transactionId, $code);
     }
 
     public static function refused(string $messageKey, ?string $reason = null): self
@@ -67,7 +71,7 @@ final class NmiChargeOutcome
      * As a payment request's response data carries it, so that the outcome survives the request and
      * can be read back — by the code that asked, and by an operator reading the request later.
      *
-     * @return array{outcome: string, message_key: string, detail: string|null, transaction_id: string|null}
+     * @return array{outcome: string, message_key: string, detail: string|null, transaction_id: string|null, code: int|null}
      */
     public function toArray(): array
     {
@@ -76,6 +80,7 @@ final class NmiChargeOutcome
             'message_key' => $this->messageKey,
             'detail' => $this->reason,
             'transaction_id' => $this->transactionId,
+            'code' => $this->code,
         ];
     }
 
@@ -90,7 +95,8 @@ final class NmiChargeOutcome
 
         $reason = is_string($data['detail'] ?? null) ? $data['detail'] : null;
         $transactionId = is_string($data['transaction_id'] ?? null) ? $data['transaction_id'] : null;
+        $code = is_int($data['code'] ?? null) ? $data['code'] : null;
 
-        return new self($status, $messageKey, $reason, $transactionId);
+        return new self($status, $messageKey, $reason, $transactionId, $code);
     }
 }

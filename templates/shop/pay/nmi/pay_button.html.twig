@@ -14,8 +14,17 @@
     the pay page's context when there is one; the account page includes this file directly, with
     no hook around it and a label of its own.
 #}
+{#
+    A payment that opens recurring charges keeps the card beyond this order, and the button says so
+    too — once for a payment charged now, once for one taken later.
+#}
 {% set card_on_file = hookable_metadata is defined ? hookable_metadata.context.nmi.card_on_file|default(false) : false %}
-{% set default_label = card_on_file ? 'jpm_martin_sylius_nmi.shop.pay.put_card_on_file'|trans : 'jpm_martin_sylius_nmi.shop.pay.pay_now'|trans %}
+{% set recurring_charges = hookable_metadata is defined ? hookable_metadata.context.nmi.recurring_charges|default(false) : false %}
+{% if recurring_charges %}
+    {% set default_label = card_on_file ? 'jpm_martin_sylius_nmi.shop.pay.put_card_on_file_for_renewals'|trans : 'jpm_martin_sylius_nmi.shop.pay.pay_now_for_renewals'|trans %}
+{% else %}
+    {% set default_label = card_on_file ? 'jpm_martin_sylius_nmi.shop.pay.put_card_on_file'|trans : 'jpm_martin_sylius_nmi.shop.pay.pay_now'|trans %}
+{% endif %}
 <button
     type="button"
     data-nmi-pay-button

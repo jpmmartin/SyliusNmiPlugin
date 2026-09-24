@@ -18,7 +18,10 @@ use JpmMartin\SyliusNmiPlugin\Gateway\Request\CardVerification;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\OrderReference;
 use JpmMartin\SyliusNmiPlugin\Gateway\Request\ThreeDSecureResult;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCredentialKeeper;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepositoryInterface;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiRecurringCredentialRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -61,6 +64,9 @@ final class PutCardOnFileHandler
         private readonly FactoryInterface $cardOnFileFactory,
         private readonly ObjectManager $manager,
         private readonly StateMachineInterface $stateMachine,
+        private readonly NmiRecurringChargesPolicyInterface $recurringCharges,
+        private readonly NmiRecurringCredentialKeeper $recurringCredentials,
+        private readonly NmiRecurringCredentialRepositoryInterface $recurringCredentialRepository,
     ) {
     }
 
@@ -84,8 +90,9 @@ final class PutCardOnFileHandler
         }
 
         // Asked before the gateway, because the gateway would happily verify and keep a second
-        // card: one payment, one card, and the later charge must never have to choose.
-        if (null !== $this->cardsOnFile->findHeldBy($payment)) {
+        // card: one payment, one card, and the later charge must never have to choose. A held
+        // payment that opened recurring charges holds its card as that credential instead.
+        if (null !== $this->cardsOnFile->findHeldBy($payment) || $this->holdsARecurringCredential($payment)) {
             $this->fail($paymentRequest, self::ALREADY_ON_FILE_MESSAGE_KEY, 'This payment already holds a card on file.');
 
             return;
@@ -131,7 +138,19 @@ final class PutCardOnFileHandler
             return;
         }
 
-        $this->manager->persist($this->cardOnFile($payment, $method, $vaultId, $response));
+        // One card either way, kept on the promise the shopper was shown: the recurring credential
+        // when the store says this payment opens recurring charges — and then no card on file, the
+        // held payment being charged through the credential — or the card on file otherwise.
+        $opensRecurringCharges = $this->recurringCharges->opensRecurringCharges($payment);
+        if ($opensRecurringCharges) {
+            if (null === $this->recurringCredentials->keep($payment, $method, $response)) {
+                $this->fail($paymentRequest, 'jpm_martin_sylius_nmi.payment.failed', 'The gateway verified the card but it could not be kept for recurring charges.');
+
+                return;
+            }
+        } else {
+            $this->manager->persist($this->cardOnFile($payment, $method, $vaultId, $response));
+        }
 
         if ($this->stateMachine->can($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_PROCESS)) {
             $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_PROCESS);
@@ -143,9 +162,17 @@ final class PutCardOnFileHandler
             'response_code' => $response->responseCode,
             'response_text' => $response->responseText,
             'card_on_file' => true,
-        ]);
+        ] + ($opensRecurringCharges ? ['recurring_charges' => true] : []));
 
         $this->stateMachine->apply($paymentRequest, PaymentRequestTransitions::GRAPH, PaymentRequestTransitions::TRANSITION_COMPLETE);
+    }
+
+    /** Not let go, whatever the issuer has said: a card this payment still holds, on any promise. */
+    private function holdsARecurringCredential(PaymentInterface $payment): bool
+    {
+        $credential = $this->recurringCredentialRepository->findOpenedBy($payment);
+
+        return null !== $credential && !$credential->isReleased();
     }
 
     private function cardOnFile(PaymentInterface $payment, PaymentMethodInterface $method, string $vaultId, NmiResponse $response): NmiCardOnFileInterface

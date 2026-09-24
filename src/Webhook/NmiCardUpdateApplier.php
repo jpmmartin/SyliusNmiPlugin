@@ -7,10 +7,12 @@ namespace JpmMartin\SyliusNmiPlugin\Webhook;
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Command\NotifyCardholder;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFileInterface;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredentialInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCardInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiCardDetails;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepositoryInterface;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiRecurringCredentialRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
@@ -25,8 +27,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * unrecognised ones are the majority and are the ordinary case.
  *
  * **The parallel `recurring_*` arrays are skipped rather than resolved.** They are keyed by
- * `subscription_id`, this plugin creates no subscriptions, and treating them as unresolvable would
- * make every delivery look like a fault.
+ * `subscription_id`, the gateway's own subscriptions, which this plugin never creates — a card kept
+ * for a store's renewals is a vault record like any other, and is reached through the vault arrays —
+ * and treating them as unresolvable would make every delivery look like a fault.
  *
  * **A renewal can replace the card number, not only the expiry.** The gateway sends two arrays for
  * that reason, and the shopper has to recognise the card in their account afterwards, so the
@@ -66,6 +69,7 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
         private readonly MessageBusInterface $eventBus,
         private readonly LoggerInterface $logger,
         private readonly ?NmiCardOnFileRepositoryInterface $cardsOnFile = null,
+        private readonly ?NmiRecurringCredentialRepositoryInterface $recurringCredentials = null,
     ) {
     }
 
@@ -84,7 +88,7 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
         $seen = 0;
         /** @var list<NmiStoredCardInterface> $touched */
         $touched = [];
-        $cardsOnFileTouched = 0;
+        $heldCardsTouched = 0;
 
         foreach ($summary['arrays'] as $arrayName) {
             foreach (self::entriesIn($envelope, $arrayName) as $entry) {
@@ -93,15 +97,16 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
                 $card = $this->applyEntry($entry, $summary['status'], $paymentMethod);
                 if ($card instanceof NmiStoredCardInterface) {
                     $touched[] = $card;
-                } elseif ($card instanceof NmiCardOnFileInterface) {
+                } elseif (null !== $card) {
                     // Updated, and deliberately not emailed about: the email tells a shopper about a
-                    // card they saved with the store, and a card put on file for one order is not one.
-                    ++$cardsOnFileTouched;
+                    // card they saved with the store, and neither a card put on file for one order nor
+                    // one kept for a store's renewals is one.
+                    ++$heldCardsTouched;
                 }
             }
         }
 
-        $applied = count($touched) + $cardsOnFileTouched;
+        $applied = count($touched) + $heldCardsTouched;
 
         if ($applied > 0) {
             $this->manager->flush();
@@ -126,7 +131,7 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
      *
      * @param array<string, mixed> $entry
      */
-    private function applyEntry(array $entry, ?string $status, PaymentMethodInterface $paymentMethod): NmiStoredCardInterface|NmiCardOnFileInterface|null
+    private function applyEntry(array $entry, ?string $status, PaymentMethodInterface $paymentMethod): NmiStoredCardInterface|NmiCardOnFileInterface|NmiRecurringCredentialInterface|null
     {
         $vaultId = self::text($entry['customer_vault_id'] ?? null);
         if (null === $vaultId) {
@@ -135,7 +140,8 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
 
         $card = $this->storedCardLocator->locate($vaultId, $paymentMethod);
         if (null === $card) {
-            return $this->applyToCardOnFile($vaultId, $entry, $status, $paymentMethod);
+            return $this->applyToCardOnFile($vaultId, $entry, $status, $paymentMethod)
+                ?? $this->applyToRecurringCredential($vaultId, $entry, $status, $paymentMethod);
         }
 
         if (null !== $status) {
@@ -207,6 +213,50 @@ final class NmiCardUpdateApplier implements NmiCardUpdateApplierInterface
         $card->setUpdatedAt(new \DateTimeImmutable());
 
         return $card;
+    }
+
+    /**
+     * The same entry, for a card kept as a recurring credential — the same two things as a card on
+     * file, for the same reasons: a closure refuses the next renewal before the gateway is asked, and
+     * a renewed card keeps the renewals going with the expiry, and the digits, the issuer now has.
+     *
+     * Found as cards on file are, by comparing each unreleased credential's decrypted reference.
+     *
+     * @param array<string, mixed> $entry
+     */
+    private function applyToRecurringCredential(string $vaultId, array $entry, ?string $status, PaymentMethodInterface $paymentMethod): ?NmiRecurringCredentialInterface
+    {
+        $credential = null;
+        foreach ($this->recurringCredentials?->findUnreleasedUnder($paymentMethod) ?? [] as $candidate) {
+            if (hash_equals((string) $candidate->getVaultId(), $vaultId)) {
+                $credential = $candidate;
+
+                break;
+            }
+        }
+
+        if (null === $credential) {
+            return null;
+        }
+
+        if (NmiStoredCardInterface::STATUS_CLOSED === $status) {
+            $credential->setStatus(NmiRecurringCredentialInterface::STATUS_CLOSED);
+        }
+
+        $details = NmiCardDetails::fromPaymentDetails(
+            ['card_number' => $entry['cc_number'] ?? null, 'card_exp' => $entry['cc_exp'] ?? null],
+            $credential->getBrand(),
+        );
+
+        if (null !== $details) {
+            $credential->setLastFour($details->lastFour);
+            $credential->setExpiryMonth($details->expiryMonth);
+            $credential->setExpiryYear($details->expiryYear);
+        }
+
+        $credential->setUpdatedAt(new \DateTimeImmutable());
+
+        return $credential;
     }
 
     /**

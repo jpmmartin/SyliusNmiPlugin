@@ -6,6 +6,7 @@ jpm_martin_sylius_nmi:
         card_already_saved: Ya tienes esta tarjeta guardada, así que no se ha añadido otra vez.
         card_unavailable: Esa tarjeta guardada no se puede usar. Elige otra o introduce una nueva.
         card_put_on_file: 'Tu tarjeta ha quedado guardada para este pedido. Todavía no se ha cobrado nada: se cobrará cuando se confirme tu pedido.'
+        card_kept_for_renewals: 'Tu tarjeta ha quedado guardada para este pedido y sus renovaciones. Todavía no se ha cobrado nada: este pedido se cobrará cuando se confirme.'
         card_already_on_file: Ya hay una tarjeta guardada para este pedido, así que no se ha tomado ninguna otra.
         card_on_file_charged: 'Se ha cobrado la tarjeta guardada.'
         card_on_file_declined: 'La tarjeta guardada ha sido rechazada, así que el pago no se ha completado. Sigue abierto y con la tarjeta guardada.'
@@ -17,6 +18,16 @@ jpm_martin_sylius_nmi:
         card_on_file_expired: 'La tarjeta guardada ha caducado, así que no se ha enviado nada a la pasarela.'
         card_on_file_without_initial_transaction: 'La tarjeta guardada no se puede cobrar sin el comprador: no consta la verificación con la que se guardó. No se ha enviado nada a la pasarela.'
         card_on_file_charge_not_available_here: 'Una tarjeta guardada sólo la puede cobrar la propia tienda.'
+        recurring_charged: 'Se ha realizado el cobro recurrente.'
+        recurring_charge_declined: 'El cobro recurrente ha sido rechazado, así que el pago no se ha completado. Sigue abierto y la tarjeta sigue guardada para las renovaciones.'
+        recurring_charge_unknown: 'La pasarela no ha respondido, así que no se sabe si se realizó el cobro recurrente. Revisa el pedido en el portal de la pasarela antes de volver a intentarlo.'
+        recurring_not_waiting: 'Este pago no está pendiente de cobro, así que no se ha enviado nada a la pasarela.'
+        recurring_credential_released: 'La tarjeta guardada para las renovaciones ya se ha liberado, así que no se ha enviado nada a la pasarela.'
+        recurring_credential_other_method: 'La tarjeta guardada para las renovaciones pertenece a otro método de pago, así que no se ha enviado nada a la pasarela.'
+        recurring_credential_closed: 'La cuenta de la tarjeta guardada para las renovaciones ha sido cerrada, así que no se ha enviado nada a la pasarela.'
+        recurring_credential_expired: 'La tarjeta guardada para las renovaciones ha caducado, así que no se ha enviado nada a la pasarela.'
+        recurring_credential_without_initial_transaction: 'La tarjeta guardada para las renovaciones no se puede cobrar sin el comprador: no consta la transacción con la que se guardó. No se ha enviado nada a la pasarela.'
+        recurring_charge_not_available_here: 'Una tarjeta guardada para las renovaciones sólo la puede cobrar la propia tienda.'
         capture_refused: La pasarela rechazó la captura, así que el pago no se ha completado.
         no_authorisation: Este pago no tiene ninguna autorización registrada que capturar.
         void_refused: La pasarela rechazó la anulación, así que el pago no se ha cancelado.

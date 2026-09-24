@@ -14,6 +14,11 @@ sylius_twig_hooks:
             save_card:
                 template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/save_card.html.twig'
                 priority: -5
+            # Where the option to keep the card would be, which a payment that opens recurring
+            # charges does not offer: the statement of what the card is kept for takes its place.
+            recurring_commitment:
+                template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/recurring_commitment.html.twig'
+                priority: -6
             # Below the option to keep the card, above the authentication target.
             pay_button:
                 template: '@JpmMartinSyliusNmiPlugin/shop/pay/nmi/pay_button.html.twig'

@@ -674,6 +674,86 @@ final class NmiClientTest extends TestCase
         self::assertSame(['amount', 'currency', 'payment_details'], array_keys($untouched));
     }
 
+    /**
+     * The checkout of a payment that opens recurring charges: the card is kept and the transaction
+     * declared the first use of a stored credential, initiated by the customer. Established against
+     * the gateway, which records exactly this as *Initiated By customer, Stored Indicator stored*.
+     */
+    public function testASaleThatOpensAStoredCredentialDeclaresItsFirstUse(): void
+    {
+        $this->answerWith(self::approvedAndVaulted());
+
+        $this->client->sale($this->configuration, new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD', opensStoredCredential: true));
+
+        self::assertSame([
+            'amount' => '12.34',
+            'currency' => 'USD',
+            'payment_details' => ['payment_token' => 'tok-once-abc'],
+            'customer_vault' => ['add_to_vault' => true],
+            'cit_mit' => ['stored_credential_indicator' => 'stored', 'initiated_by' => 'customer'],
+        ], $this->httpClient->lastBodyJson());
+    }
+
+    public function testAnAuthorisationThatOpensAStoredCredentialDeclaresItsFirstUseToo(): void
+    {
+        $this->answerWith(self::approvedAndVaulted());
+
+        $this->client->authorize($this->configuration, new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD', opensStoredCredential: true));
+
+        $request = $this->httpClient->lastRequest;
+        self::assertNotNull($request);
+        self::assertStringEndsWith('/api/v5/payments/auth', (string) $request->getUri());
+        $body = $this->httpClient->lastBodyJson();
+        self::assertSame(['add_to_vault' => true], $body['customer_vault']);
+        self::assertSame(['stored_credential_indicator' => 'stored', 'initiated_by' => 'customer'], $body['cit_mit']);
+    }
+
+    /** A decorator adding fields must not drop the declaration. */
+    public function testAddingFieldsKeepsTheChargeOpeningAStoredCredential(): void
+    {
+        self::assertTrue((new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD', opensStoredCredential: true))->with(['descriptor' => 'x'])->opensStoredCredential);
+    }
+
+    public function testAStoredCardCannotOpenAStoredCredential(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new Charge(paymentToken: null, amount: 1299, currencyCode: 'USD', storedCard: new StoredCard(vaultId: '1730549219'), opensStoredCredential: true);
+    }
+
+    /**
+     * Opening a stored credential is an addition: a plain sale, a plain authorisation and a sale
+     * that saves the card for the shopper send what they always sent, and none of them declares
+     * anything about a stored credential.
+     */
+    public function testChargesThatOpenNothingSendTheBodiesTheyAlwaysSent(): void
+    {
+        $this->answerWith(self::approved());
+        $this->client->sale($this->configuration, self::charge());
+        self::assertSame([
+            'amount' => '12.34',
+            'currency' => 'USD',
+            'payment_details' => ['payment_token' => 'tok-once-abc'],
+        ], $this->httpClient->lastBodyJson());
+
+        $this->answerWith(self::approved());
+        $this->client->authorize($this->configuration, self::charge());
+        self::assertSame([
+            'amount' => '12.34',
+            'currency' => 'USD',
+            'payment_details' => ['payment_token' => 'tok-once-abc'],
+        ], $this->httpClient->lastBodyJson());
+
+        $this->answerWith(self::approvedAndVaulted());
+        $this->client->sale($this->configuration, new Charge(paymentToken: 'tok-once-abc', amount: 1234, currencyCode: 'USD', storeCard: true));
+        self::assertSame([
+            'amount' => '12.34',
+            'currency' => 'USD',
+            'payment_details' => ['payment_token' => 'tok-once-abc'],
+            'customer_vault' => ['add_to_vault' => true],
+        ], $this->httpClient->lastBodyJson());
+    }
+
     private static function vaultRecord(): string
     {
         return '{"object":"customer","id":"1929110340","billing":[{"object":"billing","id":"349429273","payment_details":{"card_number":"411111******1111","card_exp":"1025","card_type":"Visa"}}]}';

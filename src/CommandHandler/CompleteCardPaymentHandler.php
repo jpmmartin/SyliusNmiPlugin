@@ -19,6 +19,8 @@ use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOfferInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiStoredCardRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCredentialKeeper;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
@@ -62,6 +64,8 @@ final class CompleteCardPaymentHandler
         private readonly NmiStoredCardRepositoryInterface $storedCardRepository,
         private readonly NmiStoredCardOfferInterface $storedCardOffer,
         private readonly ChargeFactoryInterface $charges,
+        private readonly NmiRecurringChargesPolicyInterface $recurringCharges,
+        private readonly NmiRecurringCredentialKeeper $recurringCredentials,
     ) {
     }
 
@@ -93,9 +97,20 @@ final class CompleteCardPaymentHandler
         $authorizing = PaymentRequestInterface::ACTION_AUTHORIZE === $paymentRequest->getAction();
         $savingFor = null;
         $alreadySaved = false;
+        // Asked of the store now, not read from anything the client sent: whether this card may be
+        // charged again without its holder is never the client's to decide.
+        $opensRecurringCharges = $this->recurringCharges->opensRecurringCharges($payment);
 
         try {
             $configuration = $this->configurationProvider->fromPaymentMethod($paymentRequest->getMethod());
+
+            if (null !== $storedCardId && $opensRecurringCharges) {
+                // A saved card was kept on the shopper's own promise, not on this one, and the pay
+                // page never offers it here — so only a hand-made request arrives with one.
+                $this->fail($paymentRequest, self::CARD_UNAVAILABLE_MESSAGE_KEY, 'A saved card cannot open recurring charges.');
+
+                return;
+            }
 
             if (null !== $storedCardId) {
                 $storedCard = $this->storedCardOffer->chosenFor($payment, $configuration, $storedCardId);
@@ -116,7 +131,9 @@ final class CompleteCardPaymentHandler
                 // to keep the card and, if it does, who the card ends up filed against. Inside the
                 // try because it needs the configuration, and resolving that can fail like
                 // anything else.
-                $savingFor = $this->customerSavingTheCard($payment, $payload, $configuration);
+                // Never on a payment that opens recurring charges: the card is kept on that promise
+                // instead, and a saved card is a different one.
+                $savingFor = $opensRecurringCharges ? null : $this->customerSavingTheCard($payment, $payload, $configuration);
 
                 // **Before the charge, which is the only moment it can be.** Once the sale has run
                 // with `add_to_vault` the gateway has already made a second vault record — it
@@ -126,6 +143,10 @@ final class CompleteCardPaymentHandler
                 // Non-null here by the guard above: the request was refused when neither a token
                 // nor a saved card arrived, and a saved card is what this branch does not have.
                 $charge = $this->charges->forToken($payment, (string) $token, $payload, null !== $savingFor && !$alreadySaved);
+
+                if ($opensRecurringCharges) {
+                    $charge = $charge->openingStoredCredential();
+                }
             }
 
             $response = $authorizing
@@ -160,13 +181,23 @@ final class CompleteCardPaymentHandler
             $this->storedCardRecorder->record($savingFor, $method, $response);
         }
 
+        // Kept from the approved answer, like a saved card, so that a decline keeps nothing. The
+        // money is taken either way: an answer that did not store the card leaves the payment
+        // paid and opens nothing, rather than failing a payment that succeeded.
+        $keptRecurring = $opensRecurringCharges && $method instanceof PaymentMethodInterface &&
+            null !== $this->recurringCredentials->keep($payment, $method, $response);
+
         $this->stateMachine->apply(
             $payment,
             PaymentTransitions::GRAPH,
             $authorizing ? PaymentTransitions::TRANSITION_AUTHORIZE : PaymentTransitions::TRANSITION_COMPLETE,
         );
 
-        $paymentRequest->setResponseData($this->responseDataFrom($response) + ($alreadySaved ? ['card_already_saved' => true] : []));
+        $paymentRequest->setResponseData(
+            $this->responseDataFrom($response)
+            + ($alreadySaved ? ['card_already_saved' => true] : [])
+            + ($keptRecurring ? ['recurring_charges' => true] : []),
+        );
 
         $this->stateMachine->apply(
             $paymentRequest,

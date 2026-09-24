@@ -6,12 +6,15 @@ namespace JpmMartin\SyliusNmiPlugin\EventListener;
 
 use Doctrine\ORM\Event\PreRemoveEventArgs;
 use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiRecurringCredentialRepositoryInterface;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepositoryInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Deleting a customer has to reach the gateway too, or their cards outlive them there.
+ * Deleting a customer has to reach the gateway too, or their cards outlive them there — the cards
+ * they saved, and the ones kept for a store's renewals that were not let go already, since with the
+ * customer gone there is nobody left to renew for.
  *
  * **The rows go by themselves**: the foreign key cascades, so nothing here removes them and no
  * listener on the card would ever fire — the database does it and Doctrine never hears about it.
@@ -40,6 +43,7 @@ final class PurgeStoredCardsOnCustomerDeletionListener
     public function __construct(
         private readonly NmiStoredCardRepositoryInterface $repository,
         private readonly MessageBusInterface $bus,
+        private readonly ?NmiRecurringCredentialRepositoryInterface $recurringCredentials = null,
     ) {
     }
 
@@ -56,6 +60,18 @@ final class PurgeStoredCardsOnCustomerDeletionListener
 
             // A row missing either of them is one nothing could purge with. It cannot be produced
             // by this plugin — both columns are NOT NULL — so this is a guard rather than a case.
+            if (null === $vaultId || null === $paymentMethodCode) {
+                continue;
+            }
+
+            $this->pending[] = new PurgeStoredCard($vaultId, $paymentMethodCode);
+        }
+
+        // A credential already let go had its removal queued when it was; only the rest are read.
+        foreach ($this->recurringCredentials?->findUnreleasedOf($customer) ?? [] as $credential) {
+            $vaultId = $credential->getVaultId();
+            $paymentMethodCode = $credential->getPaymentMethod()?->getCode();
+
             if (null === $vaultId || null === $paymentMethodCode) {
                 continue;
             }

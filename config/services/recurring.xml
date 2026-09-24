@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+    <services>
+        <!--
+            Which payments open recurring charges. The store replaces or decorates the alias; the
+            implementation shipped here answers no for every payment, so nothing changes until it does.
+        -->
+        <service id="jpm_martin_sylius_nmi.recurring.policy" class="JpmMartin\SyliusNmiPlugin\Recurring\NmiNoRecurringChargesPolicy" />
+        <service id="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface" alias="jpm_martin_sylius_nmi.recurring.policy" public="true" />
+
+        <!-- Keeps the credential a checkout's approved transaction opened. -->
+        <service id="jpm_martin_sylius_nmi.recurring.credential_keeper" class="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCredentialKeeper">
+            <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_recurring_credential" />
+            <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_recurring_credential" />
+        </service>
+
+        <!--
+            The credential's three gateway identifiers, encrypted at rest by the platform's listener, as
+            the other two card records' are. `sylius.encrypter` does the cryptography.
+        -->
+        <service id="jpm_martin_sylius_nmi.encryption.recurring_credential" class="JpmMartin\SyliusNmiPlugin\Encryption\NmiRecurringCredentialEncrypter">
+            <argument type="service" id="sylius.encrypter" />
+        </service>
+
+        <service id="jpm_martin_sylius_nmi.listener.recurring_credential_encryption" class="Sylius\Bundle\PaymentBundle\Listener\EntityEncryptionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.encryption.recurring_credential" />
+            <argument>%jpm_martin_sylius_nmi.model.nmi_recurring_credential.class%</argument>
+            <tag name="doctrine.event_listener" event="onFlush" />
+            <tag name="doctrine.event_listener" event="postFlush" />
+            <tag name="doctrine.event_listener" event="postLoad" />
+        </service>
+
+        <!--
+            The one door to charging a recurring credential. Public, and named in docs/extending.md:
+            this is what a store's own code calls. It dispatches the charge itself rather than
+            announcing a request, so no action a client can name reaches the charge.
+        -->
+        <service id="jpm_martin_sylius_nmi.recurring.charger" class="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCharger">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.payment_request.command_bus" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargerInterface" alias="jpm_martin_sylius_nmi.recurring.charger" />
+
+        <service id="jpm_martin_sylius_nmi.command_handler.charge_recurring_credential" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ChargeRecurringCredentialHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.recurring_charge_factory" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_recurring_credential" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!-- A renewal's charge: declared merchant-initiated, citing the first transaction. -->
+        <service id="jpm_martin_sylius_nmi.gateway.recurring_charge_factory" class="JpmMartin\SyliusNmiPlugin\Gateway\Request\RecurringChargeFactory" />
+
+        <!-- The same action, arriving any other way: refused, with nothing read or sent. -->
+        <service id="jpm_martin_sylius_nmi.command_provider.recurring_charge" class="JpmMartin\SyliusNmiPlugin\CommandProvider\RecurringChargeCommandProvider">
+            <tag name="jpm_martin_sylius_nmi.payment_request.command_provider" action="nmi_charge_recurring" />
+        </service>
+        <service id="jpm_martin_sylius_nmi.command_handler.refuse_recurring_charge" class="JpmMartin\SyliusNmiPlugin\CommandHandler\RefuseRecurringChargeHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!--
+            Lets a credential go when the store says its renewals have ended. Public, and named in
+            docs/extending.md: the store's code calls it.
+        -->
+        <service id="jpm_martin_sylius_nmi.recurring.releaser" class="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCredentialReleaser">
+            <argument type="service" id="sylius.event_bus" />
+            <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_recurring_credential" />
+        </service>
+        <service id="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringCredentialReleaserInterface" alias="jpm_martin_sylius_nmi.recurring.releaser" />
+    </services>
+</container>

@@ -63,6 +63,16 @@
             <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_card_on_file" />
             <argument type="service" id="sylius_abstraction.state_machine" />
             <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_recurring_credential" />
+        </service>
+
+        <!-- The pay page, which the platform routes and this plugin renders. -->
+        <service id="jpm_martin_sylius_nmi.behat.page.shop.pay" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Page\Shop\Pay\NmiPayPage" parent="sylius.behat.symfony_page" />
+
+        <service id="jpm_martin_sylius_nmi.context.setup.recurring_charges" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Setup\NmiRecurringChargesContext" />
+
+        <service id="jpm_martin_sylius_nmi.context.ui.shop.paying_with_nmi" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Shop\PayingWithNmiContext">
+            <argument type="service" id="jpm_martin_sylius_nmi.behat.page.shop.pay" />
         </service>
 
         <service id="jpm_martin_sylius_nmi.context.ui.admin.completing_nmi_held_orders" class="Tests\JpmMartin\SyliusNmiPlugin\Behat\Context\Ui\Admin\CompletingNmiHeldOrdersContext">

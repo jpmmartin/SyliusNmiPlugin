@@ -1,0 +1,17 @@
+{% set nmi = hookable_metadata.context.nmi %}
+
+{#
+    Only rendered when the store has said this payment opens recurring charges: the card is kept so
+    that the store can charge it again, later and without the shopper present, for payments that do
+    not exist yet. The shopper is told so before paying, in words of its own — neither the option to
+    save a card for next time, which this payment does not offer, nor the note that an order will be
+    charged later.
+
+    The default wording is neutral on purpose. What a store actually commits to — how often, how the
+    amount is set, how to stop it — is its own, and it says so by translating this key.
+#}
+{% if nmi.recurring_charges|default(false) %}
+    <p class="alert alert-info" {{ sylius_test_html_attribute('nmi-recurring-commitment') }}>
+        {{ 'jpm_martin_sylius_nmi.shop.pay.recurring_commitment'|trans }}
+    </p>
+{% endif %}

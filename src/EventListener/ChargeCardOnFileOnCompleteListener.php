@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\EventListener;
 
 use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileCharger;
+use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiHeldPaymentCardResolver;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
-use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepositoryInterface;
 use Sylius\Bundle\ResourceBundle\Event\ResourceControllerEvent;
 use Sylius\Component\Core\Model\PaymentInterface;
 
@@ -25,7 +25,7 @@ final class ChargeCardOnFileOnCompleteListener
 {
     public function __construct(
         private readonly NmiCardOnFileCharger $charger,
-        private readonly NmiCardOnFileRepositoryInterface $cardsOnFile,
+        private readonly NmiHeldPaymentCardResolver $heldPayments,
     ) {
     }
 
@@ -40,9 +40,10 @@ final class ChargeCardOnFileOnCompleteListener
             return;
         }
 
-        // Only a payment waiting with a card on file. An authorised one is capture's business, and a
-        // waiting one with no card is completed as the platform always completed it.
-        if (PaymentInterface::STATE_PROCESSING !== $payment->getState() || null === $this->cardsOnFile->findHeldBy($payment)) {
+        // Only a payment waiting with a card on file — or with the recurring credential it kept its
+        // card as. An authorised one is capture's business, and a waiting one with no card is
+        // completed as the platform always completed it.
+        if (PaymentInterface::STATE_PROCESSING !== $payment->getState() || null === $this->heldPayments->resolve($payment)) {
             return;
         }
 

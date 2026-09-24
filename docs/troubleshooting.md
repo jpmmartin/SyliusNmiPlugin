@@ -311,6 +311,45 @@ The payment keeps waiting, and in every case but *no answer* nothing has been ch
   — something created a payment request with the charge's action — through the shop API, say. That
   path never charges; use the charger.
 
+A held order whose payment opened recurring charges kept its card for the renewals rather than on
+file. *Complete* and the charger charge it all the same, and answer with the recurring charge's
+sentences, in the next section, instead of these.
+
+## A recurring charge is refused, declined or unknown
+
+**What you see:** `NmiRecurringChargerInterface::charge()` answers with one of the keys below — or,
+for a held order that opened recurring charges, *Complete* stops with its sentence. The payment keeps
+waiting, the card stays kept for the renewals, and in every case but *no answer* nothing has been
+charged.
+
+**What each one means:**
+
+- *The recurring charge was declined …* (`recurring_charge_declined`) — NMI asked the issuer and the
+  answer was no. The outcome carries the issuer's wording and NMI's response code; the card is still
+  kept, so whether to try again, ask the customer for another card or end the renewals is yours.
+- *The gateway did not answer …* (`recurring_charge_unknown`) — **the card may have been charged.**
+  Look the renewal's order up in NMI's portal by its number, and match the amount and the time,
+  before charging again.
+- *This payment is not waiting to be charged …* (`recurring_not_waiting`) — it was charged or
+  cancelled already. A second charge is refused rather than sent.
+- *The card kept for renewals has been let go …* (`recurring_credential_released`) — your code let it
+  go, or the customer was deleted. It cannot be charged again; the customer has to check out anew.
+- *… belongs to another payment method …* (`recurring_credential_other_method`) — the renewal's
+  payment is on a method other than the one the card was kept under, which may be another NMI
+  account. Create the renewal's payment on the credential's own method.
+- *The account behind the card kept for renewals has been closed …* (`recurring_credential_closed`)
+  — NMI's card updater reported it. Only reachable with webhooks wired.
+- *The card kept for renewals has expired …* (`recurring_credential_expired`) — by the expiry the
+  store was last told. With webhooks wired, a renewed card corrects it.
+- *… no record of the transaction that kept it …*
+  (`recurring_credential_without_initial_transaction`) — the first transaction's identifier is
+  missing, and a charge without the customer has to cite it.
+- *A card kept for renewals can only be charged by the store itself.*
+  (`recurring_charge_not_available_here`) — something created a payment request with the recurring
+  charge's action — through the shop API, say. That path never charges; use the charger.
+
+`recurring_charged` is the approval's message, not a refusal.
+
 ## The pay page refused a second card: *A card is already saved for this order*
 
 **What you see:** the shopper, or a headless client, tried to pay an order that already holds a card
@@ -322,7 +361,8 @@ cancel its payment first if the shopper needs to use another card.
 ## A deleted customer's cards, or a card held for later payment, are still in NMI's vault — or the closed-card email never arrived
 
 **What you see:** a customer you deleted still has their saved cards listed in NMI's vault; or a
-payment held for later was charged or cancelled days ago and its card is still there; or a card the
+payment held for later was charged or cancelled days ago and its card is still there; or a card kept
+for renewals that your code let go is still there; or a card the
 updater reported closed is marked closed in the shopper's account, and checkout stopped offering it,
 but the email about it never arrived. No error anywhere, in the log or on screen.
 
