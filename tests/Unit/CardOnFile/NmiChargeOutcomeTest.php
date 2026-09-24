@@ -28,11 +28,30 @@ final class NmiChargeOutcomeTest extends TestCase
         foreach ([
             NmiChargeOutcome::approved('12584746059'),
             NmiChargeOutcome::declined('jpm_martin_sylius_nmi.payment.card_on_file_declined', 'DECLINE', '12584700002'),
+            NmiChargeOutcome::declined('jpm_martin_sylius_nmi.payment.card_on_file_declined', 'DECLINE', '12584700002', 200),
             NmiChargeOutcome::refused('jpm_martin_sylius_nmi.payment.card_on_file_closed'),
             NmiChargeOutcome::unknown('jpm_martin_sylius_nmi.payment.card_on_file_charge_unknown', 'Connection timed out'),
         ] as $outcome) {
             self::assertEquals($outcome, NmiChargeOutcome::fromArray($outcome->toArray()));
         }
+    }
+
+    /** The machine-readable half of a decline, beside the issuer's wording; absent where the gateway gave none. */
+    public function testADeclineCarriesTheGatewaysCodeWhenItGaveOne(): void
+    {
+        self::assertSame(200, NmiChargeOutcome::declined('k', 'DECLINE', '12584700002', 200)->code);
+        self::assertNull(NmiChargeOutcome::declined('k', 'Invalid expiration date')->code);
+        self::assertNull(NmiChargeOutcome::approved('12584746059')->code);
+    }
+
+    /** Response data written before the code existed still reads back, as a decline with no code. */
+    public function testAnOutcomeStoredWithoutACodeStillReadsBack(): void
+    {
+        $outcome = NmiChargeOutcome::fromArray(['outcome' => NmiChargeOutcome::DECLINED, 'message_key' => 'k', 'detail' => 'DECLINE', 'transaction_id' => '12584700002']);
+
+        self::assertNotNull($outcome);
+        self::assertNull($outcome->code);
+        self::assertSame('DECLINE', $outcome->reason);
     }
 
     public function testResponseDataThatIsNoOutcomeReadsAsNone(): void

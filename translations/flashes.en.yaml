@@ -6,6 +6,7 @@ jpm_martin_sylius_nmi:
         card_already_saved: You already have this card saved, so it has not been added again.
         card_unavailable: That saved card cannot be used. Choose another card or enter a new one.
         card_put_on_file: Your card has been saved for this order. Nothing has been charged yet — it will be charged when your order is confirmed.
+        card_kept_for_renewals: Your card has been saved for this order and its renewals. Nothing has been charged yet — this order will be charged when it is confirmed.
         card_already_on_file: A card is already saved for this order, so no other card has been taken.
         card_on_file_charged: 'The card on file has been charged.'
         card_on_file_declined: 'The card on file was declined, so the payment has not been completed. It stays open with the card on file.'
@@ -17,6 +18,16 @@ jpm_martin_sylius_nmi:
         card_on_file_expired: 'The card on file has expired, so nothing was sent to the gateway.'
         card_on_file_without_initial_transaction: 'The card on file cannot be charged without the shopper: it has no record of the verification that put it on file. Nothing was sent to the gateway.'
         card_on_file_charge_not_available_here: 'A card on file can only be charged by the store itself.'
+        recurring_charged: 'The recurring charge has been taken.'
+        recurring_charge_declined: 'The recurring charge was declined, so the payment has not been completed. It stays open, and the card is still kept for renewals.'
+        recurring_charge_unknown: 'The gateway did not answer, so whether the recurring charge was taken is not known. Check the order in the gateway''s portal before trying again.'
+        recurring_not_waiting: 'This payment is not waiting to be charged, so nothing was sent to the gateway.'
+        recurring_credential_released: 'The card kept for renewals has been let go, so nothing was sent to the gateway.'
+        recurring_credential_other_method: 'The card kept for renewals belongs to another payment method, so nothing was sent to the gateway.'
+        recurring_credential_closed: 'The account behind the card kept for renewals has been closed, so nothing was sent to the gateway.'
+        recurring_credential_expired: 'The card kept for renewals has expired, so nothing was sent to the gateway.'
+        recurring_credential_without_initial_transaction: 'The card kept for renewals cannot be charged without the shopper: it has no record of the transaction that kept it. Nothing was sent to the gateway.'
+        recurring_charge_not_available_here: 'A card kept for renewals can only be charged by the store itself.'
         capture_refused: The gateway refused the capture, so the payment has not been completed.
         no_authorisation: This payment has no recorded authorisation to capture.
         void_refused: The gateway refused the void, so the payment has not been cancelled.

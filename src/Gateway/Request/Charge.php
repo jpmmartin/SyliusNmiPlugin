@@ -45,6 +45,16 @@ final class Charge
          * @var array<string, mixed>
          */
         public readonly array $extra = [],
+        /**
+         * Whether this transaction opens a credential the shopper agreed to have charged again
+         * without them: the gateway keeps the card, and the transaction is declared to the card
+         * networks as the first use of a stored credential, initiated by the customer — the
+         * transaction every later, merchant-initiated charge of that credential cites.
+         *
+         * Distinct from `storeCard`, which keeps a card for the shopper's own next checkout and
+         * declares nothing.
+         */
+        public readonly bool $opensStoredCredential = false,
     ) {
         if ((null === $paymentToken) === (null === $storedCard)) {
             throw new \InvalidArgumentException('A charge is paid for by a payment token or by a stored card, and by exactly one of them.');
@@ -56,6 +66,34 @@ final class Charge
         if ($storeCard && null !== $storedCard) {
             throw new \InvalidArgumentException('A stored card cannot be stored again.');
         }
+        // A credential is opened by the checkout that first stores the card, never by a charge of
+        // a card the gateway already holds.
+        if ($opensStoredCredential && null !== $storedCard) {
+            throw new \InvalidArgumentException('A stored card cannot open a stored credential.');
+        }
+    }
+
+    /**
+     * The same charge, opening a stored credential: the checkout of a payment the store says opens
+     * recurring charges. Derived rather than built by the factory, so that a store's decorator of the
+     * factory keeps working unchanged and its fields still reach the gateway.
+     */
+    public function openingStoredCredential(): self
+    {
+        return new self(
+            paymentToken: $this->paymentToken,
+            amount: $this->amount,
+            currencyCode: $this->currencyCode,
+            orderId: $this->orderId,
+            orderDescription: $this->orderDescription,
+            ipAddress: $this->ipAddress,
+            billing: $this->billing,
+            threeDSecure: $this->threeDSecure,
+            storeCard: $this->storeCard,
+            storedCard: $this->storedCard,
+            extra: $this->extra,
+            opensStoredCredential: true,
+        );
     }
 
     /**
@@ -78,6 +116,7 @@ final class Charge
             storeCard: $this->storeCard,
             storedCard: $this->storedCard,
             extra: array_replace_recursive($this->extra, $extra),
+            opensStoredCredential: $this->opensStoredCredential,
         );
     }
 }

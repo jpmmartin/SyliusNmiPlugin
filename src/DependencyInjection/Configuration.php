@@ -7,11 +7,13 @@ namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFile;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiReceivedEvent;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredential;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiGatewayNoticeRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiReceivedEventRepository;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiRecurringCredentialRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiStoredCardRepository;
 use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepository;
 use Sylius\Bundle\ResourceBundle\Controller\ResourceController;
@@ -115,6 +117,19 @@ final class Configuration implements ConfigurationInterface
                                     ->children()
                                         ->scalarNode('model')->defaultValue(NmiCardOnFile::class)->cannotBeEmpty()->end()
                                         ->scalarNode('repository')->defaultValue(NmiCardOnFileRepository::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('factory')->defaultValue(Factory::class)->end()
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('nmi_recurring_credential')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->arrayNode('classes')
+                                    ->addDefaultsIfNotSet()
+                                    ->children()
+                                        ->scalarNode('model')->defaultValue(NmiRecurringCredential::class)->cannotBeEmpty()->end()
+                                        ->scalarNode('repository')->defaultValue(NmiRecurringCredentialRepository::class)->cannotBeEmpty()->end()
                                         ->scalarNode('factory')->defaultValue(Factory::class)->end()
                                     ->end()
                                 ->end()

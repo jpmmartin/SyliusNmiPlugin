@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\Provider;
 
 use JpmMartin\SyliusNmiPlugin\Repository\NmiCardOnFileRepositoryInterface;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiRecurringCredentialRepositoryInterface;
 use Sylius\Bundle\CoreBundle\OrderPay\Provider\AfterPayResponseProviderInterface;
 use Sylius\Bundle\CoreBundle\OrderPay\Provider\FinalUrlProviderInterface;
 use Sylius\Bundle\PaymentBundle\Announcer\PaymentRequestAnnouncerInterface;
@@ -35,6 +36,9 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
 {
     public const FLASH = 'jpm_martin_sylius_nmi.payment.card_put_on_file';
 
+    /** What a held payment that opened recurring charges is told instead: this order, and its renewals. */
+    public const FLASH_RECURRING = 'jpm_martin_sylius_nmi.payment.card_kept_for_renewals';
+
     /**
      * @param PaymentRequestRepositoryInterface<PaymentRequestInterface> $paymentRequestRepository
      * @param PaymentRequestFactoryInterface<PaymentRequestInterface> $paymentRequestFactory
@@ -45,6 +49,7 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
         private readonly PaymentRequestAnnouncerInterface $announcer,
         private readonly NmiCardOnFileRepositoryInterface $cardsOnFile,
         private readonly FinalUrlProviderInterface $finalUrlProvider,
+        private readonly NmiRecurringCredentialRepositoryInterface $recurringCredentials,
     ) {
     }
 
@@ -54,7 +59,7 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
 
         return null !== $payment &&
             PaymentInterface::STATE_PROCESSING === $payment->getState() &&
-            null !== $this->cardsOnFile->findHeldBy($payment);
+            (null !== $this->cardsOnFile->findHeldBy($payment) || $this->holdsARecurringCredential($payment));
     }
 
     public function getResponse(RequestConfiguration $requestConfiguration): Response
@@ -71,7 +76,11 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
         if ($request->hasSession()) {
             $session = $request->getSession();
             if ($session instanceof FlashBagAwareSessionInterface) {
-                $session->getFlashBag()->add('success', self::FLASH);
+                $payment = $previous?->getPayment();
+                $session->getFlashBag()->add(
+                    'success',
+                    $payment instanceof PaymentInterface && $this->holdsARecurringCredential($payment) ? self::FLASH_RECURRING : self::FLASH,
+                );
             }
         }
 
@@ -91,6 +100,14 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
         $paymentRequest = $this->paymentRequestRepository->find($hash);
 
         return $paymentRequest;
+    }
+
+    /** Held on a recurring credential it opened and the store has not let go. */
+    private function holdsARecurringCredential(PaymentInterface $payment): bool
+    {
+        $credential = $this->recurringCredentials->findOpenedBy($payment);
+
+        return null !== $credential && !$credential->isReleased();
     }
 
     private function paymentOf(RequestConfiguration $requestConfiguration): ?PaymentInterface

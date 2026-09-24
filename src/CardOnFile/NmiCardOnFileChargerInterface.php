@@ -14,6 +14,10 @@ use Sylius\Component\Core\Model\PaymentInterface;
  * is no way to name another card or another amount. The charge is declared to the card networks as
  * merchant-initiated and cites the verification that put the card on file.
  *
+ * A held payment that opened recurring charges kept its card as a recurring credential instead of on
+ * file. It is charged here all the same, through that credential, and the outcome is told the same
+ * way — with the recurring charge's messages, and without the credential being let go.
+ *
  * What this does not do is decide *whether* a payment should be charged. That is the store's
  * decision — an order approved, a made-to-order item finished — and it is taken before this is
  * called.

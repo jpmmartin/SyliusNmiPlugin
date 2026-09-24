@@ -13,6 +13,7 @@ use JpmMartin\SyliusNmiPlugin\CommandProvider\NotifyCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\RefundCommandProvider;
 use JpmMartin\SyliusNmiPlugin\CommandProvider\StatusCommandProvider;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargerInterface;
 use Sylius\Bundle\PaymentBundle\CommandProvider\ServiceProviderAwareCommandProviderInterface;
 use Sylius\Bundle\PaymentBundle\Exception\PaymentRequestNotSupportedException;
 use Sylius\Component\Core\Model\Payment;
@@ -60,6 +61,8 @@ final class NmiCommandProviderRegistrationTest extends KernelTestCase
                 // announces it; this provider is for the same action arriving any other way —
                 // through the shop API, which lets a client name any action — and it fails it.
                 NmiCardOnFileChargerInterface::ACTION,
+                // The same for the recurring charge, for the same reason.
+                NmiRecurringChargerInterface::ACTION,
             ],
             $this->nmiProvider()->getCommandProviderIndexes(),
         );

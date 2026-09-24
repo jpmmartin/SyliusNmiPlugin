@@ -48,6 +48,7 @@
                 Which bus carries the message does not change where it is routed.
             -->
             <argument type="service" id="sylius.event_bus" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_recurring_credential" />
             <tag name="doctrine.event_listener" event="preRemove" />
             <tag name="doctrine.event_listener" event="postFlush" />
         </service>

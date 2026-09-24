@@ -85,6 +85,8 @@ default:
                 - sylius.behat.context.setup.taxation
                 - sylius.behat.context.setup.user
                 - sylius.behat.context.setup.zone
+                - jpm_martin_sylius_nmi.context.setup.stored_card
+                - jpm_martin_sylius_nmi.context.setup.recurring_charges
 
                 - sylius.behat.context.ui.admin.managing_payment_requests
                 - sylius.behat.context.ui.save
@@ -98,6 +100,7 @@ default:
                 - sylius.behat.context.ui.shop.checkout.shipping
                 - sylius.behat.context.ui.shop.checkout.thank_you
                 - sylius.behat.context.ui.shop.payment_request
+                - jpm_martin_sylius_nmi.context.ui.shop.paying_with_nmi
 
             filters:
                 tags: "@paying_with_nmi&&@ui"

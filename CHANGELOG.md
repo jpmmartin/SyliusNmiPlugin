@@ -8,6 +8,41 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Added
+
+- **Recurring charges**, for a store that sells renewals — a subscription, a membership, a plan. Off
+  until the store's own code turns them on: a service the store implements or decorates,
+  `NmiRecurringChargesPolicyInterface`, says which payments open recurring charges, and the one the
+  plugin ships says none, so a store that does nothing sees no change. For a payment that opens them,
+  the pay page shows a statement of the commitment — a neutral default the store replaces with its
+  own terms, as any translation — and offers neither saving the card nor saved cards, and the
+  checkout's own transaction keeps the card, declared to NMI as the first use of a stored credential:
+  the sale, the authorisation, or on a method that takes payment later the verification. A guest can
+  agree to it. The shop API is told `recurring_charges` when the payment is prepared.
+- **Charging a renewal without the shopper**, through `NmiRecurringChargerInterface`, for a payment
+  the store created — new — at that payment's own amount, which may differ from every earlier
+  charge. Declared merchant-initiated and citing the first transaction, recorded against the
+  renewal's payment, and answered approved, declined, refused or unknown, as the card on file's
+  charger answers. It is refused before NMI is asked when the payment is not waiting, or the card was
+  let go, belongs to another payment method, is closed, expired or has no first transaction to
+  cite. No payment-request action can cause it. A held order on a method that takes payment later
+  keeps its card for the renewals instead of on file, and *Complete* and the card on file's charger
+  charge it all the same, without letting it go.
+- **Letting it go** is the store's call, through `NmiRecurringCredentialReleaserInterface`; nothing
+  else does it except deleting the customer. It goes through the queued purge that forgets any card
+  at NMI, so it needs the worker on `main`. NMI's card updater reaches these cards too.
+- A declined charge's outcome now carries NMI's response `code` beside the issuer's wording, for the
+  card on file's charger as for the new one.
+- **A new table**, `jpm_martin_sylius_nmi_recurring_credential`. Run your migrations when you
+  upgrade; the migration only adds, and the table stays empty until the store opts in.
+
+### Known limitations
+
+- **A renewal cannot be flagged as part of a recurring series.** NMI's payments API refuses the field
+  its guides name for it, wherever it is placed and whatever its value, so each renewal is declared
+  a merchant-initiated use of a stored credential and nothing more. The README says so, and says to
+  ask NMI or the reseller which field the API takes.
+
 ## [1.2.1] - 2026-09-23
 
 ### Fixed

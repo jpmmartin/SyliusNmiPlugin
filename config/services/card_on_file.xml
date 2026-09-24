@@ -29,6 +29,9 @@
             <argument type="service" id="jpm_martin_sylius_nmi.factory.nmi_card_on_file" />
             <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_card_on_file" />
             <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recurring.credential_keeper" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_recurring_credential" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 
@@ -44,6 +47,7 @@
             <argument type="service" id="sylius.announcer.payment_request" />
             <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
             <argument type="service" id="sylius_shop.provider.order_pay.final_url" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_recurring_credential" />
             <tag name="sylius_shop.provider.order_pay.after_pay_response" priority="0" />
         </service>
 
@@ -57,8 +61,19 @@
             <argument type="service" id="sylius.repository.payment_request" />
             <argument type="service" id="sylius.payment_request.command_bus" />
             <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.releaser" />
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.held_payment_resolver" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recurring.charger" />
         </service>
         <service id="JpmMartin\SyliusNmiPlugin\CardOnFile\NmiCardOnFileChargerInterface" alias="jpm_martin_sylius_nmi.card_on_file.charger" />
+
+        <!--
+            What charges a held payment: its card on file, or the recurring credential it kept its
+            card as. Asked by both doors that charge a held payment.
+        -->
+        <service id="jpm_martin_sylius_nmi.card_on_file.held_payment_resolver" class="JpmMartin\SyliusNmiPlugin\CardOnFile\NmiHeldPaymentCardResolver">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_recurring_credential" />
+        </service>
 
         <!--
             Lets go of a card once its payment is charged or cancelled, through the same queued
@@ -74,7 +89,7 @@
         <!-- The order screen: complete charges the card first, and a refusal stops it. -->
         <service id="jpm_martin_sylius_nmi.listener.charge_card_on_file_on_complete" class="JpmMartin\SyliusNmiPlugin\EventListener\ChargeCardOnFileOnCompleteListener">
             <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.charger" />
-            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.held_payment_resolver" />
             <tag name="kernel.event_listener" event="sylius.payment.pre_complete" />
         </service>
 

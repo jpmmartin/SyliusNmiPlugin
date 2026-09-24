@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingChargeFactory;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingRecurringChargesPolicy;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiCardVerifier;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 
@@ -34,6 +36,15 @@ return function (ContainerConfigurator $container) {
             ->args([service('.inner')])
         ;
 
+        // A store's recurring-charges policy, registered on the interface as a store would register
+        // its own. Dormant until a test gives it an answer, so the plugin's "never" is what every
+        // other test sees.
+        $container->services()
+            ->set(DecoratingRecurringChargesPolicy::class)
+            ->decorate(NmiRecurringChargesPolicyInterface::class)
+            ->args([service('.inner')])
+        ;
+
         // Services fetched from the container by hand — by an integration test, or by the
         // scripts that verify a task against the gateway's sandbox. They are private in the
         // plugin, and a private service with no consumer yet is removed when the container
@@ -47,6 +58,10 @@ return function (ContainerConfigurator $container) {
             ->alias('test.sylius.announcer.payment_request', 'sylius.announcer.payment_request')
             ->public()
             ->alias('test.jpm_martin_sylius_nmi.card_on_file.charger', 'jpm_martin_sylius_nmi.card_on_file.charger')
+            ->public()
+            ->alias('test.jpm_martin_sylius_nmi.recurring.charger', 'jpm_martin_sylius_nmi.recurring.charger')
+            ->public()
+            ->alias('test.jpm_martin_sylius_nmi.recurring.releaser', 'jpm_martin_sylius_nmi.recurring.releaser')
             ->public()
         ;
     }

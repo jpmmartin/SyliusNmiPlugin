@@ -116,6 +116,18 @@ final class NmiClient implements NmiClientInterface, NmiCardVerifierInterface
             $body['customer_vault'] = ['add_to_vault' => true];
         }
 
+        // The checkout's own transaction, declared the first use of a credential the shopper agreed
+        // to have charged again: the transaction every later, merchant-initiated charge cites.
+        // Established against the gateway — a sale and an authorisation both take these two objects
+        // in this shape, and the gateway records them as initiated by the customer, stored.
+        if ($charge->opensStoredCredential) {
+            $body['customer_vault'] = ['add_to_vault' => true];
+            $body['cit_mit'] = [
+                'stored_credential_indicator' => 'stored',
+                'initiated_by' => StoredCard::INITIATED_BY_CUSTOMER,
+            ];
+        }
+
         // What a store added, beneath what the plugin says: a key both name keeps the plugin's
         // value, and an object both hold merges rather than replaces.
         return [] === $charge->extra ? $body : array_replace_recursive($charge->extra, $body);

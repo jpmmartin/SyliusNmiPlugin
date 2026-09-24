@@ -11,6 +11,7 @@ use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfiguration;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayConfigurationProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiCardSavingCustomerProviderInterface;
 use JpmMartin\SyliusNmiPlugin\Provider\NmiStoredCardOfferInterface;
+use JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -35,6 +36,7 @@ final class PrepareCardPaymentHandler
         private readonly NmiAmountFormatter $amountFormatter,
         private readonly NmiCardSavingCustomerProviderInterface $cardSavingCustomerProvider,
         private readonly NmiStoredCardOfferInterface $storedCardOffer,
+        private readonly NmiRecurringChargesPolicyInterface $recurringCharges,
     ) {
     }
 
@@ -73,6 +75,12 @@ final class PrepareCardPaymentHandler
     }
 
     /**
+     * A payment the store says opens recurring charges keeps its card on that promise, and the client
+     * is told so, so that it shows the store's statement of it. Neither the option to save the card
+     * nor the shopper's saved cards are offered there, for the reason given below: what the shopper
+     * agrees to is a different promise. On a method taking payment later such a payment is held as
+     * well, and says so.
+     *
      * On a method that takes payment later the card is put on file for this one order and nothing
      * is charged, and the client is told so. Neither the option to save the card for later purchases
      * nor the shopper's saved cards are offered there: what the shopper is agreeing to is this order
@@ -84,6 +92,10 @@ final class PrepareCardPaymentHandler
      */
     private function whatHappensToTheCard(mixed $payment, NmiGatewayConfiguration $configuration): array
     {
+        if ($payment instanceof PaymentInterface && $this->recurringCharges->opensRecurringCharges($payment)) {
+            return ($configuration->takePaymentLater ? ['card_on_file' => true] : []) + ['recurring_charges' => true];
+        }
+
         if ($configuration->takePaymentLater) {
             return ['card_on_file' => true];
         }

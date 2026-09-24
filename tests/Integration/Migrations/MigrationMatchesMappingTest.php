@@ -9,6 +9,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFile;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiReceivedEvent;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredential;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiStoredCard;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransaction;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -76,5 +77,6 @@ final class MigrationMatchesMappingTest extends KernelTestCase
         yield 'the received events' => [NmiReceivedEvent::class];
         yield 'the gateway notices' => [NmiGatewayNotice::class];
         yield 'the cards on file' => [NmiCardOnFile::class];
+        yield 'the recurring credentials' => [NmiRecurringCredential::class];
     }
 }

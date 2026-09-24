@@ -114,9 +114,15 @@ jpm_martin_sylius_nmi:
             new_card: Usar una tarjeta nueva
             pay_now: Pagar
             put_card_on_file: Guardar la tarjeta para este pedido
+            pay_now_for_renewals: Pagar y guardar la tarjeta para las renovaciones
+            put_card_on_file_for_renewals: Guardar la tarjeta para este pedido y sus renovaciones
+            # A neutral default. A store replaces it with its own terms: how often the card is
+            # charged, how the amount is set, and how to stop it.
+            recurring_commitment: Esta tarjeta quedará guardada para que la tienda pueda volver a cobrarla por las renovaciones de esta compra, en las condiciones que la tienda te ha indicado.
 
 # The platform's own list of payment requests labels an action as `sylius.ui.<action>`, so the one
 # action this plugin adds is named there, where an operator reads what happened to a payment.
 sylius:
     ui:
         nmi_charge_card_on_file: Cobro a la tarjeta guardada
+        nmi_charge_recurring: Cobro recurrente

@@ -107,7 +107,7 @@ final class ChargeCardOnFileHandler
             // resolves here, and the reason written where an operator reads it afterwards.
             $this->recorder->record($payment, $exception->getResponse(), NmiTransactionInterface::TYPE_SALE);
             $this->recorder->recordRefusal($payment, self::DECLINED, $exception->getDeclineReason());
-            $this->finish($paymentRequest, NmiChargeOutcome::declined(self::DECLINED, $exception->getDeclineReason(), $exception->getResponse()->transactionId));
+            $this->finish($paymentRequest, NmiChargeOutcome::declined(self::DECLINED, $exception->getDeclineReason(), $exception->getResponse()->transactionId, $exception->getResponse()->responseCode));
 
             return;
         } catch (NmiGatewayException $exception) {
