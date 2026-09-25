@@ -366,6 +366,18 @@ assuming `void` exists yields an `UndefinedTransitionException` at runtime. **Vo
 API — all read-only for payment requests. After an `authorize`, nothing in Sylius will ever capture.
 The plugin must supply the trigger.
 
+**The order screen's events are not the only way a payment moves.** The `sylius.payment.pre_*` and
+`post_*` resource events fire only from the admin controller's routes. Sylius cancels an order's
+payments through the state machine (`CancelPaymentListener`, on `workflow.sylius_order.completed.cancel`),
+`sylius:cancel-unpaid-orders` cancels orders the same way, and the admin API's
+`PATCH /payments/{id}/complete` applies `complete` directly — none of them fires those events. What
+must hold on every path hangs on the flush that saves the change, or on a
+`workflow.sylius_payment.transition.*` listener — never on the guard, which also answers `can()`,
+and the order screen draws *Complete* only when `can()` says yes. A store that maps `sylius_payment`
+to `winzou_state_machine` gets no workflow events at all. And an `onFlush` listener that changes an
+entity encrypted by `EntityEncryptionListener` must run above that listener: it encrypts only what
+is already scheduled when it runs.
+
 **Every DQL query is silently ordered by id.** `SyliusCoreBundle::boot()` installs
 `OrderByIdentifierSqlWalker` as a *default query hint* whenever `sylius_core.order_by_identifier`
 is on, and it appends `ORDER BY <identifier> ASC` to the generated SQL without exempting
