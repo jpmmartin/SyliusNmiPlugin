@@ -8,6 +8,8 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-25
+
 ### Fixed
 
 - **A card on file is let go whenever its payment is cancelled, not only from the order screen.**
@@ -216,7 +218,8 @@ Stated here as well as in the README, because they decide whether this release f
   allows a void but not a refund, so a partial refund of an unsettled payment can be refused; the
   plugin asks either way, shows the answer, and the order screen's *Refund* voids the whole amount.
 
-[Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/compare/v1.3.0...main
+[Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/compare/v1.3.1...main
+[1.3.1]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.3.1
 [1.3.0]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.3.0
 [1.2.1]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.2.1
 [1.2.0]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.2.0
