@@ -86,6 +86,35 @@
             <argument type="service" id="jpm_martin_sylius_nmi.manager.nmi_card_on_file" />
         </service>
 
+        <!--
+            Lets go of the card on file of any payment a flush saves as cancelled — the order
+            screen's void, a cancelled order, the scheduled cancellation of unpaid orders, a
+            store's own code. Above the card on file's encryption listener (priority 0), so the
+            card it schedules is encrypted before it is written.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.release_cards_of_cancelled_payments" class="JpmMartin\SyliusNmiPlugin\EventListener\ReleaseCardsOfCancelledPaymentsListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_card_on_file" />
+            <argument type="service" id="sylius.event_bus" />
+            <tag name="doctrine.event_listener" event="onFlush" priority="10" />
+            <tag name="doctrine.event_listener" event="postFlush" />
+        </service>
+
+        <!-- The charges the gateway approved in this request or message; forgotten between them. -->
+        <service id="jpm_martin_sylius_nmi.card_on_file.approved_charges" class="JpmMartin\SyliusNmiPlugin\CardOnFile\NmiApprovedCharges">
+            <tag name="kernel.reset" method="reset" />
+        </service>
+
+        <!--
+            A held payment is completed only by an approved charge, whoever applies the transition:
+            the admin API and a store's code are stopped here. On the transition, not the guard, so
+            the order screen still offers the Complete action that charges it.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.refuse_uncharged_completion" class="JpmMartin\SyliusNmiPlugin\EventListener\RefuseUnchargedCompletionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.held_payment_resolver" />
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.approved_charges" />
+            <tag name="kernel.event_listener" event="workflow.sylius_payment.transition.complete" />
+        </service>
+
         <!-- The order screen: complete charges the card first, and a refusal stops it. -->
         <service id="jpm_martin_sylius_nmi.listener.charge_card_on_file_on_complete" class="JpmMartin\SyliusNmiPlugin\EventListener\ChargeCardOnFileOnCompleteListener">
             <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.charger" />
@@ -93,11 +122,11 @@
             <tag name="kernel.event_listener" event="sylius.payment.pre_complete" />
         </service>
 
-        <!-- And once complete or cancel has been committed, the card is released. -->
+        <!-- And once complete has been committed, the card is released. A cancellation releases it
+             in the flush that saves it, whatever cancelled it: see the listener above. -->
         <service id="jpm_martin_sylius_nmi.listener.release_card_on_file" class="JpmMartin\SyliusNmiPlugin\EventListener\ReleaseCardOnFileListener">
             <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.releaser" />
             <tag name="kernel.event_listener" event="sylius.payment.post_complete" />
-            <tag name="kernel.event_listener" event="sylius.payment.post_cancel" />
         </service>
 
         <service id="jpm_martin_sylius_nmi.command_handler.charge_card_on_file" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ChargeCardOnFileHandler">
@@ -109,6 +138,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
             <argument type="service" id="doctrine.orm.default_entity_manager" />
             <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.approved_charges" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

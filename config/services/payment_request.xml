@@ -69,6 +69,7 @@
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.charge_factory" />
             <argument type="service" id="JpmMartin\SyliusNmiPlugin\Recurring\NmiRecurringChargesPolicyInterface" />
             <argument type="service" id="jpm_martin_sylius_nmi.recurring.credential_keeper" />
+            <argument type="service" id="jpm_martin_sylius_nmi.card_on_file.approved_charges" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
+use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiApprovedCharges;
 use JpmMartin\SyliusNmiPlugin\Command\CompleteCardPayment;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiDeclinedException;
@@ -66,6 +67,7 @@ final class CompleteCardPaymentHandler
         private readonly ChargeFactoryInterface $charges,
         private readonly NmiRecurringChargesPolicyInterface $recurringCharges,
         private readonly NmiRecurringCredentialKeeper $recurringCredentials,
+        private readonly NmiApprovedCharges $approvedCharges,
     ) {
     }
 
@@ -186,6 +188,10 @@ final class CompleteCardPaymentHandler
         // paid and opens nothing, rather than failing a payment that succeeded.
         $keptRecurring = $opensRecurringCharges && $method instanceof PaymentMethodInterface &&
             null !== $this->recurringCredentials->keep($payment, $method, $response);
+
+        // The gateway approved: the transition below is the payment's own, even when it has just
+        // kept a card to charge again.
+        $this->approvedCharges->approve($payment);
 
         $this->stateMachine->apply(
             $payment,
