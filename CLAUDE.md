@@ -373,7 +373,11 @@ payments through the state machine (`CancelPaymentListener`, on `workflow.sylius
 `PATCH /payments/{id}/complete` applies `complete` directly — none of them fires those events. What
 must hold on every path hangs on the flush that saves the change, or on a
 `workflow.sylius_payment.transition.*` listener — never on the guard, which also answers `can()`,
-and the order screen draws *Complete* only when `can()` says yes. A store that maps `sylius_payment`
+and the order screen draws *Complete* only when `can()` says yes. The order screen's transitions run
+inside a transaction: Sylius Core decorates `sylius.resource_controller.resource_update_handler` with
+`CoreBundle/Doctrine/ORM/Handler/ResourceUpdateHandler`, which opens one around `apply()` and
+`flush()` and rolls it back only on `OptimisticLockException` — any other exception propagates with
+it still open and uncommitted. A store that maps `sylius_payment`
 to `winzou_state_machine` gets no workflow events at all. And an `onFlush` listener that changes an
 entity encrypted by `EntityEncryptionListener` must run above that listener: it encrypts only what
 is already scheduled when it runs.
@@ -394,14 +398,26 @@ flow: the command is enqueued, the state never changes, and the page redirects a
 error. `tests/TestApplication/.env` puts it back to `sync://`.
 
 **The plugin's queued work rides `main`, and `main` gives up.** The extension prepends routing of
-`PurgeStoredCard` and `NotifyCardholder` to Sylius's `main` transport — default DSN
-`doctrine://default`, so nothing runs without a worker — and sets no retry strategy of its own.
+`PurgeStoredCard`, `NotifyCardholder` and `VoidAuthorization` to Sylius's `main` transport — default
+DSN `doctrine://default`, so nothing runs without a worker — and sets no retry strategy of its own.
 `main`'s is `max_retries: 3`, `delay: 1000`, `multiplier: 2`, `max_delay: 0`: a failing message is
 tried again after about one, two and four seconds, then parked in `main_failed`. Parking resets the
 retry count. A message resent from `main_failed` that fails again is retried under `main_failed`'s
 own strategy and then **discarded** with a `critical` log line, because `main_failed` has no failure
 transport. So "never lost" holds once, not twice — never promise a purge is retried until it
 completes. `tests/Integration/StoredCard/NmiParkedPurgeTest` runs both halves through a real worker.
+
+**Work queued from a flush is dispatched on `sylius.event_bus`, and its handler must not write from
+inside that flush.** Sylius puts Symfony's `doctrine_transaction` middleware on `sylius.command_bus`,
+and it flushes on every dispatch, the sending side included
+(`doctrine-bridge/Messenger/DoctrineTransactionMiddleware.php`), so a dispatch from `postFlush` on that
+bus flushes inside the flush. A store that points `main` at `sync://` runs the handler right there, in
+the `postFlush` that dispatched it, before the unit of work is cleaned up. The purge writes nothing, so
+it does not care. The void does write, so its listener marks itself while it dispatches and the
+handler, finding the mark, sends the void without recording it. Asking Doctrine instead does not work:
+`executeInserts()` and `executeUpdates()` take each entity off the schedule as they write it
+(`UnitOfWork.php:1141`, `:1231`), so inside `postFlush` `isScheduledForUpdate()` is false for
+everything the flush just wrote.
 
 **The payment-request command bus flushes for you.** `sylius.payment_request.command_bus` carries
 the `doctrine_transaction` middleware, so a handler runs inside a transaction that commits on
