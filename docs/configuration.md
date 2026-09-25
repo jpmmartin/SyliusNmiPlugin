@@ -102,6 +102,13 @@ your acquirer's, not this plugin's — and an expired one cannot be captured. It
 captured *in parts*: NMI closes the authorisation on the first capture, so an order shipped in two
 parcels is charged in full at the first shipment.
 
+**It needs a worker.** When an order is cancelled before it is captured, however it is cancelled, its
+authorisation is voided rather than left open until it expires. That void is queued on
+Sylius's `main` transport, which Sylius points at a database queue by default, so nothing is voided
+until `bin/console messenger:consume main` is running — and `main` has to stay asynchronous for the
+void to be recorded on the payment. It is the same worker that saved cards and taking payment later
+need.
+
 ### Take payment later — off
 
 **Off:** the shopper's card is charged at checkout, or authorised if the switch above is on.

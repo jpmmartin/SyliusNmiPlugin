@@ -236,17 +236,21 @@ default is correct; only change it if you know why.
 SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN=sync://
 ```
 
-**If you turn on saved cards or taking payment later, run a worker for Sylius's `main` transport.**
-Three things this plugin does are queued there rather than done in the request — purging a deleted
-customer's saved cards at NMI, letting go of a card on file once its payment is charged or
-cancelled, and, if you turn it on, the email to a cardholder whose saved card was closed or flagged
-— so that NMI or a mail server being down never makes deleting the customer, completing the payment
-or receiving NMI's notice fail. Sylius points `main` at a database
-queue by default, so until something consumes it none of the three happens, and nothing reports an
+**If you turn on saved cards, taking payment later or authorising first, run a worker for Sylius's
+`main` transport.** Four things this plugin does are queued there rather than done in the request —
+purging a deleted customer's saved cards at NMI, letting go of a card on file once its payment is
+charged or cancelled, voiding the authorisation of an order cancelled before it was captured, and,
+if you turn it on, the email to a cardholder whose saved card was closed or flagged — so that NMI or
+a mail server being down never makes deleting the customer, completing the payment, cancelling the
+order or receiving NMI's notice fail. Sylius points `main` at a database
+queue by default, so until something consumes it none of the four happens, and nothing reports an
 error. Run `bin/console messenger:consume main` the way you run any Symfony worker — Supervisor,
 systemd, a scheduler. [docs/troubleshooting.md](docs/troubleshooting.md) says how to see what is
-waiting, and what to do with work that ran out of attempts. The payment-request transport above is
-the opposite case: it stays synchronous, and needs no worker.
+waiting, and what to do with work that ran out of attempts.
+
+**Keep `main` asynchronous**, as Sylius ships it. The worker records each void on its payment; a
+`main` pointed at `sync://` still sends the void, but cannot record it, and logs a warning saying so.
+The payment-request transport above is the opposite case: it stays synchronous, and needs no worker.
 
 **Gateway credentials are encrypted at rest**, by Sylius rather than by this plugin, and that needs
 a key — **which your store almost certainly already has, and it is the wrong one.**
@@ -333,6 +337,26 @@ It is claimed when either happens:
 
 An order shipped in several parcels is captured once. If the gateway refuses a capture, the payment
 is left authorised and the reason is recorded on it, where the order screen shows it.
+
+**Cancelling the order voids the authorisation**, rather than leaving it open until it expires. It
+does not matter how the order is cancelled — *Cancel* on the order screen, the admin
+API's `PATCH /api/v2/admin/orders/{tokenValue}/cancel`, or your own code: once the cancellation is
+saved, the void is sent to NMI and recorded on the payment. If NMI refuses it, the payment stays
+cancelled, NMI's reason is recorded on it instead, and the authorisation is left to expire. The plugin voids the authorisation; it cannot say
+how soon the cardholder's bank then releases the money. The *Void* on the payment's own row is
+unchanged: it asks NMI first, and refuses to cancel the payment if NMI says no.
+
+> **This one needs a worker running.** The void is queued on Sylius's `main` transport, so that a
+> gateway that is down cannot make cancelling an order fail, and so that the attempt survives to be
+> retried. Sylius points `main` at a database queue by default, which means the authorisation stays
+> open until something consumes it:
+>
+> ```bash
+> bin/console messenger:consume main
+> ```
+>
+> It is the same worker installation step 6 asks for. Nothing reports an error while it is not
+> running; the row simply waits in `messenger_messages`.
 
 ### Voiding and refunding
 

@@ -8,6 +8,22 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Fixed
+
+- **An authorisation is voided whenever its order is cancelled, not only from the payment's own
+  *Void*.** On a method that authorises first, cancelling the whole order — *Cancel* on the order
+  screen, the admin API's `PATCH /api/v2/admin/orders/{tokenValue}/cancel`, or a store's own code
+  cancelling through the state machine — left the authorisation open at NMI until it expired: the
+  plugin only voided from the order screen's payment row, and Sylius cancels an order's payments
+  without it. Once the cancellation is saved, the void is now queued, sent to NMI by the worker and
+  recorded on the payment; if NMI refuses, its reason is recorded instead and the authorisation is left
+  to expire. The cancellation itself never waits for NMI. The payment row's *Void* is unchanged.
+  **A store that authorises first now needs the `main` worker**, which until now only saved cards and
+  taking payment later required: `bin/console messenger:consume main`. And `main` has to stay
+  asynchronous for the void to be recorded: pointed at `sync://`, it still sends the void, records
+  nothing, and logs a warning. **Authorisations left open by orders cancelled before this release are
+  not voided**; they expire on their own.
+
 ## [1.3.1] - 2026-09-25
 
 ### Fixed

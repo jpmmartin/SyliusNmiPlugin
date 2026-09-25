@@ -6,6 +6,7 @@ namespace JpmMartin\SyliusNmiPlugin\DependencyInjection;
 
 use JpmMartin\SyliusNmiPlugin\Command\NotifyCardholder;
 use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
+use JpmMartin\SyliusNmiPlugin\Command\VoidAuthorization;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiGatewayNotice;
 use JpmMartin\SyliusNmiPlugin\Mailer\NmiEmails;
 use JpmMartin\SyliusNmiPlugin\Refund\RefundPaymentTransitions;
@@ -61,6 +62,8 @@ final class JpmMartinSyliusNmiExtension extends AbstractResourceExtension implem
                     // A mail server that is slow or down must not turn a webhook delivery into a
                     // failure the gateway then retries twenty times over three days.
                     NotifyCardholder::class => 'main',
+                    // Voiding what a cancelled order left open must never make cancelling it fail.
+                    VoidAuthorization::class => 'main',
                 ],
             ],
         ]);

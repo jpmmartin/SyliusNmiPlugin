@@ -6,6 +6,7 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Integration\CardOnFile;
 
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Command\PurgeStoredCard;
+use JpmMartin\SyliusNmiPlugin\Command\VoidAuthorization;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFile;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiCardOnFileInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredentialInterface;
@@ -21,6 +22,7 @@ use Sylius\Component\Core\Updater\UnpaidOrdersStateUpdaterInterface;
 use Sylius\Component\Order\OrderTransitions;
 use Sylius\Component\Payment\PaymentTransitions;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 use Tests\JpmMartin\SyliusNmiPlugin\Functional\CardOnFile\TakesPaymentLater;
@@ -83,6 +85,11 @@ final class NmiCardReleasedOnAnyCancellationTest extends KernelTestCase
 
         self::assertSame(PaymentInterface::STATE_CANCELLED, $payment->getState(), 'The order took its payment with it.');
         $this->assertReleased($card, $payment);
+        // A held payment was never authorised, so its cancellation has nothing to void.
+        self::assertSame([], array_values(array_filter(
+            $this->queue()->getSent(),
+            static fn (Envelope $envelope): bool => $envelope->getMessage() instanceof VoidAuthorization,
+        )), 'Cancelling a held payment queued a void.');
     }
 
     /** *Released when unpaid orders are cancelled on schedule.* */

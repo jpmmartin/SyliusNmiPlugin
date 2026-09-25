@@ -377,7 +377,8 @@ for renewals that your code let go is still there; or a card the
 updater reported closed is marked closed in the shopper's account, and checkout stopped offering it,
 but the email about it never arrived. No error anywhere, in the log or on screen.
 
-**What was missed:** the worker. Both jobs are queued on Sylius's `main` transport, each for its own
+**What was missed:** the worker. Both jobs are queued on Sylius's `main` transport — as is the void of
+an authorisation left open by a cancelled order, the next section — each for its own
 reason. Letting go of a card is queued so that a gateway that is down cannot make deleting a
 customer or cancelling an order fail, and so the attempt survives to be retried; the email is queued
 so that a slow mail server cannot turn a webhook delivery into a failure the gateway then retries
@@ -412,11 +413,58 @@ The second one asks about each message before sending it; `--force` sends them a
 is tried a few more times and then **discarded** — not parked a second time, because Sylius gives its
 failure transport no failure transport of its own — and all that remains is an error in the log. So
 check first, and run the first command again afterwards: a purge that has left the list while its
-record is still in NMI's vault was discarded, and that record has to be removed at NMI by hand.
+record is still in NMI's vault was discarded, and that record has to be removed at NMI by hand. A
+void discarded the same way leaves its authorisation to expire on its own.
 
 **Not this:** the payment-request transport, which the README tells you to leave at `sync://`. That
 one must not be queued — the pay page needs its answer in the same request. They are different
 transports and both are right.
+
+## An order cancelled before it was captured still shows its authorisation open at NMI
+
+**What you see:** on a payment method that authorises first, an order was cancelled — with *Cancel* on
+the order screen, through the admin API, or by your own code — and NMI's portal still shows its
+authorisation as not voided. The customer may say the money is still held.
+
+**What was missed, most often:** the worker. The void is queued on Sylius's `main` transport and sent
+only when something consumes it, as the section above describes:
+
+```bash
+bin/console messenger:consume main
+```
+
+**If the worker is running,** read what the store recorded for the order's payment. An accepted void is
+a `void` row in the plugin's transaction table; a refusal is written into the payment's `details`,
+under `nmi_refusal`. Put the order's number in both queries:
+
+```sql
+SELECT t.transaction_id, t.type, t.created_at
+FROM jpm_martin_sylius_nmi_transaction t
+JOIN sylius_payment p ON p.id = t.payment_id
+JOIN sylius_order o ON o.id = p.order_id
+WHERE o.number = '000000042'
+ORDER BY t.id;
+
+SELECT p.id, p.state, p.details
+FROM sylius_payment p
+JOIN sylius_order o ON o.id = p.order_id
+WHERE o.number = '000000042';
+```
+
+- **A `void` row:** NMI accepted the void. How soon the cardholder's bank then releases the money is
+  not something the store is told.
+- **No `void` row, and `nmi_refusal` with `cancelled_authorization_void_refused`:** NMI refused, and
+  its own reason is the `detail` beside it. The payment stays cancelled, the void is not sent again,
+  and the authorisation is left to expire.
+- **Neither, and the log says *the queue that carries the void is synchronous*:** `main` points at
+  `sync://`. The void was sent in the request that cancelled the order, and could not be recorded.
+  Point `main` back at a queue, as Sylius ships it, and run the worker.
+- **Neither, and nothing in the log:** the void is still waiting, or ran out of attempts. The section
+  above shows where to see it and how to send it again.
+
+**Not this:** an order cancelled before version 1.3.2 of this plugin in any way but its payment's own
+*Void*. Nothing voided those authorisations when they were cancelled, and nothing goes back over them
+now; they expire on their own.
 
 ## Credentials read as plain text in the database
 

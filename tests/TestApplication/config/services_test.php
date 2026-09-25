@@ -9,6 +9,7 @@ use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingChargeFactory;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\DecoratingRecurringChargesPolicy;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiCardVerifier;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\QueuedWorkCollector;
 
 return function (ContainerConfigurator $container) {
     if (str_starts_with($container->env(), 'test')) {
@@ -26,6 +27,12 @@ return function (ContainerConfigurator $container) {
             // The same rule for the verification that puts a card on file, which has a service of
             // its own so that a store's decorator of the client can never be handed to it.
             ->set('jpm_martin_sylius_nmi.gateway.card_verifier', FakeNmiCardVerifier::class)
+        ;
+
+        // What a Behat page sent to `main`, kept where a step in another kernel can handle it.
+        $container->services()
+            ->set(QueuedWorkCollector::class)
+            ->tag('kernel.event_subscriber')
         ;
 
         // A store's decorator of the charge factory, as a store would register one. Dormant until

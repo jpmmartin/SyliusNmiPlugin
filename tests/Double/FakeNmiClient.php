@@ -39,6 +39,9 @@ final class FakeNmiClient implements NmiClientInterface
     /** @var list<NmiGatewayConfiguration> the credentials each operation was asked with, in order */
     public array $configurations = [];
 
+    /** @var list<string> the transaction each void named, in order */
+    public array $voidedTransactionIds = [];
+
     private ?NmiResponse $response = null;
 
     /**
@@ -150,6 +153,9 @@ final class FakeNmiClient implements NmiClientInterface
 
     public function void(NmiGatewayConfiguration $configuration, string $transactionId): NmiResponse
     {
+        // Which transaction, because "a void was sent" does not say whether it was the right one.
+        $this->voidedTransactionIds[] = $transactionId;
+
         return $this->answer('void', null, $configuration);
     }
 

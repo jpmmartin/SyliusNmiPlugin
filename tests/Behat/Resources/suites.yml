@@ -182,3 +182,47 @@ default:
 
             filters:
                 tags: "@completing_nmi_held_orders&&@ui"
+
+        # Admin UI: cancelling an order whose payment is authorised.
+        #
+        # The same cut of Sylius's `ui_managing_orders` suite. The authorisation is on record before the
+        # scenario starts, for the reason the saved-cards suite gives; the void happens afterwards, in
+        # the worker a closing step stands in for.
+        ui_cancelling_nmi_authorized_orders:
+            contexts:
+                - sylius.behat.context.hook.doctrine_orm
+                - sylius.behat.context.hook.session
+
+                - sylius.behat.context.transform.address
+                - sylius.behat.context.transform.channel
+                - sylius.behat.context.transform.country
+                - sylius.behat.context.transform.customer
+                - sylius.behat.context.transform.lexical
+                - sylius.behat.context.transform.locale
+                - sylius.behat.context.transform.order
+                - sylius.behat.context.transform.payment
+                - sylius.behat.context.transform.product
+                - sylius.behat.context.transform.product_variant
+                - sylius.behat.context.transform.shared_storage
+                - sylius.behat.context.transform.shipping_method
+                - sylius.behat.context.transform.zone
+
+                - sylius.behat.context.setup.admin_security
+                - sylius.behat.context.setup.channel
+                - sylius.behat.context.setup.currency
+                - sylius.behat.context.setup.customer
+                - sylius.behat.context.setup.geographical
+                - sylius.behat.context.setup.locale
+                - sylius.behat.context.setup.order
+                - sylius.behat.context.setup.product
+                - sylius.behat.context.setup.shipping
+                - sylius.behat.context.setup.user
+                - sylius.behat.context.setup.zone
+                - jpm_martin_sylius_nmi.context.setup.authorized_order
+
+                - sylius.behat.context.ui.admin.managing_orders
+                - sylius.behat.context.ui.admin.notification
+                - jpm_martin_sylius_nmi.context.ui.admin.cancelling_nmi_authorized_orders
+
+            filters:
+                tags: "@cancelling_nmi_authorized_orders&&@ui"
