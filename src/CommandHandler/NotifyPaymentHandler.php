@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use JpmMartin\SyliusNmiPlugin\Command\NotifyPayment;
+use JpmMartin\SyliusNmiPlugin\Lifecycle\NmiReportedVoids;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
@@ -56,6 +57,7 @@ final class NotifyPaymentHandler
         private readonly PaymentRequestProviderInterface $paymentRequestProvider,
         private readonly StateMachineInterface $stateMachine,
         private readonly NmiTransactionRecorderInterface $recorder,
+        private readonly NmiReportedVoids $reportedVoids,
     ) {
     }
 
@@ -102,6 +104,12 @@ final class NotifyPaymentHandler
             $this->finish($paymentRequest, $eventType, 'already_applied', $payment);
 
             return;
+        }
+
+        // Said before the cancellation is saved, so the flush that saves it does not take the
+        // authorisation for one still open and queue a void of what the gateway has just let go.
+        if (PaymentTransitions::TRANSITION_CANCEL === $transition) {
+            $this->reportedVoids->report($payment);
         }
 
         $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, $transition);

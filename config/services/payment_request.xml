@@ -170,6 +170,7 @@
             <argument type="service" id="sylius.provider.payment_request" />
             <argument type="service" id="sylius_abstraction.state_machine" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="jpm_martin_sylius_nmi.lifecycle.reported_voids" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

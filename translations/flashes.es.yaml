@@ -31,6 +31,7 @@ jpm_martin_sylius_nmi:
         capture_refused: La pasarela rechazó la captura, así que el pago no se ha completado.
         no_authorisation: Este pago no tiene ninguna autorización registrada que capturar.
         void_refused: La pasarela rechazó la anulación, así que el pago no se ha cancelado.
+        cancelled_authorization_void_refused: La pasarela rechazó anular la autorización de este pago cancelado, así que sigue abierta hasta que caduque.
         refund_refused: La pasarela rechazó la devolución, así que el pago no se ha reembolsado.
         already_refunded: Este pago ya ha sido reembolsado.
         nothing_to_refund: Este pago no tiene ninguna transacción registrada que devolver.

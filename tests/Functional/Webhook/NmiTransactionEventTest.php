@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Webhook;
 
 use Doctrine\ORM\EntityManagerInterface;
+use JpmMartin\SyliusNmiPlugin\Command\VoidAuthorization;
 use JpmMartin\SyliusNmiPlugin\CommandHandler\NotifyPaymentHandler;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use Sylius\Component\Core\Model\Order;
@@ -12,6 +13,8 @@ use Sylius\Component\Core\Model\Payment;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\RecordingLogger;
 
 /**
@@ -90,6 +93,29 @@ final class NmiTransactionEventTest extends WebTestCase
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertSame(PaymentInterface::STATE_CANCELLED, $this->stateOf($payment));
+    }
+
+    /**
+     * *A void performed outside the store* is not voided again. The payment was authorised, so its
+     * cancellation would otherwise queue a void of an authorisation the gateway has just let go.
+     */
+    public function testAVoidPerformedInThePortalQueuesNoSecondVoid(): void
+    {
+        $payment = $this->aPaymentIn(PaymentInterface::STATE_AUTHORIZED);
+        $this->recorder()->record($payment, $this->approved($this->sale), NmiTransactionInterface::TYPE_AUTH);
+        $this->manager->flush();
+        /** @var InMemoryTransport $queue */
+        $queue = self::getContainer()->get('messenger.transport.main');
+        $queue->reset();
+
+        $this->deliver('transaction.void.success', 'void-once');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(PaymentInterface::STATE_CANCELLED, $this->stateOf($payment));
+        self::assertSame([], array_filter(
+            $queue->getSent(),
+            static fn (Envelope $envelope): bool => $envelope->getMessage() instanceof VoidAuthorization,
+        ), 'A void the gateway reported was queued to be voided again.');
     }
 
     /**

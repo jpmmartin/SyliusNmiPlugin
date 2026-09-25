@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<container
+        xmlns="http://symfony.com/schema/dic/services"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd"
+>
+    <services>
+        <!-- The authorisation a payment still holds open at the gateway, as the record tells it. -->
+        <service id="jpm_martin_sylius_nmi.lifecycle.open_authorization_resolver" class="JpmMartin\SyliusNmiPlugin\Lifecycle\NmiOpenAuthorizationResolver">
+            <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
+        </service>
+
+        <!-- The voids the gateway reported in this request or message; forgotten between them. -->
+        <service id="jpm_martin_sylius_nmi.lifecycle.reported_voids" class="JpmMartin\SyliusNmiPlugin\Lifecycle\NmiReportedVoids">
+            <tag name="kernel.reset" method="reset" />
+        </service>
+
+        <!--
+            Voids what a cancelled payment left open, on the event bus as the purges are: it is
+            dispatched from a flush listener, and the command bus's transaction middleware would
+            flush again on the way out. It flushes its own writes, and never from inside the flush
+            that saved the cancellation.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_handler.void_authorization" class="JpmMartin\SyliusNmiPlugin\CommandHandler\VoidAuthorizationHandler">
+            <argument type="service" id="sylius.repository.payment" />
+            <argument type="service" id="jpm_martin_sylius_nmi.lifecycle.open_authorization_resolver" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.configuration_provider" />
+            <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
+            <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
+            <argument type="service" id="doctrine.orm.default_entity_manager" />
+            <argument type="service" id="logger" />
+            <argument type="service" id="jpm_martin_sylius_nmi.listener.void_authorizations_of_cancelled_payments" />
+            <tag name="messenger.message_handler" bus="sylius.event_bus" />
+        </service>
+
+        <!--
+            Queues the void of what any saved cancellation from `authorized` leaves open — the order
+            screen's Cancel on the order, the admin API's order cancel, a store's own code — once the
+            cancellation has been written. It schedules nothing, so its priority is left alone.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.void_authorizations_of_cancelled_payments" class="JpmMartin\SyliusNmiPlugin\EventListener\VoidAuthorizationsOfCancelledPaymentsListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.lifecycle.open_authorization_resolver" />
+            <argument type="service" id="jpm_martin_sylius_nmi.lifecycle.reported_voids" />
+            <argument type="service" id="sylius.event_bus" />
+            <tag name="doctrine.event_listener" event="onFlush" />
+            <tag name="doctrine.event_listener" event="postFlush" />
+        </service>
+    </services>
+</container>

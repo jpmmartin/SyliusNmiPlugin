@@ -308,13 +308,22 @@ card on file, `sylius.payment.pre_complete` charges that card instead, and
 On a held payment that kept its card as a recurring credential, `sylius.payment.pre_complete` charges
 that credential, and nothing lets it go.
 
-Two things hold whichever way a payment moves — the order screen, the admin API, the cancellation of
+Three things hold whichever way a payment moves — the order screen, the admin API, the cancellation of
 its order, `sylius:cancel-unpaid-orders`, or your own code applying the `sylius_payment` transitions:
 
 - **A cancelled payment lets its card on file go.** The release is written in the same flush that
   saves the cancellation, from Doctrine's `onFlush`, and the removal from NMI's vault is queued from
   `postFlush`, once that flush has committed. A cancellation that is never saved releases nothing. A
   recurring credential is never let go by a cancellation.
+- **A payment cancelled from `authorized` has its authorisation voided.** The same flush decides it:
+  for an NMI payment it saves as cancelled from `authorized`, with an authorisation still open on the
+  plugin's record, a void is queued from `postFlush` on Sylius's `main` transport, and the worker
+  (`bin/console messenger:consume main`) sends it to NMI and records the void, or NMI's refusal, on
+  the payment. Nothing happens until that worker runs, and nothing reports it. The payment row's
+  *Void*, which voids before it cancels, and a void NMI reports from its portal queue nothing, and a
+  cancellation that is never saved voids nothing. `sylius:cancel-unpaid-orders` never reaches such a
+  payment: it only cancels orders still awaiting payment. With `main` pointed at `sync://` the void is
+  sent from inside the flush and is not recorded; a warning says so.
 - **A held payment is not completed without an approved charge.** A listener on
   `workflow.sylius_payment.transition.complete` refuses the transition, before the payment's state
   changes, unless the plugin's own charge approved it in that request. The admin API answers such an
