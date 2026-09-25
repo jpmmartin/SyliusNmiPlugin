@@ -315,6 +315,17 @@ A held order whose payment opened recurring charges kept its card for the renewa
 file. *Complete* and the charger charge it all the same, and answer with the recurring charge's
 sentences, in the next section, instead of these.
 
+## Completing a held payment through the admin API answers 422
+
+**What you see:** `PATCH /api/v2/admin/payments/{id}/complete` — or your own code applying the
+`complete` transition — is refused for a payment on a method that takes payment later, with *holds
+a card that has not been charged*. The payment keeps waiting and its card stays on file.
+
+**What was missed:** nothing — it is the plugin refusing to mark an order paid with no money taken.
+A held payment is completed by charging its card: *Complete* on the order screen, or
+`NmiCardOnFileChargerInterface::charge()` from your code, both of which complete it once NMI
+approves. If the order was paid some other way, cancel the payment instead; that lets its card go.
+
 ## A recurring charge is refused, declined or unknown
 
 **What you see:** `NmiRecurringChargerInterface::charge()` answers with one of the keys below — or,

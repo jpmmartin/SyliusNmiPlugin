@@ -9,10 +9,12 @@ use Sylius\Bundle\ResourceBundle\Event\ResourceControllerEvent;
 use Sylius\Component\Core\Model\PaymentInterface;
 
 /**
- * Releases the card on file once the order screen has completed or cancelled its payment.
+ * Releases the card on file once the order screen has completed its payment.
  *
- * On the events that follow the transition, which the platform dispatches after the change has been
- * flushed: the release is queued only once the payment's new state is committed.
+ * On the event that follows the transition, which the platform dispatches after the change has been
+ * flushed: the release is queued only once the payment's new state is committed. A cancellation is
+ * not this listener's: a payment is cancelled by far more than the order screen, and every one of
+ * those saved cancellations lets its card go in the flush that saves it.
  *
  * @internal
  */
@@ -29,7 +31,7 @@ final class ReleaseCardOnFileListener
             return;
         }
 
-        if (!in_array($payment->getState(), [PaymentInterface::STATE_COMPLETED, PaymentInterface::STATE_CANCELLED], true)) {
+        if (PaymentInterface::STATE_COMPLETED !== $payment->getState()) {
             return;
         }
 

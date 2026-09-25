@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use Doctrine\ORM\EntityManagerInterface;
+use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiApprovedCharges;
 use JpmMartin\SyliusNmiPlugin\CardOnFile\NmiChargeOutcome;
 use JpmMartin\SyliusNmiPlugin\Command\ChargeRecurringCredential;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiRecurringCredentialInterface;
@@ -74,6 +75,7 @@ final class ChargeRecurringCredentialHandler
         private readonly NmiTransactionRecorderInterface $recorder,
         private readonly EntityManagerInterface $manager,
         private readonly StateMachineInterface $stateMachine,
+        private readonly NmiApprovedCharges $approvedCharges,
     ) {
     }
 
@@ -136,6 +138,8 @@ final class ChargeRecurringCredentialHandler
         }
 
         $this->recorder->record($payment, $response, NmiTransactionInterface::TYPE_SALE);
+        // Before the transition, whoever applies it: this handler below, or the order screen after.
+        $this->approvedCharges->approve($payment);
 
         // From the order screen the operator's own action is in the middle of completing the payment
         // and will apply the transition itself; applying it here too would make that fail. Anywhere

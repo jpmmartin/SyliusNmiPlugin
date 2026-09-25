@@ -8,6 +8,23 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Fixed
+
+- **A card on file is let go whenever its payment is cancelled, not only from the order screen.**
+  Cancelling the whole order, `sylius:cancel-unpaid-orders` expiring an unpaid order, or a store's
+  own code cancelling through the state machine left the card in NMI's vault, still held, for ever:
+  the plugin only listened to the order screen's events, and Sylius cancels an order's payments
+  without them. The release is now written in the same database flush as the cancellation, and the
+  removal from the vault is queued once that flush has committed; a cancellation that is not saved
+  releases nothing. A recurring credential is still never let go by a cancellation. **Cards already
+  left held by payments cancelled before this release stay held**: nothing goes back over them.
+- **A held payment can no longer be completed without an approved charge.** `PATCH
+  /api/v2/admin/payments/{id}/complete`, or a store's own code applying `complete`, marked a
+  payment holding a card on file — or a recurring credential it opened — paid with nothing charged
+  and the card still held. The transition is now refused on every path, and the admin API answers
+  422. The order screen's *Complete* still charges first, and the plugin's own charges still complete
+  what they charged.
+
 ## [1.3.0] - 2026-09-24
 
 ### Added

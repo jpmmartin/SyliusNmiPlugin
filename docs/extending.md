@@ -304,10 +304,26 @@ It listens on `sylius.payment.pre_complete`, `sylius.payment.pre_cancel` and
 `sylius.payment.pre_refund` to perform the capture, the void and the refund, and on
 `workflow.sylius_shipment.completed.ship` to capture when a shipment goes out. On a payment holding a
 card on file, `sylius.payment.pre_complete` charges that card instead, and
-`sylius.payment.post_complete` and `sylius.payment.post_cancel` let it go at the gateway once the
-payment's new state is committed. On a held payment that kept its card as a recurring credential,
-`sylius.payment.pre_complete` charges that credential, and nothing lets it go. The transaction log
-is written through the recorder above; decorate it to react to a transaction being recorded.
+`sylius.payment.post_complete` lets it go at the gateway once the payment's completion is committed.
+On a held payment that kept its card as a recurring credential, `sylius.payment.pre_complete` charges
+that credential, and nothing lets it go.
+
+Two things hold whichever way a payment moves — the order screen, the admin API, the cancellation of
+its order, `sylius:cancel-unpaid-orders`, or your own code applying the `sylius_payment` transitions:
+
+- **A cancelled payment lets its card on file go.** The release is written in the same flush that
+  saves the cancellation, from Doctrine's `onFlush`, and the removal from NMI's vault is queued from
+  `postFlush`, once that flush has committed. A cancellation that is never saved releases nothing. A
+  recurring credential is never let go by a cancellation.
+- **A held payment is not completed without an approved charge.** A listener on
+  `workflow.sylius_payment.transition.complete` refuses the transition, before the payment's state
+  changes, unless the plugin's own charge approved it in that request. The admin API answers such an
+  attempt with 422. It is a transition listener rather than a guard, so the order screen still
+  offers *Complete*. A store that maps `sylius_payment` to the `winzou_state_machine` adapter gets
+  no workflow events, and so not this refusal.
+
+The transaction log is written through the recorder above; decorate it to react to a transaction
+being recorded.
 
 ## Integrating: routes, the API and the console
 

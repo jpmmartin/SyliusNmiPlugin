@@ -469,7 +469,8 @@ waiting with its card on file. From your own code — a worker once an order is 
 command — call `NmiCardOnFileChargerInterface::charge()`; [docs/extending.md](docs/extending.md)
 shows how. Either way the charge is the order's own amount, declared to the card networks as
 merchant-initiated and citing the verification made at checkout, with no 3-D Secure — the shopper
-is not there to be asked.
+is not there to be asked. Nothing else completes a held payment: marking it paid through the admin
+API, or from your own code, without an approved charge is refused, and the API answers 422.
 
 **Before trying again after no answer.** A charge the gateway did not answer is reported as
 *unknown*, never as declined: the card may have been charged. Look the order up in NMI's portal by
@@ -482,8 +483,10 @@ card on file, has moved to another payment method, or when the card's account ha
 card has expired, or it carries no record of the verification that put it on file. The reason is
 named in each case.
 
-**Cancelling** the payment from the order screen lets the card go, and so does an approved charge:
-the record is removed from NMI's vault. If NMI does not answer, the removal is tried again a few
+**Cancelling** lets the card go, and so does an approved charge: the record is removed from NMI's
+vault. That is any cancellation of the payment that is saved — from the order screen, by cancelling
+the whole order, when `sylius:cancel-unpaid-orders` expires an order left unpaid, or from your own
+code. If NMI does not answer, the removal is tried again a few
 times and then kept in Sylius's failure transport, where you list it and send it again — once NMI
 answers, because a removal sent again that fails is discarded rather than kept a second time;
 [docs/troubleshooting.md](docs/troubleshooting.md) has both commands. Turning the setting off later
