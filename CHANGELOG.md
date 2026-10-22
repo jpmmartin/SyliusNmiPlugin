@@ -8,6 +8,8 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-10-22
+
 ### Fixed
 
 - **Paying again after an authentication NMI never answered no longer needs a reload.** When NMI
@@ -263,7 +265,8 @@ Stated here as well as in the README, because they decide whether this release f
   allows a void but not a refund, so a partial refund of an unsettled payment can be refused; the
   plugin asks either way, shows the answer, and the order screen's *Refund* voids the whole amount.
 
-[Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/compare/v1.3.2...main
+[Unreleased]: https://github.com/jpmmartin/SyliusNmiPlugin/compare/v1.3.3...main
+[1.3.3]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.3.3
 [1.3.2]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.3.2
 [1.3.1]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.3.1
 [1.3.0]: https://github.com/jpmmartin/SyliusNmiPlugin/releases/tag/v1.3.0
