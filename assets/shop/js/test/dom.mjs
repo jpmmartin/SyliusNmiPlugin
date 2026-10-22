@@ -3,16 +3,32 @@
  *
  * jsdom supplies the DOM; the globals the script reaches for are copied onto `globalThis` before
  * the script is imported, because it looks them up as bare names. Collect.js is faked on
- * `window` the way the script finds a store's own copy: `configure` keeps the options and reports
- * the frames ready, `startPaymentRequest` answers with whatever the test queued.
+ * `window` the way the script finds a store's own copy: `configure` keeps the options, builds the
+ * frames and reports them ready, `startPaymentRequest` answers with whatever the test queued.
+ *
+ * The frames are built as the hosted Collect.js builds them, read in its source: once a promise
+ * of its own has settled, so always after `configure()` has returned, and each sized by what a
+ * probe input measures inside its field — nothing, when the field is not displayed. Here that is
+ * a frame of `42px` for a displayed field and of `0px` for one that is not.
  */
 import { JSDOM } from 'jsdom';
+
+/* Whether an element is displayed: neither it nor an ancestor is hidden or `display: none`. */
+const displayed = (window, element) => {
+    for (let node = element; node; node = node.parentElement) {
+        if (node.hidden || window.getComputedStyle(node).display === 'none') {
+            return false;
+        }
+    }
+
+    return true;
+};
 
 export const givenAPage = (html) => {
     const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, { url: 'https://store.example/en_US/pay' });
     const { window } = dom;
 
-    for (const name of ['window', 'document', 'HTMLElement', 'HTMLFormElement', 'HTMLInputElement', 'CustomEvent', 'Event', 'Node', 'getComputedStyle']) {
+    for (const name of ['window', 'document', 'HTMLElement', 'HTMLFormElement', 'HTMLInputElement', 'CustomEvent', 'Event', 'Node', 'MutationObserver', 'getComputedStyle']) {
         globalThis[name] = window[name] ?? window;
     }
     globalThis.window = window;
@@ -27,11 +43,25 @@ export const givenAPage = (html) => {
 
     const collect = {
         options: null,
+        configured: 0,
         responses: [],
         inSubmission: false,
         configure(options) {
             this.options = options;
-            setTimeout(() => options.fieldsAvailableCallback?.(), 0);
+            this.configured += 1;
+            Promise.resolve().then(() => {
+                Object.values(options.fields ?? {}).forEach(({ selector }) => {
+                    const field = window.document.querySelector(selector);
+                    if (!field) {
+                        return;
+                    }
+                    field.querySelector('iframe')?.remove();
+                    const frame = window.document.createElement('iframe');
+                    frame.style.height = displayed(window, field) ? '42px' : '0px';
+                    field.appendChild(frame);
+                });
+                setTimeout(() => options.fieldsAvailableCallback?.(), 0);
+            });
         },
         startPaymentRequest() {
             this.inSubmission = true;

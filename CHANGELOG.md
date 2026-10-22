@@ -26,6 +26,14 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
   `ES-M`, `GB-ENG` — is left out rather than sent malformed. `data-nmi-state` and the shop API's
   `responseData.state` still carry the code as Sylius keeps it, so a headless client that sends it
   to NMI's 3-D Secure has to cut it down the same way. Rebuild the front-end assets to get it.
+- **A shopper whose saved card is preselected can now pay with a new card.** Choosing *Use a new
+  card* showed the labels and no card fields. Collect.js sizes its frames by what it measures in
+  each field when it builds them, a moment after it is configured, and the plugin configured it as
+  the page loaded, with the new-card form put away behind the saved card, so every frame was built
+  zero pixels high. The fields are now built the first time they are shown, a second or two after
+  the shopper chooses a new card, and `nmi:mounted` is announced then; a page that opens on the
+  new-card form is unchanged. The gateway's frames also get their accessible title now: it was set
+  before the frames existed, so never. Rebuild the front-end assets to get it.
 
 ## [1.3.2] - 2026-09-25
 

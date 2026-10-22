@@ -311,12 +311,18 @@ describe('the busy saved-card button', () => {
 const DECISION_DEADLINE_MS = 45000;
 const CHALLENGE_DEADLINE_MS = 600000;
 
-/* Moves the mocked clock on and lets every promise waiting on it run. */
-const advance = async (ms = 1) => {
-    mock.timers.tick(ms);
+/* Lets every promise and observer waiting to run do so. setImmediate is not mocked. */
+const settle = async () => {
     for (let round = 0; round < 5; round += 1) {
         await new Promise((resolve) => setImmediate(resolve));
     }
+};
+
+/* Moves the mocked clock on, after and before letting everything waiting on it run. */
+const advance = async (ms = 1) => {
+    await settle();
+    mock.timers.tick(ms);
+    await settle();
 };
 
 describe('authenticating again on the same page', () => {
@@ -544,5 +550,129 @@ describe('the province the issuer is told', () => {
 
     it('is left out when the page carries none', async () => {
         assert.equal((await toldFor(undefined)).state, undefined);
+    });
+});
+
+/*
+ * A page that opens on a saved card, which puts the card form away before it mounts. Collect.js
+ * sizes its frames by what it measures in each field when it builds them, so they are built only
+ * once the fields are shown.
+ */
+describe('the card form behind a saved card', () => {
+    const PUT_AWAY_CARD_FORM = CARD_FORM
+        .replace('<div data-nmi-payment ', '<div data-nmi-payment data-nmi-new-card-only ')
+        .replace('<button type="button" data-nmi-pay-button disabled>', '<button type="button" data-nmi-pay-button data-nmi-new-card-only disabled>');
+
+    let page;
+    let container;
+    let timers;
+    let fetch;
+
+    /* The window's own timers, which the frames deadline runs on, kept to be fired by hand. */
+    const keepWindowTimers = () => {
+        timers = [];
+        page.window.setTimeout = (callback, ms) => timers.push({ callback, ms, cleared: false });
+        page.window.clearTimeout = (id) => {
+            if (timers[id - 1]) {
+                timers[id - 1].cleared = true;
+            }
+        };
+    };
+
+    const passTheFramesDeadline = () => timers.filter((timer) => timer.ms === 20000 && !timer.cleared).forEach((timer) => timer.callback());
+
+    const chooseANewCard = async () => {
+        const radio = page.document.querySelector('[data-nmi-payment-source][value="new"]');
+        radio.checked = true;
+        radio.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+        await tick();
+        await tick();
+    };
+
+    const frames = () => [...page.document.querySelectorAll('[data-nmi-field] iframe')];
+
+    beforeEach(() => {
+        reset();
+        page = givenAPage(STORED_CARDS + PUT_AWAY_CARD_FORM);
+        container = page.document.querySelector('[data-nmi-payment]');
+        keepWindowTimers();
+        ({ fetch } = globalThis);
+    });
+
+    afterEach(() => {
+        globalThis.fetch = fetch;
+        reset();
+    });
+
+    it('builds no card fields while the saved card is chosen, and never says the form could not be loaded', async () => {
+        const seen = events(container, ['nmi:mounted', 'nmi:failed']);
+        await load();
+        await tick();
+
+        assert.equal(container.hidden, true, 'The saved card is chosen.');
+        assert.equal(page.collect.configured, 0, 'Nothing is built behind the saved card.');
+
+        passTheFramesDeadline();
+
+        assert.deepEqual(seen, []);
+        assert.equal(page.document.querySelector('[data-nmi-error]').hidden, true);
+    });
+
+    it('builds the fields at the theme\'s height once a new card is chosen, and says so once', async () => {
+        const seen = events(container, ['nmi:mounted']);
+        await load();
+        await tick();
+
+        await chooseANewCard();
+
+        assert.equal(page.collect.configured, 1);
+        assert.equal(frames().length, 3);
+        frames().forEach((frame) => assert.equal(frame.style.height, '42px', 'Measured while shown.'));
+        assert.equal(page.document.querySelector('[data-nmi-pay-button]').disabled, false);
+        assert.equal(seen.length, 1);
+    });
+
+    it('pays with the new card chosen there', async () => {
+        await load();
+        await tick();
+        await chooseANewCard();
+
+        page.collect.responses.push({ token: 'tok-new-card', card: null });
+        page.document.querySelector('[data-nmi-pay-button]').click();
+        await tick();
+        await tick();
+
+        assert.equal(page.submitted.length, 1);
+        assert.equal(page.submitted[0].payment_token, 'tok-new-card');
+        assert.equal(page.submitted[0].cavv, 'AAABBJ');
+    });
+
+    it('counts the frames deadline from the moment the fields are built', async () => {
+        const seen = events(container, ['nmi:failed']);
+        await load();
+        await tick();
+        passTheFramesDeadline();
+        page.collect.configure = function configure(options) {
+            this.options = options;
+            this.configured += 1;
+        };
+
+        await chooseANewCard();
+        passTheFramesDeadline();
+
+        assert.deepEqual(seen.map((event) => event.detail.reason), ['unavailable']);
+    });
+});
+
+describe('the frames', () => {
+    it('carry their field\'s title once they exist', async () => {
+        reset();
+        const page = givenAPage(CARD_FORM);
+        await load();
+        await tick();
+
+        const titled = [...page.document.querySelectorAll('[data-nmi-field]')].map((field) => [field.dataset.nmiTitle, field.querySelector('iframe')?.title]);
+
+        assert.deepEqual(titled, [['Card number', 'Card number'], ['Expiry date', 'Expiry date'], ['Security code', 'Security code']]);
     });
 });

@@ -651,69 +651,108 @@ const mount = (container) => {
         emit(container, 'nmi:failed', { reason: 'unavailable', message: messages.unavailable });
     };
 
-    const framesDeadline = window.setTimeout(() => {
-        if (!ready) {
+    let framesDeadline = null;
+
+    const armFramesDeadline = () => {
+        window.clearTimeout(framesDeadline);
+        framesDeadline = window.setTimeout(() => {
+            if (!ready) {
+                unavailable();
+            }
+        }, FRAMES_DEADLINE_MS);
+    };
+
+    const configure = () => {
+        collect.configure({
+            variant: 'inline',
+            styleSniffer: true,
+            snifferClass: INPUT_CLASS,
+            fields: fieldOptions,
+            ...collectStylesFor(probeInputStyles()),
+            timeoutDuration: ATTEMPT_DEADLINE_MS,
+            timeoutCallback: () => {
+                if (attempt?.phase === 'tokenising') {
+                    endAttempt(messages.unreadable, 'unreadable');
+                }
+            },
+            // Reported on blur as well as on an attempt; only the attempt is anyone's business
+            // here — the frame itself draws the invalid border either way.
+            validationCallback: (field, valid) => {
+                if (!valid && attempt?.phase === 'tokenising') {
+                    endAttempt(messages.unreadable, 'unreadable');
+                }
+            },
+            fieldsAvailableCallback: () => {
+                ready = true;
+                window.clearTimeout(framesDeadline);
+
+                // The title Collect.js is given names the input inside the frame; the frame
+                // itself gets none, and a frame without a title is what a screen reader
+                // announces as such. The frames exist from here on, and not before.
+                fields.forEach((field) => {
+                    const frame = field.querySelector('iframe');
+                    if (frame && !frame.title) {
+                        frame.title = field.dataset.nmiTitle ?? '';
+                    }
+                });
+
+                button.disabled = false;
+                emit(container, 'nmi:mounted');
+            },
+            callback: onToken,
+        });
+    };
+
+    const configureOrGiveUp = () => {
+        try {
+            configure();
+        } catch {
+            window.clearTimeout(framesDeadline);
             unavailable();
         }
-    }, FRAMES_DEADLINE_MS);
+    };
+
+    /*
+     * Whether every card field is displayed. Collect.js builds its frames once a promise of its
+     * own has settled — after `configure()` has returned — and sizes each one by what a probe input
+     * measures inside its field at that moment. A field that is not displayed measures nothing and
+     * gets a frame of no height, so the fields are configured only while they are shown.
+     */
+    const displayed = () => fields.every((field) => {
+        for (let node = field; node; node = node.parentElement) {
+            if (node.hidden || window.getComputedStyle(node).display === 'none') {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    armFramesDeadline();
 
     loadCollectJs(container.dataset.nmiTokenizationKey)
         .then((instance) => {
             collect = instance;
 
-            /*
-             * Collect.js measures a probe input inside each field element while configuring, and
-             * an element hidden because a saved card is preselected measures nothing. So the
-             * new-card path is shown for the duration of the call — which is synchronous, so
-             * nothing is painted in between — and put away again.
-             */
-            const putAway = [...document.querySelectorAll(NEW_CARD_ONLY_SELECTOR)].filter((element) => element.hidden);
-            putAway.forEach((element) => {
-                element.hidden = false;
-            });
+            if (displayed()) {
+                configureOrGiveUp();
 
-            try {
-                collect.configure({
-                    variant: 'inline',
-                    styleSniffer: true,
-                    snifferClass: INPUT_CLASS,
-                    fields: fieldOptions,
-                    ...collectStylesFor(probeInputStyles()),
-                    timeoutDuration: ATTEMPT_DEADLINE_MS,
-                    timeoutCallback: () => {
-                        if (attempt?.phase === 'tokenising') {
-                            endAttempt(messages.unreadable, 'unreadable');
-                        }
-                    },
-                    // Reported on blur as well as on an attempt; only the attempt is anyone's
-                    // business here — the frame itself draws the invalid border either way.
-                    validationCallback: (field, valid) => {
-                        if (!valid && attempt?.phase === 'tokenising') {
-                            endAttempt(messages.unreadable, 'unreadable');
-                        }
-                    },
-                    fieldsAvailableCallback: () => {
-                        ready = true;
-                        window.clearTimeout(framesDeadline);
-                        button.disabled = false;
-                        emit(container, 'nmi:mounted');
-                    },
-                    callback: onToken,
-                });
-            } finally {
-                putAway.forEach((element) => {
-                    element.hidden = true;
-                });
+                return;
             }
 
-            // The title Collect.js is given names the input inside the frame; the frame itself
-            // gets none, and a frame without a title is what a screen reader announces as such.
-            fields.forEach((field) => {
-                const frame = field.querySelector('iframe');
-                if (frame && !frame.title) {
-                    frame.title = field.dataset.nmiTitle ?? '';
+            // Put away, as it is behind a preselected saved card: nothing is built until the
+            // fields are shown — by the shopper choosing a new card, or by whatever a store uses
+            // to show them — and the page does not say the form failed while nobody asked for it.
+            window.clearTimeout(framesDeadline);
+            const shown = new MutationObserver(() => {
+                if (!displayed()) {
+                    return;
                 }
+                shown.disconnect();
+                armFramesDeadline();
+                configureOrGiveUp();
             });
+            shown.observe(document.body, { attributes: true, attributeFilter: ['hidden', 'class', 'style'], subtree: true });
         })
         .catch(() => {
             window.clearTimeout(framesDeadline);

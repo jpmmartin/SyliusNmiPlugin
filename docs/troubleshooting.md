@@ -212,6 +212,22 @@ the code as Sylius keeps it.
 **How to confirm:** the console line names the field. Update the plugin and rebuild the front-end
 assets — `yarn build`, as in README step 5.
 
+## With a saved card chosen, *Use a new card* shows the labels and no card fields
+
+**What you see:** a signed-in shopper whose saved card is preselected picks *Use a new card*. The
+labels *Card number*, *Expiry date* and *Security code* appear with nothing under them, though
+*Pay* is enabled. In the browser's inspector each of the gateway's frames — `CollectJSInlineccnumber`
+and the other two — carries `height: 0px`.
+
+**What was missed:** the update to 1.3.3, or the front-end build after it. Collect.js sizes each
+frame by what it measures inside the field when it builds the frames, which it does a moment after
+it is configured. Before 1.3.3 the plugin configured it as the page loaded, with the new-card form
+put away behind the saved card, so every frame measured nothing. Since 1.3.3 the fields are built
+the first time they are shown, a second or two after the shopper chooses *Use a new card*.
+
+**How to confirm:** the `height: 0px` on the three frames. Update the plugin and rebuild the
+front-end assets — `yarn build`, as in README step 5.
+
 ## Every charge fails with the generic message, and the log says the key was refused
 
 **What you see:** the card fields render, the card tokenises and passes authentication, and then

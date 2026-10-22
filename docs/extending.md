@@ -400,7 +400,7 @@ All four are `CustomEvent`s dispatched on the container and bubbling, with these
 
 | Event | `detail` | When |
 |---|---|---|
-| `nmi:mounted` | `{}` | the gateway's frames take input and the button is enabled |
+| `nmi:mounted` | `{}` | the gateway's frames take input and the button is enabled. On a page that opens on a saved card, the frames are built — and this fires — only once the shopper first chooses a new card |
 | `nmi:token` | `{ token, authentication, fields }` | `tokenize` mode only: the token, the 3-D Secure result under the names the store expects, and `fields`, which is what `submit` would post minus the CSRF token |
 | `nmi:submitted` | `{ fields }` — cancelable | just before the hidden form posts; `preventDefault()` keeps it from posting, and leaves the button disabled and busy for the store that took the submission over to hand back |
 | `nmi:failed` | `{ reason, message }` | the attempt ended without a token: `unreadable` (a field the gateway refused, or no answer), `unavailable` (the frames never came), `not_authenticated` (3-D Secure failed, was abandoned or timed out). The message is the one shown to the shopper |
