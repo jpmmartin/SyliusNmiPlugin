@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { afterEach, beforeEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
 import { CARD_FORM, STORED_CARDS, givenAPage, tick } from './test/dom.mjs';
-import { nextAuthentication } from './test/nmi-pay.stub.mjs';
+import { gateway, nextAuthentication, reset, widgetMarkup, widgets } from './test/nmi-pay.stub.mjs';
 
 /*
  * The contract a store's own script can rely on: where the parts are found, what the four events
@@ -299,5 +299,203 @@ describe('the busy saved-card button', () => {
 
         assert.equal(page.submitted.length, 0);
         assertIdle(button);
+    });
+});
+
+/*
+ * What follows an authentication. The gateway's interface stays mounted after an attempt it never
+ * answered and refuses every later one, so the page has to free it before the shopper can try
+ * again; after a verdict the widget frees itself. The deadlines are crossed on mocked timers: the
+ * script arms them with the global `setTimeout`, which is the one mocked here.
+ */
+const DECISION_DEADLINE_MS = 45000;
+const CHALLENGE_DEADLINE_MS = 600000;
+
+/* Moves the mocked clock on and lets every promise waiting on it run. */
+const advance = async (ms = 1) => {
+    mock.timers.tick(ms);
+    for (let round = 0; round < 5; round += 1) {
+        await new Promise((resolve) => setImmediate(resolve));
+    }
+};
+
+describe('authenticating again on the same page', () => {
+    let page;
+    let button;
+    let fetch;
+
+    const start = async (html) => {
+        page = givenAPage(html);
+        button = page.document.querySelector('[data-nmi-pay-button]');
+        await load();
+        await advance();
+    };
+
+    const payWithANewCard = async (token) => {
+        page.collect.responses.push({ token, card: null });
+        button.click();
+        await advance();
+        await advance();
+    };
+
+    const shown = () => page.document.querySelector('[data-nmi-error]').textContent;
+
+    beforeEach(() => {
+        reset();
+        mock.timers.enable({ apis: ['setTimeout'] });
+        ({ fetch } = globalThis);
+        globalThis.fetch = async () => ({ ok: true, json: async () => ({ customer_vault_id: '1736036779', currency: 'USD', amount: '12.99' }) });
+    });
+
+    afterEach(() => {
+        mock.timers.reset();
+        globalThis.fetch = fetch;
+        reset();
+    });
+
+    it('authenticates and pays with the next press after an authentication that never answered', async () => {
+        await start(CARD_FORM);
+        const seen = events(page.document.querySelector('[data-nmi-payment]'), ['nmi:failed']);
+
+        nextAuthentication.silent = true;
+        await payWithANewCard('tok-unanswered');
+        await advance(DECISION_DEADLINE_MS);
+
+        assert.deepEqual(seen.map((event) => event.detail.reason), ['not_authenticated']);
+        assert.equal(shown(), 'The card could not be authenticated.');
+        assertIdle(button);
+        assert.equal(page.submitted.length, 0, 'Nothing is charged for an attempt nobody answered.');
+
+        await payWithANewCard('tok-next');
+
+        assert.equal(gateway.refused.length, 0, 'The second authentication was not refused.');
+        assert.equal(page.submitted.length, 1, 'The second attempt paid, with no reload.');
+        assert.equal(page.submitted[0].payment_token, 'tok-next');
+        assert.equal(page.submitted[0].cavv, 'AAABBJ');
+    });
+
+    it('authenticates a saved card after an attempt with a new card that never answered', async () => {
+        await start(STORED_CARDS + CARD_FORM);
+
+        nextAuthentication.silent = true;
+        await payWithANewCard('tok-unanswered');
+        await advance(DECISION_DEADLINE_MS);
+
+        page.document.querySelector('[data-nmi-stored-card-pay]').click();
+        await advance();
+        await advance();
+
+        assert.equal(gateway.refused.length, 0);
+        assert.equal(page.submitted.length, 1, 'The saved card paid, with no reload.');
+        assert.equal(page.submitted[0].stored_card, '42');
+        assert.equal(page.submitted[0].cavv, 'AAABBJ');
+    });
+
+    it('lets a challenge run past the deadline for a verdict, and closes it once nobody finished it', async () => {
+        await start(CARD_FORM);
+        const seen = events(page.document.querySelector('[data-nmi-payment]'), ['nmi:failed']);
+
+        nextAuthentication.challenges = true;
+        await payWithANewCard('tok-challenged');
+        await advance(DECISION_DEADLINE_MS);
+
+        assert.equal(seen.length, 0, 'A shopper in a challenge is not cut short.');
+        assertBusy(button, 'Pay');
+        assert.equal(widgets[0].closed, 0, 'The challenge is left open.');
+        assert.notEqual(gateway.mounted, null);
+
+        await advance(CHALLENGE_DEADLINE_MS);
+
+        assert.deepEqual(seen.map((event) => event.detail.reason), ['not_authenticated']);
+        assertIdle(button);
+        assert.equal(widgets[0].closed, 1, 'The abandoned challenge is closed.');
+        assert.equal(gateway.mounted, null);
+
+        await payWithANewCard('tok-next');
+
+        assert.equal(page.submitted.length, 1);
+        assert.equal(page.submitted[0].payment_token, 'tok-next');
+    });
+
+    it('leaves the widget alone after a verdict, and the next press authenticates', async () => {
+        await start(CARD_FORM);
+
+        nextAuthentication.fails = true;
+        await payWithANewCard('tok-refused');
+
+        assert.equal(shown(), 'The card could not be authenticated.');
+        assert.equal(widgets.length, 1, 'No second widget is mounted.');
+        assert.equal(widgets[0].closed, 0);
+        assert.equal(widgets[0].destroyed, false);
+
+        await payWithANewCard('tok-next');
+
+        assert.equal(page.submitted.length, 1);
+        assert.equal(widgets.length, 1);
+    });
+
+    it('takes a dialog the shopper closed as their answer, and the next press authenticates', async () => {
+        await start(CARD_FORM);
+
+        nextAuthentication.challenges = true;
+        await payWithANewCard('tok-challenged');
+        widgets[0].element.querySelector('.close-button').click();
+        await advance();
+
+        assertIdle(button);
+        assert.equal(page.submitted.length, 0);
+        assert.equal(widgets.length, 1, 'The widget freed itself; nothing was remounted.');
+
+        await payWithANewCard('tok-next');
+
+        assert.equal(page.submitted.length, 1);
+    });
+
+    it('does not replace the widget under an attempt that took it over', async () => {
+        await start(STORED_CARDS + CARD_FORM);
+        const savedCardButton = page.document.querySelector('[data-nmi-stored-card-pay]');
+
+        nextAuthentication.silent = true;
+        await payWithANewCard('tok-unanswered');
+        await advance(10000);
+        savedCardButton.click();
+        await advance();
+
+        await advance(DECISION_DEADLINE_MS - 10000);
+
+        assertIdle(button);
+        assertBusy(savedCardButton, 'Pay');
+        assert.equal(widgets.length, 1, 'The saved card is still waiting on this widget.');
+        assert.equal(widgets[0].closed, 0);
+
+        await advance(10000);
+
+        assertIdle(savedCardButton);
+        assert.equal(widgets.length, 2, 'Replaced once the last attempt on it was given up.');
+        assert.equal(widgets[0].closed, 1);
+    });
+
+    it('remounts a widget it cannot close, and says so in the console', async () => {
+        widgetMarkup.closeControl = false;
+        const warnings = [];
+        const { warn } = console;
+        console.warn = (message) => warnings.push(message);
+        try {
+            await start(CARD_FORM);
+            const target = page.document.querySelector('[data-nmi-three-d-secure]');
+
+            nextAuthentication.silent = true;
+            await payWithANewCard('tok-unanswered');
+            await advance(DECISION_DEADLINE_MS);
+
+            assert.equal(warnings.length, 1);
+            assert.match(warnings[0], /reload/);
+            assert.equal(widgets.length, 2, 'A fresh widget was mounted.');
+            assert.equal(widgets[0].destroyed, true);
+            assert.equal(widgets[1].target, target, 'On the same element.');
+            assert.deepEqual([...target.children], [widgets[1].element], 'Only the fresh widget is on the page.');
+        } finally {
+            console.warn = warn;
+        }
     });
 });

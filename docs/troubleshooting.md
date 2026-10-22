@@ -150,6 +150,44 @@ would in production.
 **How to confirm:** on the same account, `4000 0000 0000 2701` authenticates without a challenge
 and pays at once.
 
+**With `4000 0000 0000 2925`, the same sentence after a long wait.** NMI documents that card as a
+failed authentication, which the page reports at once. On a sandbox account on 2026-10-22 it went
+otherwise: the console carried a `400` on `cmpiLookUp.php` and *Gateway.js - ThreeDSecureUI: Payer
+Authentication Error - Blocked due to Failed Authentication rule*, nothing answered, and the
+sentence appeared when the plugin gave the attempt up after 45 seconds. That reads as a rule on the
+account blocking failed authentications instead of reporting them — observed there, not something
+NMI documents. Nothing is charged either way. Before 1.3.3 the next attempt on that page failed
+too; that is the next entry.
+
+## *Try again* fails the same way until the page is reloaded
+
+**What you see:** an attempt ends, after a long wait on the busy button, with *The card could not
+be authenticated, so it has not been charged. Try again or use another card.* Pressing *Pay* again,
+with any card — even one that authenticates through a challenge — opens no dialog: the button
+waits as long again and the same sentence comes back. The browser console carries, on every press:
+
+```
+Gateway.js - ThreeDSecureUI: You may not start another 3DS instance. You must unmount the existing one before starting a new one.
+```
+
+After a reload, the same card authenticates.
+
+**What was missed:** the update to 1.3.3, or the front-end build after it. When NMI gives no
+verdict on an authentication — it blocks it, or refuses the lookup; in the cases seen on the
+sandbox the console also showed a `400` on `cmpiLookUp.php` — the gateway's widget calls nothing
+back and its 3-D Secure interface stays mounted. The plugin gives the attempt up after 45 seconds; before 1.3.3 it left
+that interface where it was, and the gateway refuses to start another while one is mounted. Since
+1.3.3 the plugin frees it as it gives the attempt up, and the next press authenticates normally.
+
+**How to confirm:** the console line above, after a first attempt that ended on the long wait.
+Update the plugin, rebuild the front-end assets — `yarn build`, as in README step 5 — and try again
+on a freshly loaded page.
+
+If, after updating, the console says *NMI: the 3-D Secure widget has no close control…*, the
+gateway's widget package has changed under the plugin: the page could only remount the widget, and
+a reload remains the way out. Report it, naming the version of `@nmipayments/nmi-pay` your build
+resolved.
+
 ## Every charge fails with the generic message, and the log says the key was refused
 
 **What you see:** the card fields render, the card tokenises and passes authentication, and then

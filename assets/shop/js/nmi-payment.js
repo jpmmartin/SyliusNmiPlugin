@@ -222,21 +222,32 @@ const authenticationFields = (event) => ({
 /*
  * The widget reports a completed authentication and a failed one, but there is a third outcome
  * it reports through neither: when the gateway blocks authentication outright — its own console
- * carries "Blocked due to Failed Authentication rule" — no callback runs at all. Without a
- * deadline the shopper waits on a spinner for ever, so one is armed before authentication starts
- * and pushed back once a challenge appears, because from that point a person is typing.
+ * carries "Blocked due to Failed Authentication rule" — or rejects the lookup, no callback runs at
+ * all. Without a deadline the shopper waits on a spinner for ever, so one is armed before
+ * authentication starts and pushed back once a challenge appears, because from that point a
+ * person is typing. An attempt given up this way also leaves the gateway's interface mounted, and
+ * the gateway refuses to start another while it is — see replaceWidget.
  */
 const DECISION_DEADLINE_MS = 45000;
 
 const CHALLENGE_DEADLINE_MS = 600000;
 
 /*
- * The 3-D Secure widget, built once and shared by both ways of paying.
+ * The widget's own control for closing its dialog. Its markup, not ours, and not part of what the
+ * package documents. It runs the widget's close handler — as Escape on the dialog does — and that
+ * handler is the only way a caller has to unmount the gateway's interface without a verdict.
+ */
+const WIDGET_CLOSE_SELECTOR = '.close-button';
+
+/*
+ * The 3-D Secure widget, shared by both ways of paying, built once and built again only after an
+ * attempt it never answered.
  *
  * There is one authentication widget on the page and two things that may need it: a card the
  * shopper just typed, which authenticates its token, and a card the gateway already holds, which
- * authenticates its vault reference. Building it twice would mean two mount points fighting over
- * the same element.
+ * authenticates its vault reference. Building two would mean two mount points fighting over the
+ * same element. The card form keeps the authenticator it was given when it mounted, so the
+ * authenticator stays the same object and the widget it drives is what gets replaced.
  *
  * Null when the store removed either hookable. That is a store deciding to pay without
  * authentication, and the alternative — refusing to charge at all — would be worse.
@@ -265,7 +276,7 @@ const sharedAuthenticator = () => {
     let settle = null;
     let extendDeadline = null;
 
-    const widget = mountNmiThreeDSecure(target, {
+    const options = {
         tokenizationKey: source.dataset.nmiTokenizationKey,
         onChallenge: () => extendDeadline?.(CHALLENGE_DEADLINE_MS),
         onComplete: (event) => settle?.(
@@ -278,7 +289,32 @@ const sharedAuthenticator = () => {
                 : { authenticated: false, message: notAuthenticated() },
         ),
         onFailure: (event) => settle?.({ authenticated: false, message: event?.message }),
-    });
+    };
+
+    let widget = mountNmiThreeDSecure(target, options);
+
+    /*
+     * Frees the page from an attempt the widget never answered, so that the next one can start.
+     *
+     * After a verdict the widget unmounts the gateway's interface itself. After silence it does
+     * not, and destroying the widget does not either — it only takes the element out of the page.
+     * Its close handler does, so its close control is pressed first; the `onFailure` it raises
+     * finds no attempt left to settle. Then the widget is destroyed and a
+     * fresh one mounted in the same place, which is ready by the time anyone presses Pay again —
+     * a widget just mounted would ignore a start. Called as the attempt is given up, never while
+     * one is running, so an open challenge is closed only once nobody is answering it any more.
+     */
+    const replaceWidget = () => {
+        const close = widget.element?.querySelector(WIDGET_CLOSE_SELECTOR);
+        if (close) {
+            close.click();
+        } else {
+            console.warn('NMI: the 3-D Secure widget has no close control, so an authentication it never answered could only be remounted; if the next attempt is refused, reload the page.');
+        }
+
+        widget.destroy();
+        widget = mountNmiThreeDSecure(target, options);
+    };
 
     authenticator = {
         notAuthenticated,
@@ -288,20 +324,37 @@ const sharedAuthenticator = () => {
                 let done = false;
                 let deadline = null;
 
+                // True when this attempt still owned the widget. The pay page and the saved-card
+                // path can each start one, and a later attempt takes the widget over: the earlier
+                // one then leaves its callbacks alone and does not free a widget in use. The
+                // widget holds only its latest start, so an interface the earlier attempt left
+                // mounted is out of its reach from then on, and that page may still need a reload.
                 const finish = (outcome) => {
                     if (done) {
-                        return;
+                        return false;
                     }
                     done = true;
                     clearTimeout(deadline);
-                    settle = null;
-                    extendDeadline = null;
+
+                    const owned = settle === finish;
+                    if (owned) {
+                        settle = null;
+                        extendDeadline = null;
+                    }
                     resolve(outcome);
+
+                    return owned;
+                };
+
+                const giveUp = () => {
+                    if (finish({ authenticated: false, message: notAuthenticated() })) {
+                        replaceWidget();
+                    }
                 };
 
                 extendDeadline = (ms) => {
                     clearTimeout(deadline);
-                    deadline = setTimeout(() => finish({ authenticated: false, message: notAuthenticated() }), ms);
+                    deadline = setTimeout(giveUp, ms);
                 };
 
                 settle = finish;

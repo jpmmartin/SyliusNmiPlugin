@@ -8,6 +8,18 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Fixed
+
+- **Paying again after an authentication NMI never answered no longer needs a reload.** When NMI
+  blocked an authentication or refused its lookup, the gateway's widget called nothing back and left
+  its 3-D Secure interface mounted. The plugin gave the attempt up after 45 seconds and said the card
+  could not be authenticated, but every later attempt on the same page — with a new card or a saved
+  one — was refused by the gateway (*You may not start another 3DS instance*) and ended the same
+  way, until the page was reloaded. The plugin now frees the widget as it gives an attempt up, and
+  the next press authenticates normally. A challenge nobody finished within ten minutes is now
+  closed when the attempt is given up, instead of staying open on an attempt that no longer counts.
+  Rebuild the front-end assets to get it.
+
 ## [1.3.2] - 2026-09-25
 
 ### Fixed
