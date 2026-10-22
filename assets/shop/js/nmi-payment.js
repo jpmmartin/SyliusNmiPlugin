@@ -193,6 +193,20 @@ const submit = (container, fields) => {
     return true;
 };
 
+/*
+ * The province as the issuer is told it: the two-character subdivision of its ISO 3166-2 code,
+ * which is what NMI documents for this field. Sylius keeps the whole code, `US-FL`, and the
+ * gateway refuses that outright, so the country is dropped here; a value that already is the
+ * subdivision is kept. One that yields no two-character subdivision — `ES-M`, `GB-ENG`, free text
+ * — is left out, because a missing province only makes a challenge likelier, while one the
+ * gateway refuses stops the payment.
+ */
+const subdivisionOf = (province) => {
+    const match = /^(?:[A-Z]{2}-)?([A-Z0-9]{2})$/i.exec((province ?? '').trim());
+
+    return match ? match[1].toUpperCase() : undefined;
+};
+
 /** What the issuer is told about the shopper. The more it gets, the less likely a challenge. */
 const paymentInformation = (container, token) => ({
     paymentToken: token,
@@ -204,7 +218,7 @@ const paymentInformation = (container, token) => ({
     address1: container.dataset.nmiAddress1,
     city: container.dataset.nmiCity,
     postalCode: container.dataset.nmiPostalCode,
-    state: container.dataset.nmiState,
+    state: subdivisionOf(container.dataset.nmiState),
     country: container.dataset.nmiCountry,
     phone: container.dataset.nmiPhone,
 });

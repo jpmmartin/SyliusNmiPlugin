@@ -788,7 +788,10 @@ Content-Type: application/ld+json
 
 `amount` is in the currency's smallest unit and `amount_major` is the decimal form NMI's
 authentication call expects. The cardholder fields are what the issuer is told when deciding
-whether to challenge; send them on, or leave them out and expect more challenges.
+whether to challenge; send them on, or leave them out and expect more challenges. **`state` is the
+exception:** it is the province code as Sylius keeps it, `US-FL`, and NMI's authentication takes
+only the two-character subdivision, `FL`. Send that, or nothing when the subdivision is not two
+characters long; sent whole, the authentication is refused and the card cannot be paid.
 
 **2. Return the token.** Tokenise with NMI's own component or API using `tokenization_key`, do 3-D
 Secure if you want it, then send the result back. `payment_token` is the only required key.

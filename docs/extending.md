@@ -379,7 +379,7 @@ form. Render them anywhere, in any markup, and keep the attributes.
 | `data-nmi-tokenization-key` | the container | the method's public key, read off `gatewayConfig.config.tokenization_key` |
 | `data-nmi-amount`, `data-nmi-currency`, `data-nmi-amount-major` | the container | what is charged, in minor units, and its decimal form for the issuer |
 | `data-nmi-action-url`, `data-nmi-csrf-token` | the container | where `submit` posts, and the token that proves the shopper asked; not needed in `tokenize` mode |
-| `data-nmi-first-name`, `data-nmi-last-name`, `data-nmi-email`, `data-nmi-address1`, `data-nmi-city`, `data-nmi-postal-code`, `data-nmi-state`, `data-nmi-country`, `data-nmi-phone` | the container | what the issuer is told about the shopper; the more, the fewer challenges |
+| `data-nmi-first-name`, `data-nmi-last-name`, `data-nmi-email`, `data-nmi-address1`, `data-nmi-city`, `data-nmi-postal-code`, `data-nmi-state`, `data-nmi-country`, `data-nmi-phone` | the container | what the issuer is told about the shopper; the more, the fewer challenges. `data-nmi-state` holds the province code as Sylius keeps it, `US-FL`, and the script tells the issuer only its two-character subdivision, `FL`, leaving out a province that has none |
 | `data-nmi-error-message`, `data-nmi-unavailable-message`, `data-nmi-auth-failed-message` | the container | the three sentences the form may show, translated by the template |
 | `data-nmi-describe-card` | the container | ask the browser to send the card's brand, which the account's add-a-card page needs |
 | `data-nmi-field`, `data-nmi-title`, `data-nmi-placeholder` | each field element | which of `ccnumber`, `ccexp`, `cvv` the gateway draws there, its accessible name and its placeholder |

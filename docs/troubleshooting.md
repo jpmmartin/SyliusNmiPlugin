@@ -188,6 +188,30 @@ gateway's widget package has changed under the plugin: the page could only remou
 a reload remains the way out. Report it, naming the version of `@nmipayments/nmi-pay` your build
 resolved.
 
+## Every new card is refused at authentication, and the console names `billAddrState`
+
+**What you see:** for an order billed to an address with a province — `US-FL`, say — every
+attempt with a new card waits on the busy button and ends with *The card could not be
+authenticated, so it has not been charged. Try again or use another card.* The console carries a
+`400` on `cmpiLookUp.php` and:
+
+```
+Gateway.js - ThreeDSecureUI: Format of one or more elements is invalid according to the specification billAddrState
+```
+
+**What was missed:** the update to 1.3.3, or the front-end build after it. Sylius keeps a province
+as its whole ISO 3166-2 code, country included, and before 1.3.3 the pay page handed that to 3-D
+Secure as it was; NMI takes only the two-character subdivision, `FL`. Since 1.3.3 the script sends
+the subdivision, and leaves the province out when it is not two characters long (`ES-M`,
+`GB-ENG`). Before 1.3.3 this failure also left the page in the state of the previous entry.
+
+A store or headless client that builds its own payment information for NMI's 3-D Secure has to cut
+`state` down the same way: `data-nmi-state` and the shop API's `responseData.state` still carry
+the code as Sylius keeps it.
+
+**How to confirm:** the console line names the field. Update the plugin and rebuild the front-end
+assets — `yarn build`, as in README step 5.
+
 ## Every charge fails with the generic message, and the log says the key was refused
 
 **What you see:** the card fields render, the card tokenises and passes authentication, and then

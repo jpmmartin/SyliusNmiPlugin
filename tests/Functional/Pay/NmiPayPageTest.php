@@ -174,6 +174,28 @@ final class NmiPayPageTest extends WebTestCase
     }
 
     /**
+     * The province reaches the page as Sylius keeps it. Cutting it down to the subdivision the
+     * issuer takes is the browser script's job, so a store reading the attribute keeps reading the
+     * code it always did.
+     */
+    public function testTheProvinceReachesThePageAsSyliusKeepsIt(): void
+    {
+        $paymentRequest = $this->newPaymentRequest();
+        /** @var OrderInterface $order */
+        $order = $paymentRequest->getPayment()->getOrder();
+        $order->getBillingAddress()?->setCountryCode('US');
+        $order->getBillingAddress()?->setProvinceCode('US-FL');
+        $this->manager->flush();
+
+        $crawler = $this->client->request(
+            'GET',
+            sprintf('/en_US/payment-request/pay/%s', (string) $paymentRequest->getId()),
+        );
+
+        self::assertSame('US-FL', $crawler->filter('[data-nmi-payment]')->attr('data-nmi-state'));
+    }
+
+    /**
      * The page in the shopper's own language.
      *
      * The plugin ships two catalogues, and a catalogue nothing renders is a claim rather than a

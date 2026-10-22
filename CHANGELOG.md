@@ -19,6 +19,13 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
   the next press authenticates normally. A challenge nobody finished within ten minutes is now
   closed when the attempt is given up, instead of staying open on an attempt that no longer counts.
   Rebuild the front-end assets to get it.
+- **A billing province no longer stops a new card from being paid.** The pay page handed 3-D Secure
+  the province as Sylius keeps it — `US-FL` — and NMI refused the lookup (*billAddrState*), so no
+  new card could be paid for an order billed to a province. The issuer is now told the
+  two-character subdivision, `FL`; a province whose subdivision is not two characters long —
+  `ES-M`, `GB-ENG` — is left out rather than sent malformed. `data-nmi-state` and the shop API's
+  `responseData.state` still carry the code as Sylius keeps it, so a headless client that sends it
+  to NMI's 3-D Secure has to cut it down the same way. Rebuild the front-end assets to get it.
 
 ## [1.3.2] - 2026-09-25
 

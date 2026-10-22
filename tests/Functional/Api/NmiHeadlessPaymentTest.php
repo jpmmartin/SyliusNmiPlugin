@@ -82,6 +82,19 @@ final class NmiHeadlessPaymentTest extends WebTestCase
         );
     }
 
+    /**
+     * The province is handed over as Sylius keeps it, country and all. NMI's authentication takes
+     * only the subdivision, and cutting it down is the client's business, as the pay page's script
+     * does for itself.
+     */
+    public function testTheProvinceIsHandedOverAsSyliusKeepsIt(): void
+    {
+        $created = $this->createPaymentRequest(provinceCode: 'US-FL');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('US-FL', $created['responseData']['state'] ?? null);
+    }
+
     /** And the token back in the other direction, reaching the state the browser flow reaches. */
     public function testReturningTheTokenCompletesThePayment(): void
     {
@@ -174,12 +187,17 @@ final class NmiHeadlessPaymentTest extends WebTestCase
     /**
      * @return array<string, mixed>
      */
-    private function createPaymentRequest(): array
+    private function createPaymentRequest(?string $provinceCode = null): array
     {
         $paymentRequest = $this->newPaymentRequest();
         $payment = $paymentRequest->getPayment();
         /** @var OrderInterface $order */
         $order = $payment->getOrder();
+
+        if (null !== $provinceCode) {
+            $order->getBillingAddress()?->setCountryCode('US');
+            $order->getBillingAddress()?->setProvinceCode($provinceCode);
+        }
 
         // The fixture built a payment request so the store is complete; the API makes its own.
         $this->manager->remove($paymentRequest);

@@ -499,3 +499,50 @@ describe('authenticating again on the same page', () => {
         }
     });
 });
+
+/*
+ * The province as the issuer is told it. Sylius keeps the whole ISO 3166-2 code and NMI takes only
+ * the two-character subdivision, so the page carries one and the authentication sends the other.
+ */
+describe('the province the issuer is told', () => {
+    beforeEach(() => reset());
+
+    afterEach(() => reset());
+
+    const toldFor = async (state) => {
+        const page = givenAPage(CARD_FORM);
+        const container = page.document.querySelector('[data-nmi-payment]');
+        if (state !== undefined) {
+            container.dataset.nmiState = state;
+        }
+        await load();
+        await tick();
+
+        page.collect.responses.push({ token: 'tok-once-abc', card: null });
+        page.document.querySelector('[data-nmi-pay-button]').click();
+        await tick();
+        await tick();
+
+        const [started] = widgets.at(-1).started;
+
+        return started;
+    };
+
+    it('is the subdivision of the code Sylius keeps', async () => {
+        assert.equal((await toldFor('US-FL')).state, 'FL');
+    });
+
+    it('is the subdivision as it is when the page already carries only that', async () => {
+        assert.equal((await toldFor('FL')).state, 'FL');
+    });
+
+    for (const state of ['ES-M', 'GB-ENG', 'Florida']) {
+        it(`is left out when ${state} yields no two-character subdivision`, async () => {
+            assert.equal((await toldFor(state)).state, undefined);
+        });
+    }
+
+    it('is left out when the page carries none', async () => {
+        assert.equal((await toldFor(undefined)).state, undefined);
+    });
+});
