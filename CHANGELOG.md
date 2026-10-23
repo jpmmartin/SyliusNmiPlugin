@@ -8,7 +8,7 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
-## [1.3.3] - 2026-10-22
+## [1.3.3] - 2026-10-23
 
 ### Fixed
 
