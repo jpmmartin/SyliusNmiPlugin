@@ -855,13 +855,20 @@ const mountStoredCards = (container) => {
                 return;
             }
 
+            // The widget refuses a vault entry that holds no cardholder name unless the call gives
+            // one (`customerVaultId does not include the following required parameters: firstName,
+            // lastName`), and a card saved while paying holds none. The new-card form carries it.
+            const cardholder = document.querySelector(MOUNT_SELECTOR)?.dataset ?? {};
+
             const outcome = await threeDSecure.authenticate({
-                // NMI's vault integration authenticates the reference rather than a token, and
-                // asks for nothing else. Its prose calls this `customerVaultToken` and its own
-                // example calls it `customerVaultId`; the example is what integrators run.
+                // NMI's vault integration authenticates the reference rather than a token. Its
+                // prose calls this `customerVaultToken` and its own example calls it
+                // `customerVaultId`; the example is what integrators run.
                 customerVaultId: details.customer_vault_id,
                 currency: details.currency,
                 amount: details.amount,
+                firstName: cardholder.nmiFirstName ?? '',
+                lastName: cardholder.nmiLastName ?? '',
             });
 
             if (!outcome.authenticated) {
