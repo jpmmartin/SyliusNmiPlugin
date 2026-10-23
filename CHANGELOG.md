@@ -36,6 +36,14 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
   the shopper chooses a new card, and `nmi:mounted` is announced then; a page that opens on the
   new-card form is unchanged. The gateway's frames also get their accessible title now: it was set
   before the frames existed, so never. Rebuild the front-end assets to get it.
+- **A saved card can be paid with again when it is authenticated.** With *Authenticate saved cards
+  with 3-D Secure* on, the Pay button started 3-D Secure with the card's vault reference, the
+  currency and the amount, which is all NMI's vault documentation asks for. NMI refused the start
+  when the vault entry held no cardholder name (*customerVaultId does not include the following
+  required parameters: firstName, lastName*), and a card saved while paying holds none, so the
+  shopper was told the card could not be authenticated and nothing was charged. The start now
+  carries the first and last name of the order's billing address. Rebuild the front-end assets to
+  get it.
 
 ## [1.3.2] - 2026-09-25
 
