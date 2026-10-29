@@ -6,6 +6,7 @@ namespace Tests\JpmMartin\SyliusNmiPlugin\Functional\Api;
 
 use Doctrine\ORM\EntityManagerInterface;
 use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
+use JpmMartin\SyliusNmiPlugin\EventListener\RefundPaymentOnTransitionListener;
 use JpmMartin\SyliusNmiPlugin\Gateway\Exception\NmiTransportException;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiResponse;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
@@ -114,6 +115,25 @@ final class NmiAdminApiRefundTest extends WebTestCase
         $this->manager->flush();
 
         self::assertSame(['void'], $this->gateway->operations);
+        self::assertSame(PaymentInterface::STATE_REFUNDED, $this->reloaded($payment)->getState());
+    }
+
+    /**
+     * *Money that went back elsewhere*, which NMI will not give back twice, is recorded by saying so in
+     * the transition's context, and nothing is asked.
+     */
+    public function testMoneyThatWentBackElsewhereIsRecordedWithoutAskingNmi(): void
+    {
+        $payment = $this->aCompletedPayment();
+
+        /** @var StateMachineInterface $stateMachine */
+        $stateMachine = self::getContainer()->get('sylius_abstraction.state_machine');
+        $stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND, [
+            RefundPaymentOnTransitionListener::ALREADY_RETURNED => true,
+        ]);
+        $this->manager->flush();
+
+        self::assertSame([], $this->gateway->operations);
         self::assertSame(PaymentInterface::STATE_REFUNDED, $this->reloaded($payment)->getState());
     }
 
