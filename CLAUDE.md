@@ -83,6 +83,9 @@ In order of authority:
 3. Official docs, version pinned in the URL: <https://docs.sylius.com>,
    <https://symfony.com/doc/7.4/>, <https://www.doctrine-project.org/>, <https://docs.nmi.com>.
 
+When an experiment actually run contradicts a published document, the experiment wins, and
+whatever records the decision says so.
+
 ## Rule 2 — Assume nothing
 
 If something is not defined, **ask before supposing**. If the corpus (docs, `vendor/` source,
@@ -90,115 +93,7 @@ config, this file) does not settle a point, **mark it as unsettled** — do not 
 answer into the gap. "The docs don't specify this; here are the two readings" is a valid, preferred
 answer.
 
-## Rule 3 — Spec-Driven Development, through OpenSpec
-
-This project is developed with **OpenSpec** (<https://openspec.dev>). The spec is the source of
-truth; code serves the spec, not the other way around. OpenSpec is not a convention we imitate
-by hand — it is an installed CLI with a schema, and the schema decides the artifact names, their
-order and their shape. Do not invent a parallel structure.
-
-### The two directories
-
-```
-openspec/
-├── specs/      source of truth — how the plugin works today
-└── changes/    one folder per proposed change; archived changes merge into specs/
-```
-
-A change is proposed, worked, and then **archived**, which is the step that moves it into
-`changes/archive/` under a date-prefixed name and merges its delta specs into `openspec/specs/`.
-Until a change is archived, `openspec/specs/` does not know about it.
-
-### The four artifacts
-
-The active schema is `spec-driven`, declared in `openspec/config.yaml` and again per change in
-`<change>/.openspec.yaml`. It defines four artifacts and the order they depend on:
-
-| Artifact | File | Requires | Content |
-|---|---|---|---|
-| `proposal` | `proposal.md` | — | **Why** (1–2 sentences), **What Changes** (bullets, breaking ones marked `**BREAKING**`), **Capabilities** (which specs are created or modified), **Impact** |
-| `specs` | `specs/**/*.md` | proposal | Delta specs — WHAT the system must do |
-| `design` | `design.md` | proposal | **Context**, **Goals / Non-Goals**, **Decisions**, **Risks / Trade-offs**, **Open Questions** — HOW |
-| `tasks` | `tasks.md` | specs **and** design | The implementation checklist |
-
-`specs` and `design` both depend only on the proposal, so they can be written in either order;
-`tasks` needs both. Implementation requires `tasks`, and progress is tracked by ticking its boxes.
-
-**Delta spec shape**, which the schema enforces and validation checks:
-
-```markdown
-## ADDED Requirements          (also MODIFIED, REMOVED)
-
-### Requirement: <name>
-The system SHALL …             (SHALL/MUST for anything normative)
-
-#### Scenario: <name>
-- **WHEN** …
-- **THEN** …
-```
-
-Every requirement needs at least one scenario. A requirement with no scenario is not a
-requirement, it is a wish.
-
-**Task shape:** `## ` numbered group headings, then `- [ ] X.Y Description; verify <how>`. The
-verification clause is not decoration — a task with no stated way to check it cannot be closed
-honestly.
-
-### Working a change
-
-Drive it through the `opsx` skills rather than editing files blind: `/opsx:propose` to create a
-change and its artifacts, `/opsx:explore` to think without writing, `/opsx:apply` to implement,
-`/opsx:update` to revise artifacts and keep them coherent, `/opsx:archive` when it is finished.
-`openspec status --change <name> --json` reports where a change stands and which files are its
-artifacts — read that rather than assuming paths.
-
-### Gates and obligations
-
-- **Never write implementation code while writing a proposal, spec or design.**
-- Each artifact is approved before the next is built on it.
-- **If implementation shows the spec is wrong or incomplete: stop, propose the amendment, get
-  approval, then continue. Never diverge silently.** A change requested mid-implementation
-  updates the artifacts first and the code second.
-- Only tick a task when the behaviour it names is actually delivered and verified — never
-  because it is nearly done, partly done or deferred. If a task turns out to describe work that
-  cannot be done, rewrite the task and say so in it; do not tick it and do not quietly drop it.
-- Ambiguous requirements are asked about, not invented (Rule 2).
-
-### When it applies
-
-New features, endpoints, integrations, schema changes, or anything touching three or more files.
-Not typos, one-line fixes, dependency bumps or formatting — do those directly. In doubt, ask.
-
-### The planning record is private, and that is deliberate
-
-> **`openspec/` is gitignored and stays that way.** It holds this project's whole planning
-> record: proposals, delta specs, designs, task lists and the evidence behind each decision.
->
-> The reasons, so no future session reopens them:
-> - This is a **community plugin**. What is published is the plugin. How its author documents
->   his own development is his, and is not part of what a consumer installs.
-> - There is **one developer**. The artifacts coordinate him with his tools, not a team.
->
-> Two consequences, stated so nobody is surprised:
-> - A commit footer referencing a change and task number is a **local navigation aid only**. It
->   resolves in the author's working copy and nowhere else. Reference them anyway — they are
->   worth more to the author than they cost the reader.
-> - **The repository does not back these artifacts up.** Losing the working copy loses them.
->   That is understood and accepted, and **keeping a copy is the author's own business, not work
->   this project tracks.** Do not add it as a task, do not raise it as a risk, do not offer to
->   sync it anywhere.
->
-> Do not "fix" any of this by committing `openspec/`. It is a decision, not an oversight.
-
-### Interaction between Rule 3 and Rule 1
-
-Rule 1 fires hardest during **design**: every architectural option written into `design.md` must
-be backed by pinned-version docs, `vendor/` source, or an experiment actually run — and the
-design must record what was checked. A `design.md` containing an unverified claim about how
-Sylius or NMI behaves is a defective design. When an experiment contradicts a published
-document, the experiment wins and the design says so.
-
-## Rule 4 — Conventional Commits
+## Rule 3 — Conventional Commits
 
 Every commit message follows [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
 
@@ -229,22 +124,6 @@ Every commit message follows [Conventional Commits v1.0.0](https://www.conventio
 
 Note `docs`, not `doc`.
 
-### Referencing the change a commit implements
-
-Work driven by an OpenSpec change carries a footer naming the change and the task:
-
-```
-Refs: nmi-payment-gateway 4.3
-```
-
-Rule 3 already states why this resolves only in the author's working copy. Write it anyway.
-
-**The footer is the only place such a reference goes.** Code comments, docblocks, tests,
-templates, configuration and published documentation are read by people who cannot see
-`openspec/`, so none of them names a task number, a change, a spec scenario or a planning file.
-Keep what the comment explains and drop the pointer: *the same hole already closed on the pay
-page*, not *the same hole 3.4 closed*.
-
 ### SemVer is binding here
 
 > This is a **published package**. Consumers install it with a caret constraint, so the commit type
@@ -263,7 +142,7 @@ page*, not *the same hole 3.4 closed*.
 >
 > This obligation starts at the first tagged release and never relaxes.
 
-## Rule 5 — Which test proves what
+## Rule 4 — Which test proves what
 
 Sylius's own answer, from *Architectural Drivers*: **all of the functionality it provides is
 described as user stories using Behat scenarios.** Its plugins follow it. `sylius/refund-plugin`

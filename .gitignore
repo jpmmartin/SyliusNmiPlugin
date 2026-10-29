@@ -31,9 +31,8 @@
 # Generated per machine by `vendor/bin/console sylius:payment:generate-key`; never a shared secret.
 /tests/TestApplication/config/encryption/
 
-# Left from the hand-rolled spec workflow this project used before adopting OpenSpec.
-# No specs/ directory exists any more — the planning record lives in openspec/, ignored
-# below for the same reason. Kept as a guard so a stray specs/ can never be committed.
+# Left from a hand-rolled spec workflow this project once used. No specs/ directory exists
+# any more; kept as a guard so a stray specs/ can never be committed.
 /specs/
 
 # Claude Code working files, kept out of the published package by choice — same reasoning
@@ -41,18 +40,3 @@
 # consumer installs. settings.local.json is per-developer by convention in any case.
 /.claude/skills/
 /.claude/settings.local.json
-
-###> openspec ###
-# OpenSpec is a local planning tool, and everything it produces is the same class of
-# material as specs/ above: proposals, delta specs, designs and task lists.
-#
-# CLAUDE.md Rule 3 decides this: the planning record is private. This is a community
-# plugin with a single developer — what ships is the plugin, not the author's record of
-# how he documented building it. Tracking openspec/ would reverse that decision.
-#
-# .claude/commands/opsx/* are the CLI's slash commands — authoring tools for whoever
-# writes the specs, never something a consumer of this plugin installs. Same reasoning
-# as .claude/skills/ above, which already covers the openspec-* skills.
-/openspec/
-/.claude/commands/opsx/
-###< openspec ###
