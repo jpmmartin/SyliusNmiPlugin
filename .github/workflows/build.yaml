@@ -16,12 +16,25 @@ jobs:
     tests:
         runs-on: ubuntu-latest
 
-        name: "PHP ${{ matrix.php }}, ${{ matrix.refund_plugin && 'with' || 'without' }} the refund plugin"
+        name: "${{ matrix.leg.name }}, ${{ matrix.refund_plugin && 'with' || 'without' }} the refund plugin"
 
         strategy:
             fail-fast: false
             matrix:
-                php: ["8.2", "8.4"]
+                # Each Sylius minor the plugin supports, and for 2.3 both ends of what it admits.
+                # Pinned rather than resolved: without a lock Composer takes the newest of
+                # everything, so a leg that pins nothing tests whatever was released last night.
+                # 2.3 on PHP 8.3 is also the only leg on Symfony UX 2; 8.4 resolves UX 3.
+                leg:
+                    - name: "Sylius 2.2, PHP 8.2"
+                      php: "8.2"
+                      with: "--with sylius/sylius:~2.2.0"
+                    - name: "Sylius 2.3, PHP 8.3, DBAL 3, API Platform 4"
+                      php: "8.3"
+                      with: "--with sylius/sylius:~2.3.0 --with doctrine/dbal:^3.10 --with doctrine/doctrine-bundle:^2.18 --with api-platform/symfony:^4.3.17"
+                    - name: "Sylius 2.3, PHP 8.4, DBAL 4, API Platform 5"
+                      php: "8.4"
+                      with: "--with sylius/sylius:~2.3.0 --with doctrine/dbal:^4.4 --with doctrine/doctrine-bundle:^3.2 --with api-platform/symfony:^5.0"
                 # The two configurations the specification requires. The plugin refunds on its own
                 # and must keep working when `sylius/refund-plugin` is absent, so the job that
                 # removes it is not a formality — it is the one that proves the dependency really
@@ -53,13 +66,14 @@ jobs:
             - name: Set up PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: "${{ matrix.php }}"
+                  php-version: "${{ matrix.leg.php }}"
                   extensions: intl, gd, opcache, pdo_pgsql, pgsql
                   tools: composer:v2
                   coverage: none
 
             # 22.x, because the gateway's browser component and Sylius's own front-end build are
-            # what this pins for — not the version of whoever last ran it locally.
+            # what this pins for — not the version of whoever last ran it locally. Sylius 2.3's
+            # Encore 6 needs at least 22.13, which 22.x resolves to.
             - name: Set up Node
               uses: actions/setup-node@v5
               with:
@@ -72,11 +86,11 @@ jobs:
               uses: actions/cache@v5
               with:
                   path: ~/.cache/composer/files
-                  key: "${{ runner.os }}-php-${{ matrix.php }}-composer-${{ hashFiles('composer.json') }}"
-                  restore-keys: "${{ runner.os }}-php-${{ matrix.php }}-composer-"
+                  key: "${{ runner.os }}-php-${{ matrix.leg.php }}-composer-${{ hashFiles('composer.json') }}"
+                  restore-keys: "${{ runner.os }}-php-${{ matrix.leg.php }}-composer-"
 
             - name: Install dependencies
-              run: composer install --no-interaction --no-progress --prefer-dist
+              run: composer update --no-interaction --no-progress --prefer-dist ${{ matrix.leg.with }}
 
             # Second job only. Removing it after the install is deliberate: it proves the package
             # can be taken out of a working store, which is the situation a consumer is in.
@@ -135,7 +149,7 @@ jobs:
               uses: actions/upload-artifact@v7
               if: failure()
               with:
-                  name: "behat-logs-php${{ matrix.php }}-refund-${{ matrix.refund_plugin }}"
+                  name: "behat-logs-php${{ matrix.leg.php }}-refund-${{ matrix.refund_plugin }}"
                   path: etc/build/
                   if-no-files-found: ignore
 
@@ -147,7 +161,18 @@ jobs:
     schema-on-mysql:
         runs-on: ubuntu-latest
 
-        name: "Migrations on MySQL"
+        name: "Migrations on MySQL, ${{ matrix.leg.name }}"
+
+        # DBAL 3 and DBAL 4 derive different statements from the one migration, so the schema is
+        # checked under each.
+        strategy:
+            fail-fast: false
+            matrix:
+                leg:
+                    - name: "Sylius 2.2, DBAL 3"
+                      with: "--with sylius/sylius:~2.2.0"
+                    - name: "Sylius 2.3, DBAL 4"
+                      with: "--with sylius/sylius:~2.3.0 --with doctrine/dbal:^4.4 --with doctrine/doctrine-bundle:^3.2 --with api-platform/symfony:^5.0"
 
         env:
             APP_ENV: test
@@ -187,7 +212,7 @@ jobs:
                   restore-keys: "${{ runner.os }}-php-8.4-composer-"
 
             - name: Install dependencies
-              run: composer install --no-interaction --no-progress --prefer-dist
+              run: composer update --no-interaction --no-progress --prefer-dist ${{ matrix.leg.with }}
 
             - name: Generate the payment encryption key
               run: vendor/bin/console sylius:payment:generate-key

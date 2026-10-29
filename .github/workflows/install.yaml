@@ -40,7 +40,7 @@ permissions:
 
 jobs:
     install:
-        name: "A store that has never seen this plugin, installed from the ${{ matrix.path }}"
+        name: "A Sylius ${{ matrix.sylius }} store that has never seen this plugin, installed from the ${{ matrix.path }}"
         runs-on: ubuntu-latest
 
         strategy:
@@ -52,6 +52,8 @@ jobs:
                 # a Sylius Standard store gets once the recipe is in symfony/recipes-contrib. Both
                 # paths end in the same checks.
                 path: [readme, recipe]
+                # Every Sylius minor the plugin supports, each from its own Sylius Standard.
+                sylius: ["2.2", "2.3"]
 
         services:
             postgres:
@@ -112,17 +114,18 @@ jobs:
             # Everything below runs against this, and it is thrown away with the runner. It is not
             # the plugin's own test application: that one arrives pre-wired, which is exactly what
             # makes it unable to prove anything about installing.
-            # Pinned to the Sylius minor the plugin supports, twice. Unpinned, `create-project` takes
-            # the newest skeleton — Sylius 2.3 since 2026-10-05 — and the plugin does not install
-            # into it; and the 2.2 skeleton itself asks for `sylius/sylius: ^2.2`, so it resolves
-            # Sylius 2.3 too. FOSRestBundle is required by name because the 2.2 skeleton registers it
-            # and nothing else brings it any more: `sylius/paypal-plugin` 2.0 did, 2.1 does not, so a
-            # 2.2 skeleton created today does not boot without it. Both found by running this job.
+            # One skeleton per supported Sylius minor, and Sylius itself pinned to that minor: the
+            # 2.2 skeleton asks for `sylius/sylius: ^2.2`, so unpinned it resolves Sylius 2.3 too.
+            # FOSRestBundle is required by name only where the skeleton registers it, because
+            # nothing else brings it any more: `sylius/paypal-plugin` 2.0 did, 2.1 does not, so a 2.2
+            # skeleton created today does not boot without it. Both found by running this job.
             - name: Create a throwaway store
               run: |
-                  composer create-project sylius/sylius-standard store "~2.2.0" --no-interaction --no-scripts --no-install
+                  composer create-project sylius/sylius-standard store "~${{ matrix.sylius }}.0" --no-interaction --no-scripts --no-install
                   cd store
-                  composer require "sylius/sylius:~2.2.0" friendsofsymfony/rest-bundle --no-interaction --no-update
+                  packages="sylius/sylius:~${{ matrix.sylius }}.0"
+                  if grep -q 'FOS\\RestBundle' config/bundles.php; then packages="$packages friendsofsymfony/rest-bundle"; fi
+                  composer require $packages --no-interaction --no-update
                   composer update --no-interaction --no-scripts
 
             # Copied into vendor/, not symlinked, because a copy is what Packagist gives a reader.
