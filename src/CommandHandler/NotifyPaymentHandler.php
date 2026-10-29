@@ -7,6 +7,7 @@ namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 use JpmMartin\SyliusNmiPlugin\Command\NotifyPayment;
 use JpmMartin\SyliusNmiPlugin\Lifecycle\NmiReportedVoids;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
+use JpmMartin\SyliusNmiPlugin\Refund\NmiRefundedPayments;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -22,13 +23,12 @@ use Sylius\Component\Payment\PaymentTransitions;
  * store's record agree with a fact it did not cause. That is why it never calls the gateway: there
  * is nothing left to ask for.
  *
- * **Applying the transition programmatically does not re-enter the plugin.** The listeners that
- * void and refund at the gateway hang off `sylius.payment.pre_cancel` and `sylius.payment.pre_refund`,
- * which are *resource* events — checked against the installed source, they are dispatched only by
- * `ResourceController`, never by `StateMachineInterface::apply()`. Were it otherwise, reflecting a
- * refund performed in the portal would ask the gateway to refund again, and the store would give
- * the money back twice. Nothing else in this plugin depends on that distinction, so it is written
- * down here.
+ * **Applying the transition re-enters the plugin, and says so first.** A payment the store marks
+ * refunded is refunded at the gateway by the transition's own listener, and one it cancels from
+ * `authorized` has its authorisation voided once the cancellation is saved — whoever applies the
+ * transition, this handler included. So before applying either it records that the gateway reported
+ * the operation, and both pass it by. Were it otherwise, reflecting a refund performed in the portal
+ * would ask the gateway to refund again, and the store would give the money back twice.
  *
  * @internal
  */
@@ -58,6 +58,7 @@ final class NotifyPaymentHandler
         private readonly StateMachineInterface $stateMachine,
         private readonly NmiTransactionRecorderInterface $recorder,
         private readonly NmiReportedVoids $reportedVoids,
+        private readonly NmiRefundedPayments $refundedPayments,
     ) {
     }
 
@@ -110,6 +111,11 @@ final class NotifyPaymentHandler
         // authorisation for one still open and queue a void of what the gateway has just let go.
         if (PaymentTransitions::TRANSITION_CANCEL === $transition) {
             $this->reportedVoids->report($payment);
+        }
+
+        // And before the refund, so the transition's own listener does not ask for the money again.
+        if (PaymentTransitions::TRANSITION_REFUND === $transition) {
+            $this->refundedPayments->markRefunded($payment);
         }
 
         $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, $transition);

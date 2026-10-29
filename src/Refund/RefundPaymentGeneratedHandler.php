@@ -52,6 +52,7 @@ final class RefundPaymentGeneratedHandler
         private readonly StateMachineInterface $stateMachine,
         private readonly RequestStack $requestStack,
         private readonly TranslatorInterface $translator,
+        private readonly NmiRefundedPayments $refundedPayments,
     ) {
     }
 
@@ -112,6 +113,8 @@ final class RefundPaymentGeneratedHandler
             $remaining === $event->amount() &&
             $this->stateMachine->can($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND)
         ) {
+            // The money is back already; the transition's own listener must not ask for it again.
+            $this->refundedPayments->markRefunded($payment);
             $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND);
         }
     }
