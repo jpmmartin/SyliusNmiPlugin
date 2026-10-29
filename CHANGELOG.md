@@ -10,6 +10,20 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [1.3.3] - 2026-10-27
 
+### Security
+
+- **A shopper can no longer have an NMI payment voided or refunded through the shop API.** Whoever
+  holds an order's token can create a payment request for it through the shop API, naming its
+  action. On Sylius 2.2.0 to 2.2.8, which accept any action a gateway handles, a request naming
+  `refund` or `cancel` made this plugin void or refund the sale at NMI and left the payment
+  completed: the order stayed paid and shipped, and the shopper had the money back. Every earlier
+  version of this plugin is affected on those Sylius versions when the shop API is enabled, and on
+  any Sylius version whose `sylius_api.shop_payment_request.allowed_actions` was widened to include
+  either action. Sylius 2.2.9 and later refuse both by default. The plugin now sends its own refunds
+  and voids itself, and a refund or void request created any other way fails without reaching NMI.
+  Until you update, Sylius 2.2.9 or later with the default list of shop actions, or the shop API
+  turned off, closes it.
+
 ### Changed
 
 - **Sylius 2.2 only: `sylius/sylius` is now `~2.2.0`.** Every earlier version declared `^2.2` and so
@@ -31,13 +45,23 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
   NMI first — a void before settlement, a refund after, as the order screen was meant to — and marks
   the payment refunded only once NMI has given the money back. A refusal leaves the payment
   completed: the order screen says why in a message, as before, and the admin API answers 422.
-  Refunds made through the refund plugin, and refunds NMI reports from its portal, are not sent
-  again. Code of your own that applies `refund` to record a refund made in NMI's portal now asks
-  NMI too, and NMI refuses what is already back; let NMI's webhook record those instead.
-  **A payment refunded one of those ways before this release was never refunded at NMI:**
-  an NMI payment in `refunded` with no `void` or `refund` row for it in the
-  `jpm_martin_sylius_nmi_transaction` table — or whose transaction NMI's portal shows neither voided
-  nor refunded — still holds the money, and has to be given back from NMI's portal.
+  Refunds made through the refund plugin, and refunds NMI reports by webhook, are not sent again.
+  To record money that went back outside the store — in NMI's portal on a store without webhooks,
+  say — apply the transition with `['jpm_martin_sylius_nmi.already_returned' => true]` as its
+  context, and NMI is not asked. **A payment refunded one of those ways before this release was
+  never refunded at NMI.** The plugin's own records cannot tell those payments from refunds made in
+  NMI's portal, so check in the portal: for each NMI payment marked refunded from the order screen,
+  through the admin API or by your own code, the transaction should show as voided or refunded for
+  the amount you meant to give back.
+- **A refund this store sent is no longer taken, when NMI reports it back, for the whole payment.** NMI
+  reports by webhook the refunds made through its API as well as those made in its portal, so a
+  partial refund made through the refund plugin came back as a refund event and marked the whole
+  payment refunded, leaving the rest impossible to give back. A refund or void event for a
+  transaction this store recorded itself now changes nothing. A refund made in NMI's portal is still
+  read as the whole amount, whatever part it covers.
+- **A sale voided in NMI's portal before it settled marks its payment refunded.** The webhook took the
+  void for a cancellation, which a completed payment cannot make, and left the payment completed with
+  the money already back.
 - **Paying again after an authentication NMI never answered no longer needs a reload.** When NMI
   blocked an authentication or refused its lookup, the gateway's widget called nothing back and left
   its 3-D Secure interface mounted. The plugin gave the attempt up after 45 seconds and said the card

@@ -338,9 +338,24 @@ its order, `sylius:cancel-unpaid-orders`, or your own code applying the `sylius_
   the admin API answers that with 422. What already gave the money back in that request passes
   untouched: the order screen's *Refund*, which asks NMI from its own event and refuses in a flash,
   the refund plugin's last refund of a payment, and a refund NMI reports from its portal. So applying
-  `refund` to an NMI payment from your own code moves money; record a refund made elsewhere through
-  NMI's webhook rather than by applying the transition. The `winzou_state_machine` caveat above
-  applies here too.
+  `refund` to an NMI payment from your own code moves money, and writes its record on your
+  connection: do not apply it inside a transaction you may roll back afterwards. To record money
+  that already went back outside the store — a void or refund made in NMI's portal on a store without
+  webhooks, or one whose answer never arrived — apply the transition with
+  `['jpm_martin_sylius_nmi.already_returned' => true]` as its context: nothing is asked of NMI, which
+  would refuse to give the money back twice. The `winzou_state_machine` caveat above applies here
+  too.
+
+The plugin sends its own refund and void payment requests to the payment-request bus itself rather
+than announcing them. A request with the action `refund` or `cancel` that is announced — a shop client
+naming the action, which Sylius before 2.2.9 accepts, or any store that adds them to
+`sylius_api.shop_payment_request.allowed_actions` — fails, saying only the store can refund or void
+a payment, and nothing is asked of NMI.
+
+What NMI reports by webhook is reflected once: a refund or a void that this store sent itself — whose
+transaction it recorded — changes nothing when NMI tells it back; a void of a completed payment, made
+in NMI's portal before settlement, marks the payment refunded; and a refund event marks the whole
+payment refunded, whatever part of it the event covers.
 
 The transaction log is written through the recorder above; decorate it to react to a transaction
 being recorded.
