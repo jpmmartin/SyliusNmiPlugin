@@ -302,13 +302,15 @@ publishes events for, so react where every other listener reacts:
 
 It listens on `sylius.payment.pre_complete`, `sylius.payment.pre_cancel` and
 `sylius.payment.pre_refund` to perform the capture, the void and the refund, and on
-`workflow.sylius_shipment.completed.ship` to capture when a shipment goes out. On a payment holding a
+`workflow.sylius_shipment.completed.ship` to capture when a shipment goes out. Sylius's own *Refund*
+on the order screen is announced as `sylius.payment.pre_update`, because its route declares no
+`event`; the plugin takes that update when the route applies the payment's `refund`, and no other. On a payment holding a
 card on file, `sylius.payment.pre_complete` charges that card instead, and
 `sylius.payment.post_complete` lets it go at the gateway once the payment's completion is committed.
 On a held payment that kept its card as a recurring credential, `sylius.payment.pre_complete` charges
 that credential, and nothing lets it go.
 
-Three things hold whichever way a payment moves — the order screen, the admin API, the cancellation of
+Four things hold whichever way a payment moves — the order screen, the admin API, the cancellation of
 its order, `sylius:cancel-unpaid-orders`, or your own code applying the `sylius_payment` transitions:
 
 - **A cancelled payment lets its card on file go.** The release is written in the same flush that
@@ -330,6 +332,15 @@ its order, `sylius:cancel-unpaid-orders`, or your own code applying the `sylius_
   attempt with 422. It is a transition listener rather than a guard, so the order screen still
   offers *Complete*. A store that maps `sylius_payment` to the `winzou_state_machine` adapter gets
   no workflow events, and so not this refusal.
+- **A payment is refunded at NMI before it is marked refunded.** A listener on
+  `workflow.sylius_payment.transition.refund` gives the money back — a void before settlement, a
+  refund after — before the payment's state changes, and refuses the transition when NMI does not;
+  the admin API answers that with 422. What already gave the money back in that request passes
+  untouched: the order screen's *Refund*, which asks NMI from its own event and refuses in a flash,
+  the refund plugin's last refund of a payment, and a refund NMI reports from its portal. So applying
+  `refund` to an NMI payment from your own code moves money; record a refund made elsewhere through
+  NMI's webhook rather than by applying the transition. The `winzou_state_machine` caveat above
+  applies here too.
 
 The transaction log is written through the recorder above; decorate it to react to a transaction
 being recorded.
