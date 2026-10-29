@@ -69,7 +69,9 @@ jobs:
 
         env:
             APP_ENV: dev
-            DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/store
+            # The server version named, as Sylius Standard's own .env names it: DBAL 4, which the
+            # 2.3 skeleton resolves, fails to detect it here ("Invalid platform version").
+            DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/store?serverVersion=16&charset=utf8"
             # `local` on every automatic run: a push cannot wait for contrib to catch up with a
             # recipe it is changing. `contrib` is chosen by hand, to see what a reader gets.
             RECIPE_SOURCE: ${{ inputs.recipe_source || 'local' }}
