@@ -15,8 +15,10 @@ use Monolog\LogRecord;
 use Sylius\Component\Core\Model\PaymentMethodInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Event\WorkerRunningEvent;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Worker;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
@@ -143,7 +145,16 @@ final class NmiParkedPurgeTest extends KernelTestCase
         self::assertGreaterThan($attemptsBefore, count($this->gateway->deletedVaultIds), 'The resent purge never reached the gateway.');
         self::assertSame(0, self::stillPendingIn($this->transport('main_failed')), 'The resent purge is still parked.');
         self::assertSame(0, self::stillPendingIn($this->transport('main')));
-        self::assertSame([], $this->transport('main_failed')->getAcknowledged(), 'The resent purge was handled, not discarded.');
+
+        // Read off what was handled, not off what was acknowledged: since symfony/messenger 7.4.22 a
+        // worker acknowledges a failed attempt that will be retried, having sent the retry, and
+        // rejects only the last one. Before, it rejected every failed attempt.
+        $handled = array_filter(
+            $this->transport('main_failed')->getAcknowledged(),
+            static fn (Envelope $envelope): bool => null !== $envelope->last(HandledStamp::class),
+        );
+        self::assertSame([], $handled, 'The resent purge was handled, not discarded.');
+        self::assertNotSame([], $this->transport('main_failed')->getRejected(), 'The resent purge was never rejected, so it was not discarded.');
 
         $errors = array_filter(
             $log->getRecords(),
