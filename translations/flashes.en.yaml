@@ -18,6 +18,7 @@ jpm_martin_sylius_nmi:
         card_on_file_expired: 'The card on file has expired, so nothing was sent to the gateway.'
         card_on_file_without_initial_transaction: 'The card on file cannot be charged without the shopper: it has no record of the verification that put it on file. Nothing was sent to the gateway.'
         card_on_file_charge_not_available_here: 'A card on file can only be charged by the store itself.'
+        refund_or_void_not_available_here: 'A payment can only be refunded or voided by the store itself.'
         recurring_charged: 'The recurring charge has been taken.'
         recurring_charge_declined: 'The recurring charge was declined, so the payment has not been completed. It stays open, and the card is still kept for renewals.'
         recurring_charge_unknown: 'The gateway did not answer, so whether the recurring charge was taken is not known. Check the order in the gateway''s portal before trying again.'

@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\EventListener;
 
+use JpmMartin\SyliusNmiPlugin\Command\CancelPayment;
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
-use Sylius\Bundle\PaymentBundle\Announcer\PaymentRequestAnnouncerInterface;
 use Sylius\Bundle\ResourceBundle\Event\ResourceControllerEvent;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Payment\Factory\PaymentRequestFactoryInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Takes the money back before the operator's click is allowed to cancel the payment.
@@ -30,7 +31,7 @@ final class VoidPaymentListener
     public function __construct(
         private readonly PaymentRequestFactoryInterface $paymentRequestFactory,
         private readonly PaymentRequestRepositoryInterface $paymentRequestRepository,
-        private readonly PaymentRequestAnnouncerInterface $announcer,
+        private readonly MessageBusInterface $commandBus,
     ) {
     }
 
@@ -50,7 +51,9 @@ final class VoidPaymentListener
         $paymentRequest->setAction(PaymentRequestInterface::ACTION_CANCEL);
         $this->paymentRequestRepository->add($paymentRequest);
 
-        $this->announcer->dispatchPaymentRequestCommand($paymentRequest);
+        // Sent, not announced: the provider for `cancel` refuses every request announced to it, which
+        // is what keeps a shop client naming the action from voiding a paid order's money.
+        $this->commandBus->dispatch(new CancelPayment($paymentRequest->getId()));
 
         if (PaymentRequestInterface::STATE_COMPLETED === $paymentRequest->getState()) {
             return;

@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\CommandProvider;
 
-use JpmMartin\SyliusNmiPlugin\Command\CancelPayment;
+use JpmMartin\SyliusNmiPlugin\Command\RefuseRefundOrVoid;
 use Sylius\Bundle\PaymentBundle\CommandProvider\PaymentRequestCommandProviderInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 
-/** @internal */
+/**
+ * Answers an announced void request with a refusal, always — for the reason the refund's provider
+ * gives: this plugin sends its own voids itself, so an announced one came from somewhere else.
+ *
+ * @internal
+ */
 final class CancelCommandProvider implements PaymentRequestCommandProviderInterface
 {
     public function supports(PaymentRequestInterface $paymentRequest): bool
@@ -18,6 +23,6 @@ final class CancelCommandProvider implements PaymentRequestCommandProviderInterf
 
     public function provide(PaymentRequestInterface $paymentRequest): object
     {
-        return new CancelPayment($paymentRequest->getId());
+        return new RefuseRefundOrVoid($paymentRequest->getId());
     }
 }

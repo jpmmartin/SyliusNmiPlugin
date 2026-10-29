@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace JpmMartin\SyliusNmiPlugin\Refund;
 
-use Sylius\Bundle\PaymentBundle\Announcer\PaymentRequestAnnouncerInterface;
+use JpmMartin\SyliusNmiPlugin\Command\RefundPayment;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Sylius\Component\Payment\Factory\PaymentRequestFactoryInterface;
 use Sylius\Component\Payment\Model\PaymentMethodInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Asks the gateway to give a whole payment's money back, and says why not when it would not.
@@ -17,6 +18,10 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  * The one place such a refund starts, whoever is marking the payment refunded: the order screen's
  * *Refund*, before its transition, and the transition itself when anything else applies it. Either
  * way the money moves first; the payment request's handler decides between a void and a refund.
+ *
+ * **Sent, not announced.** The command goes to the payment-request bus directly, and the provider for
+ * the `refund` action refuses every request announced to it. That is what keeps a shop client naming
+ * `refund` — which Sylius before 2.2.9 accepts — from getting its money back with the order still paid.
  *
  * @internal
  */
@@ -31,7 +36,7 @@ final class NmiPaymentRefunder
     public function __construct(
         private readonly PaymentRequestFactoryInterface $paymentRequestFactory,
         private readonly PaymentRequestRepositoryInterface $paymentRequestRepository,
-        private readonly PaymentRequestAnnouncerInterface $announcer,
+        private readonly MessageBusInterface $commandBus,
         private readonly NmiRefundedPayments $refundedPayments,
     ) {
     }
@@ -47,7 +52,7 @@ final class NmiPaymentRefunder
         $paymentRequest->setAction(PaymentRequestInterface::ACTION_REFUND);
         $this->paymentRequestRepository->add($paymentRequest);
 
-        $this->announcer->dispatchPaymentRequestCommand($paymentRequest);
+        $this->commandBus->dispatch(new RefundPayment($paymentRequest->getId()));
 
         if (PaymentRequestInterface::STATE_COMPLETED === $paymentRequest->getState()) {
             $this->refundedPayments->markRefunded($payment);

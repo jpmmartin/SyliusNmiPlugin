@@ -18,6 +18,7 @@ jpm_martin_sylius_nmi:
         card_on_file_expired: 'La tarjeta guardada ha caducado, así que no se ha enviado nada a la pasarela.'
         card_on_file_without_initial_transaction: 'La tarjeta guardada no se puede cobrar sin el comprador: no consta la verificación con la que se guardó. No se ha enviado nada a la pasarela.'
         card_on_file_charge_not_available_here: 'Una tarjeta guardada sólo la puede cobrar la propia tienda.'
+        refund_or_void_not_available_here: 'Un pago sólo lo puede reembolsar o anular la propia tienda.'
         recurring_charged: 'Se ha realizado el cobro recurrente.'
         recurring_charge_declined: 'El cobro recurrente ha sido rechazado, así que el pago no se ha completado. Sigue abierto y la tarjeta sigue guardada para las renovaciones.'
         recurring_charge_unknown: 'La pasarela no ha respondido, así que no se sabe si se realizó el cobro recurrente. Revisa el pedido en el portal de la pasarela antes de volver a intentarlo.'
