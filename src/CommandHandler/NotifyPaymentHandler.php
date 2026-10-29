@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\CommandHandler;
 
 use JpmMartin\SyliusNmiPlugin\Command\NotifyPayment;
+use JpmMartin\SyliusNmiPlugin\Entity\NmiTransactionInterface;
 use JpmMartin\SyliusNmiPlugin\Lifecycle\NmiReportedVoids;
 use JpmMartin\SyliusNmiPlugin\Recorder\NmiTransactionRecorderInterface;
 use JpmMartin\SyliusNmiPlugin\Refund\NmiRefundedPayments;
+use JpmMartin\SyliusNmiPlugin\Repository\NmiTransactionRepositoryInterface;
 use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\PaymentBundle\Provider\PaymentRequestProviderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
@@ -46,6 +48,12 @@ final class NotifyPaymentHandler
         'void' => PaymentTransitions::TRANSITION_CANCEL,
     ];
 
+    /** The record this store keeps of each operation, when this store performed it. */
+    private const RECORDED_AS = [
+        'refund' => NmiTransactionInterface::TYPE_REFUND,
+        'void' => NmiTransactionInterface::TYPE_VOID,
+    ];
+
     private const OUTCOME_SUCCESS = 'success';
 
     private const OUTCOME_FAILURE = 'failure';
@@ -59,6 +67,7 @@ final class NotifyPaymentHandler
         private readonly NmiTransactionRecorderInterface $recorder,
         private readonly NmiReportedVoids $reportedVoids,
         private readonly NmiRefundedPayments $refundedPayments,
+        private readonly NmiTransactionRepositoryInterface $transactions,
     ) {
     }
 
@@ -96,6 +105,28 @@ final class NotifyPaymentHandler
             return;
         }
 
+        // **This store's own operation, told back.** The gateway reports the refunds and voids made
+        // through its API as well as those made in its portal, so a partial refund this store sent —
+        // through the refund plugin — comes back as `refund.success` too, and reflecting it would mark
+        // the whole payment refunded with the rest of the money still taken. What the store recorded
+        // itself has already been reflected, by whoever sent it.
+        if ($this->isRecordedAsOurOwn($payload, $operation)) {
+            $this->finish($paymentRequest, $eventType, 'own_operation', $payment);
+
+            return;
+        }
+
+        // **A void of money already taken gives it back.** Voided in the portal before settlement, a
+        // completed payment cannot be cancelled; what the gateway did is what a refund records, so it
+        // is reflected as one.
+        if (
+            PaymentTransitions::TRANSITION_CANCEL === $transition &&
+            !$this->stateMachine->can($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_CANCEL) &&
+            $this->stateMachine->can($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND)
+        ) {
+            $transition = PaymentTransitions::TRANSITION_REFUND;
+        }
+
         // **The state machine's own answer, not a caught exception.** Asking whether the payment
         // can make the move covers the reordered delivery, the replayed one and the operator who
         // did the same thing in both places — all of which are the *same* situation from here: the
@@ -121,6 +152,18 @@ final class NotifyPaymentHandler
         $this->stateMachine->apply($payment, PaymentTransitions::GRAPH, $transition);
 
         $this->finish($paymentRequest, $eventType, 'applied', $payment);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function isRecordedAsOurOwn(array $payload, string $operation): bool
+    {
+        $body = $payload['event_body'] ?? [];
+        $transactionId = is_array($body) ? ($body['transaction_id'] ?? null) : null;
+        if (!is_scalar($transactionId) || '' === trim((string) $transactionId) || !isset(self::RECORDED_AS[$operation])) {
+            return false;
+        }
+
+        return null !== $this->transactions->findOneByTransactionIdAndType(trim((string) $transactionId), self::RECORDED_AS[$operation]);
     }
 
     /**
