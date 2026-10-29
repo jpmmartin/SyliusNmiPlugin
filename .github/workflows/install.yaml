@@ -112,8 +112,11 @@ jobs:
             # Everything below runs against this, and it is thrown away with the runner. It is not
             # the plugin's own test application: that one arrives pre-wired, which is exactly what
             # makes it unable to prove anything about installing.
+            # Pinned to the Sylius minor the plugin supports. Unpinned, `create-project` takes the
+            # newest skeleton — Sylius 2.3 since 2026-10-05 — and installing a plugin that requires
+            # ~2.2.0 into it fails at resolution, which proves nothing about the README.
             - name: Create a throwaway store
-              run: composer create-project sylius/sylius-standard store --no-interaction --no-scripts
+              run: composer create-project sylius/sylius-standard store "~2.2.0" --no-interaction --no-scripts
 
             # Copied into vendor/, not symlinked, because a copy is what Packagist gives a reader.
             # Composer symlinks a path repository by default; webpack resolves the link to its
