@@ -136,12 +136,28 @@
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 
-        <!-- Before the refund, for the same reason as the other two: nothing leaves refunded. -->
+        <!--
+            Before the refund, for the same reason as the other two: nothing leaves refunded.
+            Sylius's own Refund route declares no event, so the controller announces it as an
+            update; the listener takes the update only when its route applies the refund.
+        -->
         <service id="jpm_martin_sylius_nmi.listener.refund_payment" class="JpmMartin\SyliusNmiPlugin\EventListener\RefundPaymentListener">
-            <argument type="service" id="sylius.factory.payment_request" />
-            <argument type="service" id="sylius.repository.payment_request" />
-            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.payment_refunder" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <argument type="service" id="request_stack" />
             <tag name="kernel.event_listener" event="sylius.payment.pre_refund" />
+            <tag name="kernel.event_listener" event="sylius.payment.pre_update" method="onUpdate" />
+        </service>
+
+        <!--
+            Every other way a payment is marked refunded — the admin API, a store's own code —
+            gives the money back first, unless it already went back in this request.
+        -->
+        <service id="jpm_martin_sylius_nmi.listener.refund_payment_on_transition" class="JpmMartin\SyliusNmiPlugin\EventListener\RefundPaymentOnTransitionListener">
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.payment_refunder" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.refunded_payments" />
+            <argument type="service" id="translator" />
+            <tag name="kernel.event_listener" event="workflow.sylius_payment.transition.refund" />
         </service>
 
         <service id="jpm_martin_sylius_nmi.command_handler.report_payment_status" class="JpmMartin\SyliusNmiPlugin\CommandHandler\ReportPaymentStatusHandler">
@@ -171,6 +187,7 @@
             <argument type="service" id="sylius_abstraction.state_machine" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
             <argument type="service" id="jpm_martin_sylius_nmi.lifecycle.reported_voids" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.refunded_payments" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
 

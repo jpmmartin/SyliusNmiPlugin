@@ -42,6 +42,7 @@
             <argument type="service" id="sylius_abstraction.state_machine" />
             <argument type="service" id="request_stack" />
             <argument type="service" id="translator" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.refunded_payments" />
             <tag name="messenger.message_handler" bus="sylius.event_bus" />
         </service>
     </services>

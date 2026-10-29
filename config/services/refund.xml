@@ -14,5 +14,18 @@
         <service id="jpm_martin_sylius_nmi.refund.money_taking_transaction" class="JpmMartin\SyliusNmiPlugin\Refund\MoneyTakingTransactionProvider">
             <argument type="service" id="jpm_martin_sylius_nmi.repository.nmi_transaction" />
         </service>
+
+        <!-- The payments whose money went back in this request or message; forgotten between them. -->
+        <service id="jpm_martin_sylius_nmi.refund.refunded_payments" class="JpmMartin\SyliusNmiPlugin\Refund\NmiRefundedPayments">
+            <tag name="kernel.reset" method="reset" />
+        </service>
+
+        <!-- Gives a whole payment's money back through a refund payment request. -->
+        <service id="jpm_martin_sylius_nmi.refund.payment_refunder" class="JpmMartin\SyliusNmiPlugin\Refund\NmiPaymentRefunder">
+            <argument type="service" id="sylius.factory.payment_request" />
+            <argument type="service" id="sylius.repository.payment_request" />
+            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="jpm_martin_sylius_nmi.refund.refunded_payments" />
+        </service>
     </services>
 </container>

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace JpmMartin\SyliusNmiPlugin\EventListener;
 
 use JpmMartin\SyliusNmiPlugin\Gateway\NmiGatewayFactory;
-use Sylius\Bundle\PaymentBundle\Announcer\PaymentRequestAnnouncerInterface;
+use JpmMartin\SyliusNmiPlugin\Refund\NmiPaymentRefunder;
+use Sylius\Abstraction\StateMachine\StateMachineInterface;
 use Sylius\Bundle\ResourceBundle\Event\ResourceControllerEvent;
 use Sylius\Component\Core\Model\PaymentInterface;
-use Sylius\Component\Payment\Factory\PaymentRequestFactoryInterface;
-use Sylius\Component\Payment\Model\PaymentRequestInterface;
-use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
+use Sylius\Component\Payment\PaymentTransitions;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Gives the money back before the operator's click is allowed to mark the payment refunded.
@@ -18,18 +18,22 @@ use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
  * Before, like the capture and the void: nothing leaves `refunded`, so a refusal after the fact
  * would leave an order claiming it returned money it still holds.
  *
+ * **Sylius's own *Refund* fires no refund event.** Its route declares no `event`, so the controller
+ * announces it as an update — `sylius.payment.pre_update` — and only a route that says
+ * `event: refund` reaches `sylius.payment.pre_refund`. Both are listened to; the update only when the
+ * route it came from applies the payment's `refund`, which every other update leaves out.
+ *
+ * Stopping the event is how the order screen says no, with the reason in a flash. Every other way of
+ * marking a payment refunded is answered by the transition's own listener instead.
+ *
  * @internal
  */
 final class RefundPaymentListener
 {
-    /**
-     * @param PaymentRequestFactoryInterface<PaymentRequestInterface> $paymentRequestFactory
-     * @param PaymentRequestRepositoryInterface<PaymentRequestInterface> $paymentRequestRepository
-     */
     public function __construct(
-        private readonly PaymentRequestFactoryInterface $paymentRequestFactory,
-        private readonly PaymentRequestRepositoryInterface $paymentRequestRepository,
-        private readonly PaymentRequestAnnouncerInterface $announcer,
+        private readonly NmiPaymentRefunder $refunder,
+        private readonly StateMachineInterface $stateMachine,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -41,34 +45,39 @@ final class RefundPaymentListener
         }
 
         $paymentMethod = $payment->getMethod();
-        if (NmiGatewayFactory::NAME !== $paymentMethod?->getGatewayConfig()?->getFactoryName()) {
+        if (null === $paymentMethod || NmiGatewayFactory::NAME !== $paymentMethod->getGatewayConfig()?->getFactoryName()) {
             return;
         }
 
-        $paymentRequest = $this->paymentRequestFactory->create($payment, $paymentMethod);
-        $paymentRequest->setAction(PaymentRequestInterface::ACTION_REFUND);
-        $this->paymentRequestRepository->add($paymentRequest);
-
-        $this->announcer->dispatchPaymentRequestCommand($paymentRequest);
-
-        if (PaymentRequestInterface::STATE_COMPLETED === $paymentRequest->getState()) {
+        // The controller refuses a transition it cannot apply, after this event; money given back
+        // first would then be gone with the payment still saying it was taken.
+        if (!$this->stateMachine->can($payment, PaymentTransitions::GRAPH, PaymentTransitions::TRANSITION_REFUND)) {
             return;
         }
 
-        // The handler decided both what went wrong and how to say it. The gateway's own sentence
-        // wins when there is one — it is the only description some refusals have, and it arrives
-        // in English whatever the locale. Otherwise the key goes to the flash, which translates
-        // it through the `flashes` domain into the operator's own language.
-        $responseData = $paymentRequest->getResponseData();
-        $detail = $responseData['detail'] ?? null;
-        if (is_string($detail) && '' !== $detail) {
-            $event->stop($detail);
-
-            return;
+        $refusal = $this->refunder->refund($payment, $paymentMethod);
+        if (null !== $refusal) {
+            // The gateway's sentence is shown as it is; a key is translated through the `flashes`
+            // domain into the operator's own language.
+            $event->stop($refusal);
         }
+    }
 
-        $messageKey = $responseData['message_key'] ?? null;
+    /** The update Sylius's own *Refund* is announced as, and no other. */
+    public function onUpdate(ResourceControllerEvent $event): void
+    {
+        if ($this->appliesARefund()) {
+            $this->__invoke($event);
+        }
+    }
 
-        $event->stop(is_string($messageKey) && '' !== $messageKey ? $messageKey : 'jpm_martin_sylius_nmi.payment.refund_refused');
+    private function appliesARefund(): bool
+    {
+        $configuration = $this->requestStack->getCurrentRequest()?->attributes->get('_sylius');
+        $stateMachine = is_array($configuration) ? ($configuration['state_machine'] ?? null) : null;
+
+        return is_array($stateMachine) &&
+            PaymentTransitions::GRAPH === ($stateMachine['graph'] ?? null) &&
+            PaymentTransitions::TRANSITION_REFUND === ($stateMachine['transition'] ?? null);
     }
 }

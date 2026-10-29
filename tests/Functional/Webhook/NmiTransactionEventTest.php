@@ -15,6 +15,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Tests\JpmMartin\SyliusNmiPlugin\Double\FakeNmiClient;
 use Tests\JpmMartin\SyliusNmiPlugin\Double\RecordingLogger;
 
 /**
@@ -82,6 +83,23 @@ final class NmiTransactionEventTest extends WebTestCase
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertSame(PaymentInterface::STATE_REFUNDED, $this->stateOf($payment));
+    }
+
+    /**
+     * The money is already back: marking the payment refunded must not ask NMI to give it back again,
+     * although a payment marked refunded by anything else is refunded at NMI first.
+     */
+    public function testARefundPerformedInThePortalIsNotAskedForAgain(): void
+    {
+        $gateway = new FakeNmiClient();
+        self::getContainer()->set('jpm_martin_sylius_nmi.gateway.client', $gateway);
+        $payment = $this->aPaymentIn(PaymentInterface::STATE_COMPLETED);
+
+        $this->deliver('transaction.refund.success', 'ref-once');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(PaymentInterface::STATE_REFUNDED, $this->stateOf($payment));
+        self::assertSame([], $gateway->operations, 'NMI was asked to refund what its portal already refunded.');
     }
 
     /** *A void performed outside the store.* */
