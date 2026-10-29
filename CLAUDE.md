@@ -40,26 +40,35 @@ between a verified answer and an unverified one.
 Never query "latest". Derive the real numbers from `composer.lock` — but note **`composer.lock` is
 gitignored** (correct for a library), so a fresh clone has none until `composer install` runs.
 
-Declared constraints: `php ^8.2`, `sylius/sylius ~2.2.0`.
+Declared constraints: `php ^8.2`, `sylius/sylius ~2.2.0 || ~2.3.0`, `doctrine/orm ^3.6`,
+`sylius/twig-hooks ^0.9 || ^0.14`, Symfony `^7.4`.
 
-At the time of writing, `composer install` resolved:
+There is no single answer any more: the build pins three legs (`.github/workflows/build.yaml`), and
+which one you are on decides the version to query. At the time of writing they resolved:
 
-| Package | Version |
-|---|---|
-| `sylius/sylius` | v2.2.9 |
-| `symfony/framework-bundle` (and the Symfony stack) | v7.4.19 |
-| `doctrine/orm` | 3.7.1 |
-| `doctrine/dbal` | 3.10.6 |
-| `doctrine/doctrine-bundle` | 2.19.1 |
-| `twig/twig` | v3.29.0 |
-| `sylius/twig-hooks` | v0.9.1 |
-| `sylius/resource-bundle` | v1.14.2 |
-| `sylius/grid-bundle` | v1.16.1 |
-| `sylius/test-application` | v2.2.0-ALPHA.1 |
-| `phpstan/phpstan` | 1.12.34 |
-| `phpunit/phpunit` | 10.5.64 |
-| `behat/behat` | v3.33.0 |
-| `sylius-labs/coding-standard` | v4.5.1 |
+| Package | Sylius 2.2 leg | Sylius 2.3, low | Sylius 2.3, high |
+|---|---|---|---|
+| `sylius/sylius` | v2.2.12 | v2.3.2 | v2.3.2 |
+| `symfony/framework-bundle` (and the Symfony stack) | v7.4.22 | v7.4.22 | v7.4.22 |
+| `doctrine/orm` | 3.6.9 | 3.6.9 | 3.6.9 |
+| `doctrine/dbal` | 3.10.6 | 3.10.6 | 4.5.0 |
+| `doctrine/doctrine-bundle` | 2.19.3 | 2.19.3 | 3.3.4 |
+| `doctrine/persistence` | 3.4.5 | 4.2.1 | 4.2.1 |
+| `api-platform/symfony` | v4.4.6 | v4.4.6 | v5.0.5 |
+| `symfony/ux-twig-component` | v2.36.0 | v2.36.0 | v3.6.0 |
+| `twig/twig` | v3.30.0 | v3.30.0 | v3.30.0 |
+| `sylius/twig-hooks` | v0.9.1 | v0.14.1 | v0.14.1 |
+| `sylius/resource-bundle` | v1.14.2 | v1.14.2 | v1.14.2 |
+| `sylius/grid-bundle` | v1.16.1 | v1.16.1 | v1.16.1 |
+| `sylius/test-application` | v2.2.0-ALPHA.1 | v2.3.0-ALPHA.4 | v2.3.0-ALPHA.4 |
+| `sylius/refund-plugin` | v2.2.1 | v2.2.1 | v2.2.1 |
+| `phpstan/phpstan` | 1.12.34 | 1.12.34 | 1.12.34 |
+| `phpunit/phpunit` | 10.5.66 | 10.5.66 | 10.5.66 |
+| `behat/behat` | v3.34.0 | v3.34.0 | v3.34.0 |
+| `sylius-labs/coding-standard` | v4.5.1 | v4.5.1 | v4.5.1 |
+
+The low 2.3 leg runs on PHP 8.3, which is what keeps it on Symfony UX 2; on PHP 8.4 or later the same
+pins resolve UX 3. A plain `composer install` resolves whatever is newest, which is none of these.
 
 Re-derive rather than trusting this table after any `composer update`.
 
@@ -179,14 +188,30 @@ scenario that asserts the easy half.
 ## What this is
 
 A Sylius payment gateway plugin integrating **NMI** (<https://nmi.com>): card payments with
-browser-side tokenisation, 3-D Secure, capture, void and refund. Targets **Sylius 2.2 only** for now: `~2.2.0`.
+browser-side tokenisation, 3-D Secure, capture, void and refund. Targets **Sylius 2.2 and 2.3**:
+`~2.2.0 || ~2.3.0`. Each minor is added deliberately rather than by a caret, because the encryption
+contracts the plugin implements are still `@experimental` in 2.3.2.
 
 Package `jpmmartin/sylius-nmi-plugin`, namespace `JpmMartin\SyliusNmiPlugin\`, MIT.
 
-## Architecture facts, verified against Sylius 2.2.9 source
+## Architecture facts, verified against Sylius 2.2.9 and 2.3.2 source
 
-These were established by reading installed code. They are the kind of thing that costs hours to
-rediscover.
+These were established by reading installed code — 2.2.9 first, then each one again against 2.3.2
+at both ends of the dependencies it admits. They are the kind of thing that costs hours to
+rediscover. Where the two minors differ, the fact says so.
+
+**Sylius 2.3 changed two interfaces the plugin implements.** `HttpResponseProviderInterface` and
+`AfterPayResponseProviderInterface` take the `Request` in 2.3 where 2.2 passed the
+`RequestConfiguration`, and a class implementing the 2.2 signature is a compile error the moment
+the container is built — the whole store goes down, NMI configured or not. The plugin's two
+providers take `RequestConfiguration|Request`, which satisfies both. Every published version up to
+1.3.2 declared `^2.2` and fails on 2.3; Composer falls back to them whenever a newer one is excluded.
+
+**2.3 made the PaymentRequest contracts stable, not the encryption ones.** `UPGRADE-2.3` says
+`@experimental` left all of `Sylius\Component\Payment`; `vendor/` disagrees, and `vendor/` wins:
+`EntityEncrypterInterface`, `EncryptionAwareInterface`, `EncryptionCheckTrait`, `EncrypterInterface`
+and `EntityEncryptionListener` are still `@experimental` in 2.3.2, and the plugin implements,
+extends or instantiates all of them. That is why the constraint names minors.
 
 **PaymentRequest is a Payum-free path.** `Sylius\Bundle\PaymentBundle` contains no Payum reference;
 the dispatch key is a plain string from `GatewayConfig`. `SyliusPayumBundle` consumes the same public
@@ -200,7 +225,7 @@ type. The pattern is **CommandProvider → Messenger handler**:
 |---|---|---|
 | `sylius.gateway_configuration_type` | `type`, `label` | Declares the factory name. Autoconfigured from `#[AsGatewayConfigurationType]`; also needs `form.type` |
 | `sylius.payment_request.command_provider` | `gateway_factory` | Primary hook. One `ActionsCommandProvider` per factory, fed by a plugin-private `tagged_locator(…, 'action')` |
-| `sylius.payment_request.provider.http_response` | `gateway_factory` | Redirect or render on the pay page, via `HttpResponseProviderInterface` |
+| `sylius.payment_request.provider.http_response` | `gateway_factory` | Redirect or render on the pay page, via `HttpResponseProviderInterface` (takes the `Request` from 2.3) |
 | `sylius.payment_request.payment_notify_provider` | priority | Resolves a `Payment` from a gateway-wide webhook. `#[AsNotifyPaymentProvider]` |
 | `messenger.message_handler` | `bus: sylius.payment_request.command_bus` | The actual work |
 
@@ -218,8 +243,10 @@ a shop client naming anything else gets HTTP 422 and nothing is created. On 2.2.
 command provider was accepted. A refusal that belongs to the plugin therefore only runs on 2.2.8 or
 on a store that widened the list, and a test asserting one refusal passes on one version and fails on
 the other. The admin API and the admin screens need no such list because neither can create a payment
-request: the admin API declares one operation on it, `GetCollection`, and `AdminBundle` routes only
-`index` and `show`, both `GET`.
+request: the admin API declares only read operations on it, `Get` and `GetCollection`, and
+`AdminBundle` routes only `index` and `show`, both `GET`. Holds unchanged on 2.3.2. The plugin does
+not lean on the list for money: it sends its own `refund` and `cancel` commands to the bus itself,
+and its providers for those two actions refuse every request that is announced instead.
 
 **Sale versus authorise is already core behaviour.** `DefaultActionProvider` reads
 `$gatewayConfig->getConfig()['use_authorize']` and returns `ACTION_AUTHORIZE` or the default. This
@@ -233,7 +260,7 @@ costs one checkbox in the gateway configuration form — do not build branching 
 | `cancel` | `authorized` → `cancelled` | void |
 | `refund` | `completed` → `refunded` | refund |
 
-**There is no `void` transition — do not assume one exists.** Sylius 2.2.9 ships four definitions of
+**There is no `void` transition — do not assume one exists**, in 2.2 or 2.3. Sylius 2.2.9 ships four definitions of
 the `sylius_payment` state machine and they disagree. The two that actually load (both in
 `CoreBundle`, reached via `_sylius.yaml` → `app/config.yml` → `workflow.yaml` → `workflow/**`) omit
 `void` and the `unknown` place. `PaymentBundle`'s two definitions declare them but are orphaned,
@@ -265,12 +292,14 @@ to `winzou_state_machine` gets no workflow events at all. And an `onFlush` liste
 entity encrypted by `EntityEncryptionListener` must run above that listener: it encrypts only what
 is already scheduled when it runs.
 
-**Every DQL query is silently ordered by id.** `SyliusCoreBundle::boot()` installs
+**DQL queries may be silently ordered by id.** `SyliusCoreBundle::boot()` installs
 `OrderByIdentifierSqlWalker` as a *default query hint* whenever `sylius_core.order_by_identifier`
 is on, and it appends `ORDER BY <identifier> ASC` to the generated SQL without exempting
 aggregates. On PostgreSQL that makes any `SUM`/`COUNT` without a matching `GROUP BY` fail with
 "must appear in the GROUP BY clause". The DQL looks innocent; only the SQL shows it. Opt a query
-out with `->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [])`.
+out with `->setHint(Query::HINT_CUSTOM_TREE_WALKERS, [])`. The setting defaults to on in 2.2 and to
+off in 2.3, so keep the opt-out — a 2.2 store, or a 2.3 store that turns it on, still gets the
+walker — and know that only the 2.2 build exercises it.
 
 **Payment-request commands must be handled synchronously.** The pay page announces the command
 and asks for an HTTP response *in the same request*, so a queued command leaves the page with
@@ -289,6 +318,9 @@ retry count. A message resent from `main_failed` that fails again is retried und
 own strategy and then **discarded** with a `critical` log line, because `main_failed` has no failure
 transport. So "never lost" holds once, not twice — never promise a purge is retried until it
 completes. `tests/Integration/StoredCard/NmiParkedPurgeTest` runs both halves through a real worker.
+Since symfony/messenger 7.4.22 a worker *acknowledges* a failed attempt it will retry, having sent the
+retry, and rejects only the last; read whether a message was handled off its `HandledStamp`, never
+off the acknowledgement.
 
 **Work queued from a flush is dispatched on `sylius.event_bus`, and its handler must not write from
 inside that flush.** Sylius puts Symfony's `doctrine_transaction` middleware on `sylius.command_bus`,
@@ -299,7 +331,7 @@ the `postFlush` that dispatched it, before the unit of work is cleaned up. The p
 it does not care. The void does write, so its listener marks itself while it dispatches and the
 handler, finding the mark, sends the void without recording it. Asking Doctrine instead does not work:
 `executeInserts()` and `executeUpdates()` take each entity off the schedule as they write it
-(`UnitOfWork.php:1141`, `:1231`), so inside `postFlush` `isScheduledForUpdate()` is false for
+(`UnitOfWork.php:1141`, `:1231` in ORM 3.7.1; `:1115`, `:1201` in 3.6.9), so inside `postFlush` `isScheduledForUpdate()` is false for
 everything the flush just wrote.
 
 **The payment-request command bus flushes for you.** `sylius.payment_request.command_bus` carries
@@ -309,7 +341,20 @@ return. Persist inside a handler; do not flush, and do not open your own transac
 **Free from core, do not reimplement:** gateway-config and PaymentRequest encryption; the two webhook
 routes `/payment-requests/{hash}` and `/payment-methods/{code}`; duplicate suppression via
 `PaymentRequestDuplicationChecker`, which prevents a second capture for the same action, payment and
-method.
+method. Sylius 2.3 adds `sylius_payment.encryption.strict_mode`, off by default; with it on, Sylius
+2.3.2's own `EntityEncryptionListener` decrypts an already decrypted `GatewayConfig` on `postFlush` and
+throws, with or without this plugin — cancelling an order from the admin answers 500 and a refund
+plugin refund never reaches NMI. Documented for stores, not worked around.
+
+**Sylius 2.3 moved things the test suite stands on.** Its test application no longer registers
+`KnpGaufretteBundle`, which refund-plugin 2.2 needs; its Behat suites are `suites.php` instead of
+`suites.yml`; and its payment-method context requires `Sylius\Behat\Page\Admin\PaymentMethod\IndexPage`,
+which 2.2 does not have. Each is handled by a guard that holds on both minors —
+`tests/TestApplication/config/bundles.php`, `tests/Behat/Resources/sylius_suites.php`, and the
+`class_alias` at the top of the plugin's own index page. A Sylius-Standard skeleton asks for
+`sylius/sylius` with a caret, so the 2.2 skeleton resolves 2.3 unless the store pins it, and the 2.2
+skeleton registers `FOSRestBundle`, which only `sylius/paypal-plugin` 2.0 brought: the Install
+workflow pins both.
 
 **The public surface is a list, and the list is tested.** `docs/extending.md` names every seam a
 store may rely on: hooks, templates, routes, interfaces with their service aliases, value objects,
@@ -336,9 +381,15 @@ which ship in per-engine pairs. `doctrine:migrations:diff` cannot produce such a
 connected engine's SQL behind a platform guard, by design. The mapping is the truth, and
 `tests/Integration/Migrations/MigrationMatchesMappingTest` holds the migration to it: it compares
 the tables the migration built with the ones the ORM expects and fails on any difference, on
-PostgreSQL in the main jobs and on MySQL in a job of its own. Ids are `IDENTITY` in the mapping,
-never `AUTO`: `AUTO` resolves to a sequence on PostgreSQL under DBAL 3 and to an identity column
-everywhere else, and one migration cannot match both.
+PostgreSQL in the main jobs and on MySQL in a job of its own, each under DBAL 3 and DBAL 4. Ids are
+`IDENTITY` in the mapping, never `AUTO`: `AUTO` resolves to a sequence on PostgreSQL under DBAL 3
+and to an identity column everywhere else — and Sylius 2.3 forces it to a sequence on PostgreSQL —
+so one migration cannot match both. `IDENTITY` is a `SERIAL` column on PostgreSQL under DBAL 3 and
+`GENERATED BY DEFAULT AS IDENTITY` under DBAL 4, which the one migration builds correctly on a fresh
+database either way; but a store that moves an existing database to DBAL 4 is offered a conversion
+of every such table, the plugin's six and `messenger_messages`, and applying it as Doctrine
+generates it restarts the ids at 1. `docs/upgrading.md` sends stores to DBAL's own
+`upgrade_serial_to_identity` instead.
 
 **Reference implementation:** `flux-se/sylius-stripe-plugin` is the closest model on the modern
 contract — install it in a scratch project and read it. `sylius/adyen-plugin` predates

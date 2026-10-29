@@ -34,8 +34,9 @@ card details tokenised in the shopper's browser so the store never handles them.
 
 | | |
 |---|---|
-| PHP | 8.2 or newer |
-| Sylius | 2.2. Not 2.3 yet: on a store with Sylius 2.3 Composer falls back to an earlier version of this plugin, which accepts 2.3 and stops the store from compiling its container |
+| PHP | 8.2 or newer; 8.3 or newer with Sylius 2.3, which requires it |
+| Sylius | 2.2 or 2.3 |
+| Symfony | 7.4 |
 | Database | MySQL, MariaDB or PostgreSQL. One migration serves all three; every build checks the schema on PostgreSQL and on MySQL |
 
 Sylius 1.x is not supported and will not be: this plugin is built on the `PaymentRequest` model
@@ -169,8 +170,8 @@ yarn add @nmipayments/nmi-pay
 ```
 
 Then import the plugin's script from the shop's own entrypoint, which the base layout already
-loads on every shop page. `@vendor` is the alias a Sylius Standard `webpack.config.js` defines for
-the `vendor/` directory:
+loads on every shop page. `@vendor` is the alias a Sylius Standard `webpack.config.js` —
+`webpack.config.mjs` from Sylius Standard 2.3 — defines for the `vendor/` directory:
 
 ```js
 // assets/shop/entrypoint.js — at the end
@@ -197,13 +198,14 @@ rather than a missing build.
 other way in: an Encore entry for the plugin's entrypoint, and the script tag the plugin ships,
 pointed at by the shop's `javascripts` hook. **One way or the other, never both**: a script loaded
 twice mounts the card form twice, and the gateway's component allows one per page. The entry goes
-in the shop block of `webpack.config.js` — the one that sets `public/build/app/shop` — before its
+in the shop block of `webpack.config.js` (`webpack.config.mjs` from Sylius Standard 2.3) — the one
+that sets `public/build/app/shop` — before its
 `Encore.getWebpackConfig()`, and the hook goes in a file of the store's; if your store already has
 one with a `sylius_twig_hooks:` key, add the `hooks:` entry to it rather than pasting a second
 top-level key, which stops the file parsing.
 
 ```js
-// webpack.config.js, inside the shop block — the alternative to the import above
+// webpack.config.js or .mjs, inside the shop block — the alternative to the import above
 Encore
     .addEntry('app-shop-entry', './assets/shop/entrypoint.js')
     .addEntry('nmi-shop', './vendor/jpmmartin/sylius-nmi-plugin/assets/shop/entrypoint.js')
@@ -720,11 +722,14 @@ capture, so a partial capture would forfeit the rest rather than leave it claima
 an entry a store added earlier changes nothing. Refunds made there are real refunds at NMI; see
 *Voiding and refunding* above for what NMI accepts before a transaction settles.
 
-Installing the refund plugin itself is more than the package: it needs **three** bundles
-registered, its configuration and **its routes** imported, and its migrations run.
+Installing the refund plugin itself is more than the package: it needs **four** bundles
+registered, its configuration and **its routes** imported, and its migrations run. Sylius Standard
+registers all four already. Gaufrette is the one a store wired by hand on Sylius 2.2 may lack: Sylius
+2.2 required it itself, and Sylius 2.3 leaves it to the refund plugin, which from 2.2 requires it.
 
 ```php
 // config/bundles.php
+Knp\Bundle\GaufretteBundle\KnpGaufretteBundle::class => ['all' => true],
 Knp\Bundle\SnappyBundle\KnpSnappyBundle::class => ['all' => true],
 Sylius\PdfGenerationBundle\SyliusPdfGenerationBundle::class => ['all' => true],
 Sylius\RefundPlugin\SyliusRefundPlugin::class => ['all' => true],

@@ -8,6 +8,28 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [Unreleased]
 
+### Added
+
+- **Sylius 2.3.** The plugin installs and runs on Sylius 2.3 as well as 2.2: `sylius/sylius` is
+  `~2.2.0 || ~2.3.0`. Sylius 2.3 passes the payment response providers the request where 2.2 passed
+  its configuration, and every earlier version of this plugin failed to compile the container there;
+  both providers now take either. Built on Sylius 2.2 with PHP 8.2, and on Sylius 2.3 at both ends of
+  what it admits — DBAL 3, DoctrineBundle 2 and API Platform 4 with PHP 8.3 and Symfony UX 2, and DBAL
+  4, DoctrineBundle 3 and API Platform 5 with PHP 8.4 and UX 3 — each with and without the refund
+  plugin. Nothing to migrate, configure or rebuild for this release itself. Moving a store to Sylius
+  2.3 is Sylius's upgrade, and four parts of it touch this plugin — the refund plugin's Gaufrette
+  bundle, the Encore 6 rebuild, PostgreSQL's identity columns under DBAL 4 and the new encryption
+  `strict_mode` — described in *Upgrading to 1.4, and moving to Sylius 2.3* in
+  [docs/upgrading.md](docs/upgrading.md).
+
+### Changed
+
+- **Requirements narrowed to what is tested:** Symfony 7.4, `doctrine/orm` 3.6 or later,
+  `sylius/twig-hooks` 0.9 or 0.14, and `sylius/refund-plugin` 2.2 or later, the first that installs on
+  Sylius 2.3. A store on Symfony 6.4 or Doctrine ORM 2 is kept on 1.3 by Composer.
+- **Raise your own constraint to `^1.4`.** Versions up to 1.3.2 accept any Sylius 2.x, so a lower
+  bound lets Composer answer a Sylius minor this plugin does not support yet with one of them.
+
 ## [1.3.3] - 2026-10-29
 
 ### Security
