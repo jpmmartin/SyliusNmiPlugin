@@ -24,17 +24,19 @@ jobs:
                 # Each Sylius minor the plugin supports, and for 2.3 both ends of what it admits.
                 # Pinned rather than resolved: without a lock Composer takes the newest of
                 # everything, so a leg that pins nothing tests whatever was released last night.
+                # The Sylius floors are the first patches `composer audit` passes; unpinned, the
+                # 2.2 leg settles on 2.2.9, the last that allows doctrine/orm 3.7.
                 # 2.3 on PHP 8.3 is also the only leg on Symfony UX 2; 8.4 resolves UX 3.
                 leg:
                     - name: "Sylius 2.2, PHP 8.2"
                       php: "8.2"
-                      with: "--with sylius/sylius:~2.2.0"
+                      with: "--with sylius/sylius:~2.2.12"
                     - name: "Sylius 2.3, PHP 8.3, DBAL 3, API Platform 4"
                       php: "8.3"
-                      with: "--with sylius/sylius:~2.3.0 --with doctrine/dbal:^3.10 --with doctrine/doctrine-bundle:^2.18 --with api-platform/symfony:^4.3.17"
+                      with: "--with sylius/sylius:~2.3.2 --with doctrine/dbal:^3.10 --with doctrine/doctrine-bundle:^2.18 --with api-platform/symfony:^4.3.17"
                     - name: "Sylius 2.3, PHP 8.4, DBAL 4, API Platform 5"
                       php: "8.4"
-                      with: "--with sylius/sylius:~2.3.0 --with doctrine/dbal:^4.4 --with doctrine/doctrine-bundle:^3.2 --with api-platform/symfony:^5.0"
+                      with: "--with sylius/sylius:~2.3.2 --with doctrine/dbal:^4.4 --with doctrine/doctrine-bundle:^3.2 --with api-platform/symfony:^5.0"
                 # The two configurations the specification requires. The plugin refunds on its own
                 # and must keep working when `sylius/refund-plugin` is absent, so the job that
                 # removes it is not a formality — it is the one that proves the dependency really
@@ -170,9 +172,9 @@ jobs:
             matrix:
                 leg:
                     - name: "Sylius 2.2, DBAL 3"
-                      with: "--with sylius/sylius:~2.2.0"
+                      with: "--with sylius/sylius:~2.2.12"
                     - name: "Sylius 2.3, DBAL 4"
-                      with: "--with sylius/sylius:~2.3.0 --with doctrine/dbal:^4.4 --with doctrine/doctrine-bundle:^3.2 --with api-platform/symfony:^5.0"
+                      with: "--with sylius/sylius:~2.3.2 --with doctrine/dbal:^4.4 --with doctrine/doctrine-bundle:^3.2 --with api-platform/symfony:^5.0"
 
         env:
             APP_ENV: test
