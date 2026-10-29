@@ -10,8 +10,34 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ## [1.3.3] - 2026-10-27
 
+### Changed
+
+- **Sylius 2.2 only: `sylius/sylius` is now `~2.2.0`.** Every earlier version declared `^2.2` and so
+  accepted Sylius 2.3, where it stops the store from compiling its container — the shop, the admin,
+  the API and the console all fail with *Declaration of NmiHttpResponseProvider::supports(...) must
+  be compatible*, whether an NMI method is configured or not. Sylius 2.3 changed the payment response
+  provider interfaces this plugin implements. Support for Sylius 2.3 comes in a later release. Until
+  then, a store that has resolved Sylius 2.3 with this plugin installed has to keep
+  `"sylius/sylius": "~2.2.0"` in its own `composer.json`: Composer otherwise falls back to an
+  earlier version of this plugin, which accepts 2.3 and fails the same way.
+
 ### Fixed
 
+- **Refunding an NMI payment gives the money back at NMI, whichever way it is refunded.** Sylius's own
+  *Refund* on the order screen — shown on a store without `sylius/refund-plugin` — marked the payment
+  refunded and asked NMI for nothing, because its route announces the action as an update and the
+  plugin listened only for a refund. The admin API's `PATCH /api/v2/admin/payments/{id}/refund`, and
+  a store's own code applying the payment's `refund` transition, did the same. Each now refunds at
+  NMI first — a void before settlement, a refund after, as the order screen was meant to — and marks
+  the payment refunded only once NMI has given the money back. A refusal leaves the payment
+  completed: the order screen says why in a message, as before, and the admin API answers 422.
+  Refunds made through the refund plugin, and refunds NMI reports from its portal, are not sent
+  again. Code of your own that applies `refund` to record a refund made in NMI's portal now asks
+  NMI too, and NMI refuses what is already back; let NMI's webhook record those instead.
+  **A payment refunded one of those ways before this release was never refunded at NMI:**
+  an NMI payment in `refunded` with no `void` or `refund` row for it in the
+  `jpm_martin_sylius_nmi_transaction` table — or whose transaction NMI's portal shows neither voided
+  nor refunded — still holds the money, and has to be given back from NMI's portal.
 - **Paying again after an authentication NMI never answered no longer needs a reload.** When NMI
   blocked an authentication or refused its lookup, the gateway's widget called nothing back and left
   its 3-D Secure interface mounted. The plugin gave the attempt up after 45 seconds and said the card

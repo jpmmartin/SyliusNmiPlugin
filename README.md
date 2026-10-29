@@ -35,7 +35,7 @@ card details tokenised in the shopper's browser so the store never handles them.
 | | |
 |---|---|
 | PHP | 8.2 or newer |
-| Sylius | 2.2 or newer |
+| Sylius | 2.2. Not 2.3 yet: this release does not compile on it, and Composer will not install it there |
 | Database | MySQL, MariaDB or PostgreSQL. One migration serves all three; every build checks the schema on PostgreSQL and on MySQL |
 
 Sylius 1.x is not supported and will not be: this plugin is built on the `PaymentRequest` model

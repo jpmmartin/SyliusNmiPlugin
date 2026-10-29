@@ -246,13 +246,17 @@ API — all read-only for payment requests. After an `authorize`, nothing in Syl
 The plugin must supply the trigger.
 
 **The order screen's events are not the only way a payment moves.** The `sylius.payment.pre_*` and
-`post_*` resource events fire only from the admin controller's routes. Sylius cancels an order's
+`post_*` resource events fire only from the admin controller's routes, and each is named after the
+route's `event` — absent one, after the controller action. `sylius_admin_order_payment_complete`
+declares `event: complete`; `sylius_admin_order_payment_refund` declares none, so Sylius's own
+*Refund* fires `sylius.payment.pre_update`, never `pre_refund` (`ResourceController::
+applyStateMachineTransitionAction` dispatches `ResourceActions::UPDATE`). Sylius cancels an order's
 payments through the state machine (`CancelPaymentListener`, on `workflow.sylius_order.completed.cancel`),
 `sylius:cancel-unpaid-orders` cancels orders the same way, and the admin API's
-`PATCH /payments/{id}/complete` applies `complete` directly — none of them fires those events. What
-must hold on every path hangs on the flush that saves the change, or on a
-`workflow.sylius_payment.transition.*` listener — never on the guard, which also answers `can()`,
-and the order screen draws *Complete* only when `can()` says yes. The order screen's transitions run
+`PATCH /payments/{id}/complete` and `PATCH /payments/{id}/refund` apply their transitions
+directly — none of them fires those events. What must hold on every path hangs on the flush that
+saves the change, or on a `workflow.sylius_payment.transition.*` listener — never on the guard,
+which also answers `can()`, and the order screen draws *Complete* only when `can()` says yes. The order screen's transitions run
 inside a transaction: Sylius Core decorates `sylius.resource_controller.resource_update_handler` with
 `CoreBundle/Doctrine/ORM/Handler/ResourceUpdateHandler`, which opens one around `apply()` and
 `flush()` and rolls it back only on `OptimisticLockException` — any other exception propagates with
