@@ -40,7 +40,7 @@ between a verified answer and an unverified one.
 Never query "latest". Derive the real numbers from `composer.lock` — but note **`composer.lock` is
 gitignored** (correct for a library), so a fresh clone has none until `composer install` runs.
 
-Declared constraints: `php ^8.2`, `sylius/sylius ^2.2`.
+Declared constraints: `php ^8.2`, `sylius/sylius ~2.2.0`.
 
 At the time of writing, `composer install` resolved:
 
@@ -179,7 +179,7 @@ scenario that asserts the easy half.
 ## What this is
 
 A Sylius payment gateway plugin integrating **NMI** (<https://nmi.com>): card payments with
-browser-side tokenisation, 3-D Secure, capture, void and refund. Targets **Sylius 2.2+ only**.
+browser-side tokenisation, 3-D Secure, capture, void and refund. Targets **Sylius 2.2 only** for now: `~2.2.0`.
 
 Package `jpmmartin/sylius-nmi-plugin`, namespace `JpmMartin\SyliusNmiPlugin\`, MIT.
 

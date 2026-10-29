@@ -35,7 +35,7 @@ card details tokenised in the shopper's browser so the store never handles them.
 | | |
 |---|---|
 | PHP | 8.2 or newer |
-| Sylius | 2.2. Not 2.3 yet: this release does not compile on it, and Composer will not install it there |
+| Sylius | 2.2. Not 2.3 yet: on a store with Sylius 2.3 Composer falls back to an earlier version of this plugin, which accepts 2.3 and stops the store from compiling its container |
 | Database | MySQL, MariaDB or PostgreSQL. One migration serves all three; every build checks the schema on PostgreSQL and on MySQL |
 
 Sylius 1.x is not supported and will not be: this plugin is built on the `PaymentRequest` model
@@ -373,16 +373,20 @@ payment is completed only when NMI approves it; a refusal undoes the credit memo
 NMI's reason. Several partial refunds of one payment are each their own refund at NMI, which keeps
 the balance and refuses one that would exceed it. NMI's reference says a transaction has to settle
 before it can be refunded, while its sandbox refunds unsettled ones without complaint; the plugin
-asks either way and shows you the answer, and the order screen's *Refund* — a void, before
-settlement — remains the way to give the whole amount back if NMI says no. The refund plugin's own
+asks either way and shows you the answer. If NMI says no, the whole amount can still go back as a
+void before settlement — the admin API's `PATCH /api/v2/admin/payments/{id}/refund` asks for it,
+since the order screen's own *Refund* is hidden while the refund plugin is installed. The refund plugin's own
 *Complete* button never applies to an NMI refund: money the gateway has not returned is not marked
 returned. Note that the refund plugin hides Sylius's own *Refund* button on the order screen, so
 with it installed its screens are where every refund happens; partial refunds that add up to the
 whole payment mark it refunded just as one full refund would, and its refund page — where it takes
 you after each refund — still opens for that order afterwards, as the record of what went back.
 Without the refund plugin, the order screen's *Refund* gives back whatever has not been returned
-yet — a refund made in NMI's portal and reported by webhook is subtracted first — and refuses when
-nothing is left.
+yet and refuses when nothing is left. Whichever way an NMI payment is marked refunded — that button,
+the admin API, or your own code — NMI is asked first, and the payment stays completed if NMI says
+no. A refund or a void made in NMI's portal and reported by webhook marks the payment refunded
+without asking again; the plugin reads such an event as the whole amount, so a partial refund made
+in the portal marks the whole payment refunded.
 
 ## Testing against the sandbox
 
