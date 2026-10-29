@@ -128,6 +128,9 @@ final class NmiRefundFromThePaymentRowTest extends WebTestCase
 
         $action = sprintf('/admin/orders/%d/payments/%d/refund', (int) $order->getId(), (int) $payment->getId());
         $form = $page->filter(sprintf('form[action$="%s"]', $action));
+        if (!class_exists('Sylius\\RefundPlugin\\SyliusRefundPlugin')) {
+            self::assertCount(1, $form, 'Without the refund plugin, the payment row offers no Refund.');
+        }
 
         $token = 1 === $form->count()
             ? (string) $form->filter('input[name="_csrf_token"]')->attr('value')

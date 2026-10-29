@@ -24,6 +24,11 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * transition runs: the order screen's *Refund*, the refund plugin's last refund of a payment, and a
  * refund the gateway reports from its portal. Those pass untouched.
  *
+ * **Recording money that went back elsewhere.** A void or a refund the store never heard of — made in
+ * the portal on a store without webhooks, or one whose answer never arrived — cannot be asked for again:
+ * the gateway refuses it. Code applying the transition with `ALREADY_RETURNED => true` in its context
+ * says the money is back, and nothing is asked.
+ *
  * **On the transition, not on the guard**, for the reason the completion refusal gives: a guard also
  * answers whether the transition is possible, and something that asks must not move money. The
  * transition runs for an application alone, before the payment's state changes, so a refusal here
@@ -33,6 +38,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 final class RefundPaymentOnTransitionListener
 {
+    /** The context key, published in docs/extending.md, that records a refund without asking NMI. */
+    public const ALREADY_RETURNED = 'jpm_martin_sylius_nmi.already_returned';
+
     public function __construct(
         private readonly NmiPaymentRefunder $refunder,
         private readonly NmiRefundedPayments $refundedPayments,
@@ -52,7 +60,7 @@ final class RefundPaymentOnTransitionListener
             return;
         }
 
-        if ($this->refundedPayments->isRefunded($payment)) {
+        if ($this->refundedPayments->isRefunded($payment) || true === ($event->getContext()[self::ALREADY_RETURNED] ?? null)) {
             return;
         }
 
