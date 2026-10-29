@@ -37,6 +37,10 @@ use Tests\JpmMartin\SyliusNmiPlugin\Functional\Pay\BuildsAnNmiPaymentRequest;
  * The refund plugin hides the button but leaves the route, so the request is the same with it and
  * without it; the token is read off the page when the button is there and made in the operator's
  * session when it is not.
+ *
+ * **Why not a Behat scenario**, although an operator presses this on a page that needs no browser:
+ * the button exists only without the refund plugin, so a scenario could run in one of the two CI
+ * configurations and not the other. This request reaches the route in both.
  */
 final class NmiRefundFromThePaymentRowTest extends WebTestCase
 {
