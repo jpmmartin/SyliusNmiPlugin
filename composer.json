@@ -22,6 +22,8 @@
         "doctrine/orm": "^3.6",
         "sylius/sylius": "~2.2.0 || ~2.3.0",
         "sylius/twig-hooks": "^0.9 || ^0.14",
+        "symfony/dependency-injection": "^7.4",
+        "symfony/framework-bundle": "^7.4",
         "symfony/intl": "^7.4"
     },
     "require-dev": {
