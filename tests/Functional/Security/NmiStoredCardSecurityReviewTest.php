@@ -104,7 +104,15 @@ final class NmiStoredCardSecurityReviewTest extends WebTestCase
         $card = $this->aCard($this->aCustomer(), $this->aPaymentMethod());
         $this->manager->flush();
 
-        $recorded = json_encode($queries->getData(), \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+        // The statements and their parameters, without the parameter types: under DBAL 4 those are
+        // enum cases JSON cannot encode, and a type says nothing about what a value holds.
+        $recorded = json_encode(array_map(
+            static fn (array $connectionQueries): array => array_map(
+                static fn (array $query): array => array_diff_key($query, ['types' => true]),
+                $connectionQueries,
+            ),
+            $queries->getData(),
+        ), \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
 
         self::assertStringNotContainsString(self::VAULT_ID, $recorded, 'The vault reference is in a logged query.');
         self::assertStringNotContainsString('billing-secret', $recorded, 'The billing identifier is in a logged query.');
