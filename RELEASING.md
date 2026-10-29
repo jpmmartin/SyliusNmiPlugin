@@ -44,8 +44,9 @@ finds out what to do, and by the time they read it the upgrade has already faile
 
 ## Cutting a release
 
-1. `composer check` is green — ECS, PHPStan, PHPUnit and Behat — in **both** CI configurations,
-   with and without `sylius/refund-plugin` registered.
+1. `composer check` is green — ECS, PHPStan, PHPUnit and Behat — on every Sylius leg of the Build
+   workflow, each in **both** CI configurations, with and without `sylius/refund-plugin` registered;
+   and so are Build's MySQL schema jobs and the Install workflow for every Sylius minor.
 2. Move the `## [Unreleased]` section of `CHANGELOG.md` under the new version heading with today's
    date, and open a fresh empty `## [Unreleased]`. Update the link definitions at the foot of the
    file.

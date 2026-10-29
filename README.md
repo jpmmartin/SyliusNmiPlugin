@@ -724,8 +724,9 @@ an entry a store added earlier changes nothing. Refunds made there are real refu
 
 Installing the refund plugin itself is more than the package: it needs **four** bundles
 registered, its configuration and **its routes** imported, and its migrations run. Sylius Standard
-registers all four already. Gaufrette is the one a store wired by hand on Sylius 2.2 may lack: Sylius
-2.2 required it itself, and Sylius 2.3 leaves it to the refund plugin, which from 2.2 requires it.
+registers all four already, and every Sylius 2.2 store has Gaufrette, which Sylius 2.2 itself
+configures. On Sylius 2.3 only the refund plugin needs it — version 2.2 or later, which requires it
+— so keep the bundle line when Sylius's own upgrade note says the Gaufrette packages are gone.
 
 ```php
 // config/bundles.php
