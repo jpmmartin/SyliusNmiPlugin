@@ -122,7 +122,7 @@
         <service id="jpm_martin_sylius_nmi.listener.void_payment" class="JpmMartin\SyliusNmiPlugin\EventListener\VoidPaymentListener">
             <argument type="service" id="sylius.factory.payment_request" />
             <argument type="service" id="sylius.repository.payment_request" />
-            <argument type="service" id="sylius.announcer.payment_request" />
+            <argument type="service" id="sylius.payment_request.command_bus" />
             <tag name="kernel.event_listener" event="sylius.payment.pre_cancel" />
         </service>
 
@@ -132,6 +132,17 @@
             <argument type="service" id="jpm_martin_sylius_nmi.gateway.client" />
             <argument type="service" id="jpm_martin_sylius_nmi.recorder.transaction" />
             <argument type="service" id="jpm_martin_sylius_nmi.refund.money_taking_transaction" />
+            <argument type="service" id="sylius_abstraction.state_machine" />
+            <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
+        </service>
+
+        <!--
+            A refund or void request announced rather than sent by this plugin — a shop client
+            naming the action — fails without moving money; the two providers above answer every
+            announced one with this.
+        -->
+        <service id="jpm_martin_sylius_nmi.command_handler.refuse_refund_or_void" class="JpmMartin\SyliusNmiPlugin\CommandHandler\RefuseRefundOrVoidHandler">
+            <argument type="service" id="sylius.provider.payment_request" />
             <argument type="service" id="sylius_abstraction.state_machine" />
             <tag name="messenger.message_handler" bus="sylius.payment_request.command_bus" />
         </service>
