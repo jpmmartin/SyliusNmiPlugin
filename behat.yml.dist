@@ -1,9 +1,10 @@
 # Behat runner configuration. Suites live in tests/Behat/Resources/suites.yml; the first
 # import pulls in every suite Sylius itself ships, so any core feature can be run against
 # the test application with this plugin registered (that is how the "no effect until
-# configured" requirement gets exercised).
+# configured" requirement gets exercised). It goes through a file of the plugin's own because
+# Sylius 2.2 ships those suites as YAML and 2.3 as PHP.
 imports:
-    - vendor/sylius/sylius/src/Sylius/Behat/Resources/config/suites.yml
+    - tests/Behat/Resources/sylius_suites.php
     - tests/Behat/Resources/suites.yml
 
 default:
