@@ -114,6 +114,24 @@ final class NmiTransactionEventTest extends WebTestCase
     }
 
     /**
+     * *A sale voided in the portal before it settled.* The payment was completed, so it cannot be
+     * cancelled; the money went back, which is what a refund records — and NMI is not asked for it.
+     */
+    public function testAVoidOfACompletedPaymentInThePortalMarksItRefundedWithoutAskingNmi(): void
+    {
+        $gateway = new FakeNmiClient();
+        self::getContainer()->set('jpm_martin_sylius_nmi.gateway.client', $gateway);
+        $payment = $this->aPaymentIn(PaymentInterface::STATE_COMPLETED);
+
+        $this->deliver('transaction.void.success', 'void-completed');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(PaymentInterface::STATE_REFUNDED, $this->stateOf($payment));
+        self::assertSame('applied', $this->lastNotifyResult($payment));
+        self::assertSame([], $gateway->operations, 'NMI was asked to give back what its portal already voided.');
+    }
+
+    /**
      * *A void performed outside the store* is not voided again. The payment was authorised, so its
      * cancellation would otherwise queue a void of an authorisation the gateway has just let go.
      */
@@ -242,8 +260,12 @@ final class NmiTransactionEventTest extends WebTestCase
      * A refund event may name the refund's own identifier rather than the sale's. The store
      * records the original as the parent, so both resolve — and this pins that, because searching
      * one column would resolve half the events and silently disown the rest.
+     *
+     * A refund the store recorded is one it sent: NMI tells back the refunds made through its API
+     * as well as in its portal. This one was part of the money, sent through the refund plugin, so
+     * the payment stays completed — reflecting it would mark the whole payment refunded.
      */
-    public function testAnEventNamingTheRefundsOwnIdentifierStillResolves(): void
+    public function testARefundThisStoreSentIsResolvedByItsOwnIdentifierAndReflectsNothing(): void
     {
         $payment = $this->aPaymentIn(PaymentInterface::STATE_COMPLETED);
         $this->recorder()->record($payment, $this->approved($this->sale . '9'), NmiTransactionInterface::TYPE_REFUND, $this->sale);
@@ -251,6 +273,22 @@ final class NmiTransactionEventTest extends WebTestCase
 
         $this->deliver('transaction.refund.success', 'ref-by-child', [], $this->sale . '9');
 
-        self::assertSame(PaymentInterface::STATE_REFUNDED, $this->stateOf($payment));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame('own_operation', $this->lastNotifyResult($payment), 'The event did not reach its payment, or was reflected.');
+        self::assertSame(PaymentInterface::STATE_COMPLETED, $this->stateOf($payment));
+    }
+
+    /** *A void this store sent*, told back, is not reflected a second time either. */
+    public function testAVoidThisStoreSentIsNotReflectedAgain(): void
+    {
+        $payment = $this->aPaymentIn(PaymentInterface::STATE_AUTHORIZED);
+        $this->recorder()->record($payment, $this->approved($this->sale), NmiTransactionInterface::TYPE_VOID);
+        $this->manager->flush();
+
+        $this->deliver('transaction.void.success', 'void-own');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame('own_operation', $this->lastNotifyResult($payment));
+        self::assertSame(PaymentInterface::STATE_AUTHORIZED, $this->stateOf($payment));
     }
 }
