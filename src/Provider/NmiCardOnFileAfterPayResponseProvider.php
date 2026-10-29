@@ -15,6 +15,7 @@ use Sylius\Component\Payment\Factory\PaymentRequestFactoryInterface;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
 use Sylius\Component\Payment\Repository\PaymentRequestRepositoryInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 
@@ -29,6 +30,9 @@ use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
  *
  * The status request is still created and announced, as the platform does on every return, so that
  * what a store listens for on the way back does not go quiet on this path.
+ *
+ * **Both Sylius 2.2 and 2.3.** Sylius 2.3 passes the request where 2.2 passed its configuration; a
+ * parameter that takes either satisfies both interfaces, and the request is read off whichever came.
  *
  * @internal
  */
@@ -53,18 +57,19 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
     ) {
     }
 
-    public function supports(RequestConfiguration $requestConfiguration): bool
+    public function supports(RequestConfiguration|Request $request): bool
     {
-        $payment = $this->paymentOf($requestConfiguration);
+        $payment = $this->paymentOf(self::requestOf($request));
 
         return null !== $payment &&
             PaymentInterface::STATE_PROCESSING === $payment->getState() &&
             (null !== $this->cardsOnFile->findHeldBy($payment) || $this->holdsARecurringCredential($payment));
     }
 
-    public function getResponse(RequestConfiguration $requestConfiguration): Response
+    public function getResponse(RequestConfiguration|Request $request): Response
     {
-        $previous = $this->previousRequest($requestConfiguration);
+        $request = self::requestOf($request);
+        $previous = $this->previousRequest($request);
         if (null !== $previous) {
             $status = $this->paymentRequestFactory->createFromPaymentRequest($previous);
             $status->setAction(PaymentRequestInterface::ACTION_STATUS);
@@ -72,7 +77,6 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
             $this->announcer->dispatchPaymentRequestCommand($status);
         }
 
-        $request = $requestConfiguration->getRequest();
         if ($request->hasSession()) {
             $session = $request->getSession();
             if ($session instanceof FlashBagAwareSessionInterface) {
@@ -89,9 +93,9 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
         return new RedirectResponse($this->finalUrlProvider->getUrl(null));
     }
 
-    private function previousRequest(RequestConfiguration $requestConfiguration): ?PaymentRequestInterface
+    private function previousRequest(Request $request): ?PaymentRequestInterface
     {
-        $hash = $requestConfiguration->getRequest()->attributes->get('hash');
+        $hash = $request->attributes->get('hash');
         if (!is_string($hash) || '' === $hash) {
             return null;
         }
@@ -110,10 +114,16 @@ final class NmiCardOnFileAfterPayResponseProvider implements AfterPayResponsePro
         return null !== $credential && !$credential->isReleased();
     }
 
-    private function paymentOf(RequestConfiguration $requestConfiguration): ?PaymentInterface
+    private function paymentOf(Request $request): ?PaymentInterface
     {
-        $payment = $this->previousRequest($requestConfiguration)?->getPayment();
+        $payment = $this->previousRequest($request)?->getPayment();
 
         return $payment instanceof PaymentInterface ? $payment : null;
+    }
+
+    /** The request itself, whichever of the two Sylius passed. */
+    private static function requestOf(RequestConfiguration|Request $request): Request
+    {
+        return $request instanceof RequestConfiguration ? $request->getRequest() : $request;
     }
 }

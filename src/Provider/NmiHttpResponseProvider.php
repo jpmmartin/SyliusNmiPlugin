@@ -7,6 +7,7 @@ namespace JpmMartin\SyliusNmiPlugin\Provider;
 use Sylius\Bundle\PaymentBundle\Provider\HttpResponseProviderInterface;
 use Sylius\Bundle\ResourceBundle\Controller\RequestConfiguration;
 use Sylius\Component\Payment\Model\PaymentRequestInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Twig\Environment;
 
@@ -18,6 +19,9 @@ use Twig\Environment;
  * on the request. Only a request in progress gets a form: one that has finished has nothing left
  * to collect, and returning no response lets the platform send the shopper on to its own
  * after-pay page rather than showing a card form for a payment that is already settled.
+ *
+ * **Both Sylius 2.2 and 2.3.** Sylius 2.3 passes the request where 2.2 passed its configuration, and a
+ * parameter that takes either satisfies both interfaces. Nothing here reads it.
  *
  * @internal
  */
@@ -35,7 +39,7 @@ final class NmiHttpResponseProvider implements HttpResponseProviderInterface
     }
 
     public function supports(
-        RequestConfiguration $requestConfiguration,
+        RequestConfiguration|Request $request,
         PaymentRequestInterface $paymentRequest,
     ): bool {
         return PaymentRequestInterface::STATE_PROCESSING === $paymentRequest->getState() &&
@@ -43,7 +47,7 @@ final class NmiHttpResponseProvider implements HttpResponseProviderInterface
     }
 
     public function getResponse(
-        RequestConfiguration $requestConfiguration,
+        RequestConfiguration|Request $request,
         PaymentRequestInterface $paymentRequest,
     ): Response {
         return new Response($this->twig->render(self::TEMPLATE, [
