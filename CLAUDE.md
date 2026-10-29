@@ -41,7 +41,8 @@ Never query "latest". Derive the real numbers from `composer.lock` — but note 
 gitignored** (correct for a library), so a fresh clone has none until `composer install` runs.
 
 Declared constraints: `php ^8.2`, `sylius/sylius ~2.2.0 || ~2.3.0`, `doctrine/orm ^3.6`,
-`sylius/twig-hooks ^0.9 || ^0.14`, Symfony `^7.4`.
+`sylius/twig-hooks ^0.9 || ^0.14`, and `symfony/framework-bundle`, `symfony/dependency-injection` and
+`symfony/intl` at `^7.4` — framework-bundle and DI both, because each admits the other's next major.
 
 There is no single answer any more: the build pins three legs (`.github/workflows/build.yaml`), and
 which one you are on decides the version to query. At the time of writing they resolved:
@@ -207,11 +208,12 @@ the container is built — the whole store goes down, NMI configured or not. The
 providers take `RequestConfiguration|Request`, which satisfies both. Every published version up to
 1.3.2 declared `^2.2` and fails on 2.3; Composer falls back to them whenever a newer one is excluded.
 
-**2.3 made the PaymentRequest contracts stable, not the encryption ones.** `UPGRADE-2.3` says
-`@experimental` left all of `Sylius\Component\Payment`; `vendor/` disagrees, and `vendor/` wins:
+**2.3 made the PaymentRequest contracts stable, not the encryption ones.** `UPGRADE-2.3` takes
+`@experimental` off what belongs to the Payment Request feature, across `Sylius\Component\Payment` and
+four other namespaces, and `vendor/` confirms the encryption classes are not part of it:
 `EntityEncrypterInterface`, `EncryptionAwareInterface`, `EncryptionCheckTrait`, `EncrypterInterface`
-and `EntityEncryptionListener` are still `@experimental` in 2.3.2, and the plugin implements,
-extends or instantiates all of them. That is why the constraint names minors.
+and `EntityEncryptionListener` are still `@experimental` in 2.3.2. The plugin implements, extends,
+instantiates or injects every one of them. That is why the constraint names minors.
 
 **PaymentRequest is a Payum-free path.** `Sylius\Bundle\PaymentBundle` contains no Payum reference;
 the dispatch key is a plain string from `GatewayConfig`. `SyliusPayumBundle` consumes the same public
@@ -343,8 +345,9 @@ routes `/payment-requests/{hash}` and `/payment-methods/{code}`; duplicate suppr
 `PaymentRequestDuplicationChecker`, which prevents a second capture for the same action, payment and
 method. Sylius 2.3 adds `sylius_payment.encryption.strict_mode`, off by default; with it on, Sylius
 2.3.2's own `EntityEncryptionListener` decrypts an already decrypted `GatewayConfig` on `postFlush` and
-throws, with or without this plugin — cancelling an order from the admin answers 500 and a refund
-plugin refund never reaches NMI. Documented for stores, not worked around.
+throws, with or without this plugin. The order screen's cancel is rolled back; the admin API's is
+committed first and throws before the plugin's `postFlush` listeners run, so no void is queued; a
+refund plugin refund fails and records nothing. Documented for stores, not worked around.
 
 **Sylius 2.3 moved things the test suite stands on.** Its test application no longer registers
 `KnpGaufretteBundle`, which refund-plugin 2.2 needs; its Behat suites are `suites.php` instead of

@@ -12,8 +12,8 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 - **Sylius 2.3.** The plugin installs and runs on Sylius 2.3 as well as 2.2: `sylius/sylius` is
   `~2.2.0 || ~2.3.0`. Sylius 2.3 passes the payment response providers the request where 2.2 passed
-  its configuration, and every earlier version of this plugin failed to compile the container there;
-  both providers now take either. Built on Sylius 2.2 with PHP 8.2, and on Sylius 2.3 at both ends of
+  its configuration: versions 1.0.0 to 1.3.2 accept Sylius 2.3 and fail to compile the container
+  there, and 1.3.3 does not install on it. Both providers now take either. Built on Sylius 2.2 with PHP 8.2, and on Sylius 2.3 at both ends of
   what it admits — DBAL 3, DoctrineBundle 2 and API Platform 4 with PHP 8.3 and Symfony UX 2, and DBAL
   4, DoctrineBundle 3 and API Platform 5 with PHP 8.4 and UX 3 — each with and without the refund
   plugin. Nothing to migrate, configure or rebuild for this release itself. Moving a store to Sylius
@@ -24,9 +24,13 @@ here, and what counts as a breaking change, are written down in [RELEASING.md](R
 
 ### Changed
 
-- **Requirements narrowed to what is tested:** Symfony 7.4, `doctrine/orm` 3.6 or later,
-  `sylius/twig-hooks` 0.9 or 0.14, and `sylius/refund-plugin` 2.2 or later, the first that installs on
-  Sylius 2.3. A store on Symfony 6.4 or Doctrine ORM 2 is kept on 1.3 by Composer.
+- **Requirements narrowed:** Symfony 7.4 (`symfony/framework-bundle` and
+  `symfony/dependency-injection` `^7.4`, which also keeps Symfony 8 out: its dependency injection has
+  no XML loader, and this plugin's services are XML), `doctrine/orm` 3.6 or later, and
+  `sylius/twig-hooks` 0.9 or 0.14. Composer keeps a store on Symfony 6.4, Doctrine ORM 2 or twig-hooks
+  0.12 or 0.13 on 1.3 — **on Sylius 2.2 only**: such a store must reach those versions before it moves
+  Sylius to 2.3, or Composer gives it 1.3.2, which fails there. The refund plugin is tested at 2.2;
+  Composer does not require it, but 2.1 does not boot on Sylius 2.3.
 - **Raise your own constraint to `^1.4`.** Versions up to 1.3.2 accept any Sylius 2.x, so a lower
   bound lets Composer answer a Sylius minor this plugin does not support yet with one of them.
 

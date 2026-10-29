@@ -13,7 +13,7 @@ is binding from the first tagged release. It is what lets you write a caret cons
 thinking about it:
 
 ```json
-"jpmmartin/sylius-nmi-plugin": "^1.0"
+"jpmmartin/sylius-nmi-plugin": "^1.4"
 ```
 
 | Release | What it may contain | What you have to do |
@@ -96,9 +96,10 @@ whatever the engine.
 ## Upgrading to 1.4, and moving to Sylius 2.3
 
 **On Sylius 2.2, 1.4 changes nothing you have to do.** It adds no migration, no setting and no
-asset change. What it requires is narrower than 1.3: Symfony 7.4, `doctrine/orm` 3.6 or later,
-`sylius/twig-hooks` 0.9 on Sylius 2.2 or 0.14 on 2.3, and `sylius/refund-plugin` 2.2 or later if you
-use it. A store on Symfony 6.4 or Doctrine ORM 2 is kept on 1.3 by Composer.
+asset change. What it requires is narrower than 1.3: Symfony 7.4, `doctrine/orm` 3.6 or later, and
+`sylius/twig-hooks` 0.9 on Sylius 2.2 or 0.14 on 2.3. A store below any of those is kept on 1.3 by
+Composer — which on Sylius 2.2 means 1.3.3, and is safe. The refund plugin is tested at 2.2;
+Composer does not require it, and on Sylius 2.2 version 2.1 still works.
 
 **Raise your own constraint** to `"jpmmartin/sylius-nmi-plugin": "^1.4"`. Versions 1.0.0 to 1.3.2
 accept any Sylius 2.x, so with a lower bound Composer answers a Sylius minor this plugin does not
@@ -106,17 +107,24 @@ support yet by installing one of those, which then stops the store from compilin
 With `^1.4` it refuses the update and says why.
 
 **Moving a store from Sylius 2.2 to 2.3** — update this plugin to 1.4 first, on Sylius 2.2, then
-follow Sylius's own `UPGRADE-2.3.md`. The parts of it that touch this plugin:
+follow Sylius's own `UPGRADE-2.3.md`. **If Composer will not give you 1.4 on Sylius 2.2, do not move
+Sylius yet**: on Sylius 2.3 the only version left for it to choose is 1.3.2, which accepts 2.3 and
+stops the store from compiling its container. Bring Symfony to 7.4, `doctrine/orm` to 3.6 or later and,
+for 2.3, `sylius/twig-hooks` to 0.14 first. The same holds for a first `composer require` of this
+plugin into a Sylius 2.3 store below those versions. The parts of Sylius's upgrade that touch this
+plugin:
 
 - **The front end.** Sylius 2.3 builds with Webpack Encore 6, which needs Node `^22.13.0` or
   `>=24.0`; rebuild after the upgrade (`yarn install --force`, `yarn build`,
   `bin/console assets:install`). This plugin's own scripts did not change in 1.4; coming from 1.3.2
   or earlier, the rebuild is also what brings in the 1.3.3 fixes. Sylius Standard 2.3 names its
   configuration `webpack.config.mjs`; the `@vendor` alias the plugin's import uses is still there.
-- **The refund plugin**, if you use it: 2.2 or later, with `KnpGaufretteBundle` registered in
-  `config/bundles.php`. Sylius 2.2 brought Gaufrette itself and 2.3 does not, so a store that wired
-  the refund plugin by hand may lack it, and the container then fails to load the refund plugin's
-  configuration.
+- **The refund plugin**, if you use it: 2.2 or later — 2.1 does not boot on Sylius 2.3 — and keep
+  `KnpGaufretteBundle` registered in `config/bundles.php`. Every Sylius 2.2 store has it, because
+  Sylius 2.2 configures it; on 2.3 only the refund plugin needs it. Sylius's `UPGRADE-2.3` says the
+  Gaufrette packages were removed, which is true of Sylius and not of the refund plugin: removing the
+  bundle line, or staying on refund plugin 2.1 and letting Composer remove the package, makes the
+  container fail to load the refund plugin's configuration.
 - **Routes, hooks and configuration**: nothing to change for NMI. The pay and after-pay URLs and the
   plugin's own routes are the same on 2.3. The `_sylius.redirect` block Sylius 2.3 took off the pay
   route was read only by Payum gateways, and this one is not one.
@@ -125,14 +133,20 @@ follow Sylius's own `UPGRADE-2.3.md`. The parts of it that touch this plugin:
   PostgreSQL is an identity column, where DBAL 3 made a `SERIAL` one. On a database built under DBAL
   3, `doctrine:migrations:diff` and `doctrine:schema:update --dump-sql` then propose converting the
   plugin's six tables, and `messenger_messages`. **Do not apply that as generated**: the new identity
-  starts at 1, and the next insert into a table that has rows fails on its primary key. Leave the
-  columns as they are — the plugin works on them under DBAL 4 — or convert them with the procedure
-  DBAL documents for exactly this, `upgrade_serial_to_identity`, in its PostgreSQL identity migration
-  guide. Keeping `"doctrine/dbal": "^3.10"` in your own `composer.json` postpones the question.
+  starts at 1, and the next insert into a table that has rows fails on its primary key. Convert them
+  with the procedure DBAL documents for exactly this, `upgrade_serial_to_identity`, in its PostgreSQL
+  identity migration guide; that is the lasting fix. Leaving them as they are works — the plugin runs
+  on `SERIAL` columns under DBAL 4 — but every later `doctrine:migrations:diff`, `schema:update` and
+  `schema:validate` proposes the same conversion again, mixed into whatever else changed, and those
+  lines must be removed from each migration it generates. Keeping `"doctrine/dbal": "^3.10"` in your
+  own `composer.json` postpones the question.
 - **`sylius_payment.encryption.strict_mode`**, new in 2.3: leave it off. With it on, Sylius 2.3.2's
-  own encryption listener fails flushes that touch a payment method's configuration — cancelling an
-  order from the admin answers 500, and a refund made through the refund plugin never reaches NMI.
-  The cause is in Sylius, with or without this plugin. `allowed_classes: false` works.
+  own encryption listener fails flushes that touch a payment method's configuration, with or without
+  this plugin. Cancelling an order from the order screen answers 500 and is rolled back. Through the
+  admin API it answers 500 **after the cancellation is saved**, and before this plugin's listeners run,
+  so an authorisation is never voided at NMI and stays held until it expires or is voided in NMI's
+  portal. A refund through the refund plugin fails with *Unexpected error occurred* and records
+  nothing. `allowed_classes: false` works.
 - **Channels without a hostname**: from Sylius 2.2.12 and 2.3.2, links in e-mails rendered outside a
   request become relative. The cardholder e-mail this plugin sends from the `main` worker is one of
   those, so set each channel's hostname.
